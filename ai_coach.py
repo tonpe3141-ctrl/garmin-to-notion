@@ -1,4 +1,5 @@
 import os
+import sys
 import datetime
 from datetime import timedelta, timezone
 import google.generativeai as genai
@@ -15,7 +16,7 @@ def main():
     
     if not all([gemini_api_key, notion_token, database_id]):
         print("Error: Missing environment variables (GEMINI_API_KEY, NOTION_TOKEN, or NOTION_DB_ID).")
-        return
+        sys.exit(1)
 
     # Initialize Clients
     genai.configure(api_key=gemini_api_key)
@@ -45,7 +46,7 @@ def main():
         results = notion.databases.query(**query_params).get("results", [])
     except Exception as e:
         print(f"Error fetching data from Notion: {e}")
-        return
+        sys.exit(1)
 
     if not results:
         print("No activities found in the last 30 days.")
@@ -134,6 +135,7 @@ def main():
     - 親しみやすく、ポジティブな「良きパートナー」。
     - ランナーの努力を肯定し、適切に褒める。
     - 敬語（デス・マス調）で丁寧だが、堅苦しくないこと。
+    - アドバイスの最後には、必ず「がんばりましょう！🔥」などの絵文字を含めた応援メッセージを入れてください。
 2. **分析の視点**:
     - 単日の結果だけでなく、「過去1ヶ月の積み重ね」と比較して評価してください（例：「今月で一番良いペースでしたね」「今月は距離を踏めているので、今日は休養でもOKです」など）。
     - サブ3:15に向けた進捗状況（ベース、スピード、スタミナのバランス）を考慮してください。
@@ -155,7 +157,7 @@ def main():
         print(advice_text)
     except Exception as e:
         print(f"Error calling Gemini: {e}")
-        return
+        sys.exit(1)
 
     # 4. Write back to Notion
     try:
@@ -181,6 +183,7 @@ def main():
     except Exception as e:
         print(f"Error writing to Notion: {e}")
         print("Note: Ensure the property 'AIコーチのアドバイス' (Rich Text) exists in the database.")
+        sys.exit(1)
 
 if __name__ == "__main__":
     main()
