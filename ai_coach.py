@@ -148,9 +148,21 @@ def main():
 アドバイスの本文のみを出力してください。
 """
 
+    # Debug: List available models
+    print("--- Available Gemini Models ---")
+    try:
+        for m in genai.list_models():
+            if 'generateContent' in m.supported_generation_methods:
+                print(m.name)
+    except Exception as e:
+        print(f"Error listing models: {e}")
+    print("-------------------------------")
+
     # 3. Call Gemini
     try:
-        model = genai.GenerativeModel("gemini-3.0-pro")
+        # User requested Gemini 3 Pro. Trying 'gemini-3-pro' based on UI name 'Gemini 3 Pro'.
+        # Previous attempts: 'gemini-3.0-pro' (404), 'gemini-3-flash' (404).
+        model = genai.GenerativeModel("gemini-3-pro") 
         response = model.generate_content(prompt)
         advice_text = response.text.strip()
         print("--- Generated Advice ---")
