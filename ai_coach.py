@@ -150,7 +150,7 @@ def main():
 
     # 3. Call Gemini
     try:
-        model = genai.GenerativeModel("gemini-3.0-flash")
+        model = genai.GenerativeModel("gemini-3-flash")
         response = model.generate_content(prompt)
         advice_text = response.text.strip()
         print("--- Generated Advice ---")
