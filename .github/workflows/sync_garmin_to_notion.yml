@@ -44,6 +44,6 @@ jobs:
           TZ: 'America/Montreal'
         run: |
           python garmin-activities.py
-          python personal-records.py
-          python daily-steps.py
-          python sleep-data.py
+          # python personal-records.py
+          # python daily-steps.py
+          # python sleep-data.py
