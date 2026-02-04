@@ -9,7 +9,7 @@ from notion_client import Client as NotionClient
 # タイムゾーンの設定
 local_tz = pytz.timezone('Asia/Tokyo')
 
-# アイコン設定（日本語キーに変更）
+# アイコン設定（日本語キー）
 ACTIVITY_ICONS = {
     "バー": "https://img.icons8.com/?size=100&id=66924&format=png&color=000000",
     "呼吸法": "https://img.icons8.com/?size=100&id=9798&format=png&color=000000",
@@ -37,17 +37,12 @@ def get_all_activities(garmin_client: GarminClient, limit: int = 1000) -> list[d
 
 def format_activity_type(activity_type: str, activity_name: str = "") -> tuple[str, str]:
     formatted_type = activity_type.replace('_', ' ').title() if activity_type else "Unknown"
-    
     activity_subtype = formatted_type
     activity_type = formatted_type
 
     activity_mapping = {
-        "Barre": "Strength",
-        "Indoor Cardio": "Cardio",
-        "Indoor Cycling": "Cycling",
-        "Indoor Rowing": "Rowing",
-        "Speed Walking": "Walking",
-        "Strength Training": "Strength",
+        "Barre": "Strength", "Indoor Cardio": "Cardio", "Indoor Cycling": "Cycling",
+        "Indoor Rowing": "Rowing", "Speed Walking": "Walking", "Strength Training": "Strength",
         "Treadmill Running": "Running"
     }
 
@@ -61,63 +56,52 @@ def format_activity_type(activity_type: str, activity_name: str = "") -> tuple[s
         activity_type = activity_mapping[formatted_type]
         activity_subtype = formatted_type
 
-    # 日本語への翻訳マップ
     japanese_map = {
-        "Running": "ランニング",
-        "Cycling": "サイクリング",
-        "Walking": "ウォーキング",
-        "Strength": "筋トレ",
-        "Yoga/Pilates": "ヨガ/ピラティス",
-        "Stretching": "ストレッチ",
-        "Meditation": "瞑想",
-        "Swimming": "スイミング",
-        "Rowing": "ローイング",
-        "Hiking": "ハイキング",
-        "Cardio": "有酸素運動",
-        "Treadmill Running": "トレッドミル",
-        "Indoor Cycling": "室内サイクリング",
-        "Yoga": "ヨガ",
-        "Pilates": "ピラティス",
-        "Barre": "バー"
+        "Running": "ランニング", "Cycling": "サイクリング", "Walking": "ウォーキング",
+        "Strength": "筋トレ", "Yoga/Pilates": "ヨガ/ピラティス", "Stretching": "ストレッチ",
+        "Meditation": "瞑想", "Swimming": "スイミング", "Rowing": "ローイング",
+        "Hiking": "ハイキング", "Cardio": "有酸素運動", "Treadmill Running": "トレッドミル",
+        "Indoor Cycling": "室内サイクリング", "Yoga": "ヨガ", "Pilates": "ピラティス", "Barre": "バー"
     }
 
-    # 特殊な名前による判定
-    if activity_name and "meditation" in activity_name.lower():
-        return "瞑想", "瞑想"
-    if activity_name and "barre" in activity_name.lower():
-        return "筋トレ", "バー"
-    if activity_name and "stretch" in activity_name.lower():
-        return "ストレッチ", "ストレッチ"
+    if activity_name and "meditation" in activity_name.lower(): return "瞑想", "瞑想"
+    if activity_name and "barre" in activity_name.lower(): return "筋トレ", "バー"
+    if activity_name and "stretch" in activity_name.lower(): return "ストレッチ", "ストレッチ"
 
     return japanese_map.get(activity_type, activity_type), japanese_map.get(activity_subtype, activity_subtype)
 
 def format_training_message(message: str) -> str:
     messages = {
-        'NO_': '効果なし',
-        'MINOR_': 'わずかな効果',
-        'RECOVERY_': 'リカバリー',
-        'MAINTAINING_': '維持',
-        'IMPROVING_': '向上',
-        'IMPACTING_': '影響あり',
-        'HIGHLY_': '高い影響',
-        'OVERREACHING_': 'オーバーリーチ'
+        'NO_': '効果なし', 'MINOR_': 'わずかな効果', 'RECOVERY_': 'リカバリー',
+        'MAINTAINING_': '維持', 'IMPROVING_': '向上', 'IMPACTING_': '影響あり',
+        'HIGHLY_': '高い影響', 'OVERREACHING_': 'オーバーリーチ'
     }
     for key, value in messages.items():
-        if message.startswith(key):
-            return value
+        if message.startswith(key): return value
     return message
 
 def format_training_effect(training_effect_label: str) -> str:
-    # トレーニング効果ラベルの日本語化
+    # 画像にあるオプションをすべて網羅
     label_map = {
         "Recovery": "リカバリー",
+        "Aerobic Base": "ベース",
+        "Base": "ベース",
+        "Tempo": "テンポ",
+        "Lactate Threshold": "乳酸閾値",
+        "Threshold": "閾値",
+        "Speed": "スピード",
+        "Anaerobic": "無酸素",
+        "Sprint": "スプリント",
+        "Vo2 Max": "VO2max",  # VO2maxはそのまま
         "Maintaining": "維持",
         "Improving": "向上",
         "Impacting": "影響あり",
         "Highly Impacting": "高い影響",
         "Overreaching": "オーバーリーチ",
-        "No Benefit": "効果なし"
+        "No Benefit": "効果なし",
+        "Unknown": "不明"
     }
+    # _ を半角スペースにしてタイトル形式にする（例: AEROBIC_BASE -> Aerobic Base）
     formatted = training_effect_label.replace('_', ' ').title()
     return label_map.get(formatted, formatted)
 
@@ -133,7 +117,6 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
     lookup_type = "ストレッチ" if "stretch" in activity_name.lower() else activity_type
     lookup_min_date = activity_date - timedelta(minutes=5)
     lookup_max_date = activity_date + timedelta(minutes=5)
-
     query = notion_client.databases.query(
         database_id=database_id,
         filter={
@@ -175,8 +158,7 @@ def create_activity(notion_client: NotionClient, database_id: str, activity: dic
     }
 
     page = {"parent": {"database_id": database_id}, "properties": properties}
-    if icon_url:
-        page["icon"] = {"type": "external", "external": {"url": icon_url}}
+    if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
     notion_client.pages.create(**page)
 
 def main():
@@ -192,7 +174,6 @@ def main():
     notion_client = NotionClient(auth=notion_token)
 
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
-
     for activity in activities:
         activity_date_raw = activity.get('startTimeGMT')
         activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
