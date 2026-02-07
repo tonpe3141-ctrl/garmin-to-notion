@@ -126,21 +126,26 @@ def main():
             
         service = build('drive', 'v3', credentials=creds)
         
-        # Check if file exists in the folder
-        file_name = "Garmin_Running_Journal.txt"
+        # Debug: List all files in the folder to help user troubleshoot
+        print(f"Checking contents of folder ID: {target_folder_id}...")
+        list_query = f"'{target_folder_id}' in parents and trashed = false"
+        results = service.files().list(q=list_query, spaces='drive', fields='files(id, name, mimeType)', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        all_files = results.get('files', [])
         
-        # Query: name = '...' and '<folder_id>' in parents and trashed = false
-        query = f"name = '{file_name}' and '{target_folder_id}' in parents and trashed = false"
-        # supportAllDrives=True allows looking into Shared Drives if applicable
-        results = service.files().list(q=query, spaces='drive', fields='files(id, name)', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
-        files = results.get('files', [])
+        target_file = None
+        for f in all_files:
+            print(f" - Found file: '{f['name']}' (ID: {f['id']}, Type: {f['mimeType']})")
+            # matches "Garmin_Running_Journal.txt" OR "Garmin_Running_Journal"
+            if f['name'] == file_name or f['name'] == "Garmin_Running_Journal":
+                target_file = f
+                break
         
         media = MediaIoBaseUpload(io.BytesIO(journal_content.encode('utf-8')), mimetype='text/plain', resumable=True)
         
-        if files:
+        if target_file:
             # Update existing file
-            file_id = files[0]['id']
-            print(f"Updating existing file: {file_name} (ID: {file_id})")
+            file_id = target_file['id']
+            print(f"Updating existing file: '{target_file['name']}' (ID: {file_id})")
             service.files().update(
                 fileId=file_id,
                 media_body=media,
@@ -148,10 +153,10 @@ def main():
             ).execute()
         else:
             # Cannot create new file because Service Accounts have 0 storage quota.
-            # We must ask the user to create it first.
-            print(f"Error: Target file '{file_name}' not found in folder.")
-            print("Action Required: Please create an empty text file named 'Garmin_Running_Journal.txt' in your Google Drive folder manually.")
-            print("Reason: Service Accounts cannot create new files (0 storage quota), they can only edit existing ones owned by you.")
+            print(f"\nError: Target file '{file_name}' (or without .txt) not found in the specified folder.")
+            print(f"Folder ID being searched: {target_folder_id}")
+            print("Files actually found in this folder are listed above.")
+            print("Action Required: Please ensure the file is in the CORRECT folder and named exactly 'Garmin_Running_Journal.txt'.")
             sys.exit(1)
             
         print("Upload successful!")
