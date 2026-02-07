@@ -109,11 +109,21 @@ def main():
     try:
         # Load JSON from string (env var) or file?
         # If env var starts with '{', treat as string content. Else treat as path.
+        if google_sa_json.strip().startswith("{"):
+            creds_info = json.loads(google_sa_json)
+            creds = Credentials.from_service_account_info(
+                creds_info, 
+                scopes=['https://www.googleapis.com/auth/drive.file'] 
+            )
+        else:
+            creds = Credentials.from_service_account_file(
+                google_sa_json, 
+                scopes=['https://www.googleapis.com/auth/drive']
+            )
+
         if hasattr(creds, 'service_account_email'):
              print(f"Authenticated as Service Account: {creds.service_account_email}")
              print(f"Please verify that the folder is shared with THIS email address: {creds.service_account_email}")
-        
-        service = build('drive', 'v3', credentials=creds)
         
         # Debug: List all files in the folder to help user troubleshoot
         print(f"Checking contents of folder ID: {target_folder_id} (Length: {len(target_folder_id)})")
