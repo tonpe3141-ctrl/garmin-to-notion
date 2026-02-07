@@ -153,7 +153,8 @@ def main():
             end_index = doc['body']['content'][-1]['endIndex']
             
             requests = []
-            if end_index > 1:
+            # Only delete if there's actual content (end_index > 2 means there's more than just a newline)
+            if end_index > 2:
                 requests.append({
                     'deleteContentRange': {
                         'range': {
