@@ -125,6 +125,8 @@ def main():
              print(f"Authenticated as Service Account: {creds.service_account_email}")
              print(f"Please verify that the folder is shared with THIS email address: {creds.service_account_email}")
         
+        service = build('drive', 'v3', credentials=creds)
+        
         # Debug: List all files in the folder to help user troubleshoot
         print(f"Checking contents of folder ID: {target_folder_id} (Length: {len(target_folder_id)})")
         if len(target_folder_id) < 20:
