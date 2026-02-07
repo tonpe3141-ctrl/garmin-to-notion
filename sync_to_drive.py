@@ -4,9 +4,7 @@ import sys
 from notion_client import Client
 from google.oauth2.service_account import Credentials
 from googleapiclient.discovery import build
-from googleapiclient.http import MediaIoBaseUpload
 from dotenv import load_dotenv
-import io
 import json
 
 def main():
@@ -29,9 +27,6 @@ def main():
     print("Fetching data from Notion...")
     notion = Client(auth=notion_token)
     
-    # Sort descending to get latest first, but we want chronological for the log?
-    # Usually a journal is chronological (Old -> New) or Reverse (New -> Old).
-    # LLMs handle both, but New -> Old is often better for "Recent Context".
     query_params = {
         "database_id": database_id,
         "sorts": [{"property": "日付", "direction": "descending"}]
@@ -53,7 +48,6 @@ def main():
             has_more = response.get("has_more", False)
             start_cursor = response.get("next_cursor")
             
-            # Safety break to avoid infinite loops or massive fetches (start with 1000 limit?)
             if len(all_activities) > 500:
                 break
                 
@@ -64,15 +58,12 @@ def main():
     print(f"Fetched {len(all_activities)} activities.")
 
     # 3. Format Data for NotebookLM
-    # We want a text format that explicitly describes the data points.
-    
     journal_content = "# Garmin Running Journal\n\n"
     journal_content += f"Last Updated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
     
     for page in all_activities:
         props = page.get("properties", {})
         
-        # Extract Fields
         date_prop = props.get("日付", {}).get("date", {})
         date_str = date_prop.get("start") if date_prop else "Unknown"
         
@@ -89,11 +80,9 @@ def main():
         te_select = props.get("トレーニング効果", {}).get("select", {})
         training_effect = te_select.get("name", "-") if te_select else "-"
         
-        # Advice
         advice_list = props.get("AIコーチのアドバイス", {}).get("rich_text", [])
         advice = advice_list[0].get("text", {}).get("content", "") if advice_list else ""
         
-        # Format Entry
         journal_content += f"## {date_str} - {activity_name}\n"
         journal_content += f"- Type: {activity_type}\n"
         journal_content += f"- Distance: {distance} km\n"
@@ -104,75 +93,102 @@ def main():
             journal_content += f"- Coach Advice: {advice}\n"
         journal_content += "\n---\n\n"
 
-    # 4. Upload to Google Drive via Service Account
+    # 4. Upload to Google Drive as Google Docs format
     print("Authenticating with Google Drive...")
     try:
-        # Load JSON from string (env var) or file?
-        # If env var starts with '{', treat as string content. Else treat as path.
         if google_sa_json.strip().startswith("{"):
             creds_info = json.loads(google_sa_json)
             creds = Credentials.from_service_account_info(
                 creds_info, 
-                # 'drive.file' only accesses files created by this app.
-                # 'drive' accesses ALL files shared with the SA (what we need).
-                scopes=['https://www.googleapis.com/auth/drive'] 
+                scopes=[
+                    'https://www.googleapis.com/auth/drive',
+                    'https://www.googleapis.com/auth/documents'
+                ]
             )
         else:
             creds = Credentials.from_service_account_file(
                 google_sa_json, 
-                scopes=['https://www.googleapis.com/auth/drive']
+                scopes=[
+                    'https://www.googleapis.com/auth/drive',
+                    'https://www.googleapis.com/auth/documents'
+                ]
             )
 
         if hasattr(creds, 'service_account_email'):
              print(f"Authenticated as Service Account: {creds.service_account_email}")
-             print(f"Please verify that the folder is shared with THIS email address: {creds.service_account_email}")
         
-        service = build('drive', 'v3', credentials=creds)
+        drive_service = build('drive', 'v3', credentials=creds)
+        docs_service = build('docs', 'v1', credentials=creds)
         
-        # Debug: List all files in the folder to help user troubleshoot
-        print(f"Checking contents of folder ID: {target_folder_id} (Length: {len(target_folder_id)})")
-        if len(target_folder_id) < 20:
-             print("WARNING: The Folder ID seems too short. Did you accidental use the Folder NAME instead of the ID?")
-        
-        file_name = "Garmin_Running_Journal.txt"
+        # Search for existing Google Doc named "Garmin Running Journal"
+        print(f"Checking contents of folder ID: {target_folder_id}...")
+        doc_name = "Garmin Running Journal"
         list_query = f"'{target_folder_id}' in parents and trashed = false"
-        results = service.files().list(q=list_query, spaces='drive', fields='files(id, name, mimeType)', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
+        results = drive_service.files().list(
+            q=list_query, 
+            spaces='drive', 
+            fields='files(id, name, mimeType)', 
+            supportsAllDrives=True, 
+            includeItemsFromAllDrives=True
+        ).execute()
         all_files = results.get('files', [])
         
-        target_file = None
+        target_doc = None
         for f in all_files:
-            print(f" - Found file: '{f['name']}' (ID: {f['id']}, Type: {f['mimeType']})")
-            # matches "Garmin_Running_Journal.txt" OR "Garmin_Running_Journal"
-            if f['name'] == file_name or f['name'] == "Garmin_Running_Journal":
-                target_file = f
-                break
+            print(f" - Found: '{f['name']}' (Type: {f['mimeType']})")
+            # Look for a Google Doc (either with or without spaces in name)
+            if f['mimeType'] == 'application/vnd.google-apps.document':
+                if 'Garmin' in f['name'] and 'Running' in f['name']:
+                    target_doc = f
+                    break
         
-        media = MediaIoBaseUpload(io.BytesIO(journal_content.encode('utf-8')), mimetype='text/plain', resumable=True)
-        
-        if target_file:
-            # Update existing file
-            file_id = target_file['id']
-            print(f"Updating existing file: '{target_file['name']}' (ID: {file_id})")
-            service.files().update(
-                fileId=file_id,
-                media_body=media,
-                supportsAllDrives=True
-            ).execute()
-        else:
-            # Cannot create new file because Service Accounts have 0 storage quota.
-            print(f"\nError: Target file '{file_name}' (or without .txt) not found in the specified folder.")
-            if hasattr(creds, 'service_account_email'):
-                print(f"1. Check Permissions: Ensure folder is shared with '{creds.service_account_email}' as Editor.")
-            print(f"2. Check Folder ID: Ensure GOOGLE_DRIVE_FOLDER_ID is the ID (e.g., 1aBc...) not the name.")
-            print(f"3. Check File Name: Ensure the file inside is named EXACTLY '{file_name}'.")
-            sys.exit(1)
+        if target_doc:
+            doc_id = target_doc['id']
+            print(f"Found existing Google Doc: '{target_doc['name']}' (ID: {doc_id})")
             
-        print("Upload successful!")
+            # Get document to find the end index
+            doc = docs_service.documents().get(documentId=doc_id).execute()
+            
+            # Clear existing content (delete from index 1 to end)
+            end_index = doc['body']['content'][-1]['endIndex']
+            
+            requests = []
+            if end_index > 1:
+                requests.append({
+                    'deleteContentRange': {
+                        'range': {
+                            'startIndex': 1,
+                            'endIndex': end_index - 1
+                        }
+                    }
+                })
+            
+            # Insert new content
+            requests.append({
+                'insertText': {
+                    'location': {'index': 1},
+                    'text': journal_content
+                }
+            })
+            
+            docs_service.documents().batchUpdate(
+                documentId=doc_id,
+                body={'requests': requests}
+            ).execute()
+            
+            print("Google Doc updated successfully!")
+            
+        else:
+            print(f"\nError: No Google Doc found in the folder.")
+            print("Action Required:")
+            print("1. Open Google Drive and go to your 'Garmin Data' folder.")
+            print("2. Click 'New' > 'Google Docs' > 'Blank document'.")
+            print(f"3. Name it: '{doc_name}'")
+            print("4. Re-run this workflow.")
+            sys.exit(1)
         
     except Exception as e:
-        print(f"Error interacting with Google Drive: {e}")
-        # Don't fail the whole workflow if Drive fails? Or should we?
-        # Let's fail so user knows.
+        print(f"Error interacting with Google Drive/Docs: {e}")
         sys.exit(1)
 
 if __name__ == "__main__":
