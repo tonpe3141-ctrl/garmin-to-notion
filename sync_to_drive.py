@@ -109,25 +109,17 @@ def main():
     try:
         # Load JSON from string (env var) or file?
         # If env var starts with '{', treat as string content. Else treat as path.
-        if google_sa_json.strip().startswith("{"):
-            creds_info = json.loads(google_sa_json)
-            creds = Credentials.from_service_account_info(
-                creds_info, 
-                scopes=['https://www.googleapis.com/auth/drive.file'] 
-                # Use drive.file to only access files created by this app (safer) 
-                # BUT user initiates shared folder. 'drive' or 'drive.file' needed.
-                # If using Shared Folder, the SA needs to see it.
-            )
-        else:
-            creds = Credentials.from_service_account_file(
-                google_sa_json, 
-                scopes=['https://www.googleapis.com/auth/drive']
-            )
-            
+        if hasattr(creds, 'service_account_email'):
+             print(f"Authenticated as Service Account: {creds.service_account_email}")
+             print(f"Please verify that the folder is shared with THIS email address: {creds.service_account_email}")
+        
         service = build('drive', 'v3', credentials=creds)
         
         # Debug: List all files in the folder to help user troubleshoot
-        print(f"Checking contents of folder ID: {target_folder_id}...")
+        print(f"Checking contents of folder ID: {target_folder_id} (Length: {len(target_folder_id)})")
+        if len(target_folder_id) < 20:
+             print("WARNING: The Folder ID seems too short. Did you accidental use the Folder NAME instead of the ID?")
+        
         file_name = "Garmin_Running_Journal.txt"
         list_query = f"'{target_folder_id}' in parents and trashed = false"
         results = service.files().list(q=list_query, spaces='drive', fields='files(id, name, mimeType)', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
@@ -155,9 +147,10 @@ def main():
         else:
             # Cannot create new file because Service Accounts have 0 storage quota.
             print(f"\nError: Target file '{file_name}' (or without .txt) not found in the specified folder.")
-            print(f"Folder ID being searched: {target_folder_id}")
-            print("Files actually found in this folder are listed above.")
-            print("Action Required: Please ensure the file is in the CORRECT folder and named exactly 'Garmin_Running_Journal.txt'.")
+            if hasattr(creds, 'service_account_email'):
+                print(f"1. Check Permissions: Ensure folder is shared with '{creds.service_account_email}' as Editor.")
+            print(f"2. Check Folder ID: Ensure GOOGLE_DRIVE_FOLDER_ID is the ID (e.g., 1aBc...) not the name.")
+            print(f"3. Check File Name: Ensure the file inside is named EXACTLY '{file_name}'.")
             sys.exit(1)
             
         print("Upload successful!")
