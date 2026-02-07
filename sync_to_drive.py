@@ -128,6 +128,7 @@ def main():
         
         # Debug: List all files in the folder to help user troubleshoot
         print(f"Checking contents of folder ID: {target_folder_id}...")
+        file_name = "Garmin_Running_Journal.txt"
         list_query = f"'{target_folder_id}' in parents and trashed = false"
         results = service.files().list(q=list_query, spaces='drive', fields='files(id, name, mimeType)', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
         all_files = results.get('files', [])
