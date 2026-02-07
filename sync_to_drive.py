@@ -113,7 +113,9 @@ def main():
             creds_info = json.loads(google_sa_json)
             creds = Credentials.from_service_account_info(
                 creds_info, 
-                scopes=['https://www.googleapis.com/auth/drive.file'] 
+                # 'drive.file' only accesses files created by this app.
+                # 'drive' accesses ALL files shared with the SA (what we need).
+                scopes=['https://www.googleapis.com/auth/drive'] 
             )
         else:
             creds = Credentials.from_service_account_file(
