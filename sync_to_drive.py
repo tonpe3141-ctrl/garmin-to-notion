@@ -131,7 +131,8 @@ def main():
         
         # Query: name = '...' and '<folder_id>' in parents and trashed = false
         query = f"name = '{file_name}' and '{target_folder_id}' in parents and trashed = false"
-        results = service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        # supportAllDrives=True allows looking into Shared Drives if applicable
+        results = service.files().list(q=query, spaces='drive', fields='files(id, name)', supportsAllDrives=True, includeItemsFromAllDrives=True).execute()
         files = results.get('files', [])
         
         media = MediaIoBaseUpload(io.BytesIO(journal_content.encode('utf-8')), mimetype='text/plain', resumable=True)
@@ -142,22 +143,16 @@ def main():
             print(f"Updating existing file: {file_name} (ID: {file_id})")
             service.files().update(
                 fileId=file_id,
-                media_body=media
+                media_body=media,
+                supportsAllDrives=True
             ).execute()
         else:
-            # Create new file
-            print(f"Creating new file: {file_name}")
-            file_metadata = {
-                'name': file_name,
-                'parents': [target_folder_id],
-                'mimeType': 'text/plain' # Google Doc is 'application/vnd.google-apps.document'
-                # Text/Markdown is easier for generic use, NotebookLM handles txt fine.
-            }
-            service.files().create(
-                body=file_metadata,
-                media_body=media,
-                fields='id'
-            ).execute()
+            # Cannot create new file because Service Accounts have 0 storage quota.
+            # We must ask the user to create it first.
+            print(f"Error: Target file '{file_name}' not found in folder.")
+            print("Action Required: Please create an empty text file named 'Garmin_Running_Journal.txt' in your Google Drive folder manually.")
+            print("Reason: Service Accounts cannot create new files (0 storage quota), they can only edit existing ones owned by you.")
+            sys.exit(1)
             
         print("Upload successful!")
         
