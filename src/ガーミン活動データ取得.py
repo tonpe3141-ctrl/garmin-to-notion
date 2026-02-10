@@ -148,13 +148,12 @@ def get_activity_properties(activity: dict) -> dict:
     splits = activity.get('splitSummaries', [])
     laps_text = ""
     if splits:
-        for split in splits:
+        for i, split in enumerate(splits, 1):
             distance_km = round(split.get('distance', 0) / 1000, 2)
             duration_min = format_duration(split.get('duration', 0))
             avg_speed = split.get('averageSpeed', 0)
             pace = format_pace(avg_speed)
-            lap_idx = split.get('splitId', '?')
-            laps_text += f"Lap {lap_idx}: {distance_km}km, {duration_min}, {pace}/km\n"
+            laps_text += f"Lap {i}: {distance_km}km, {duration_min}, {pace}/km\n"
 
     properties = {
         "日付": {"date": {"start": activity_date}},
@@ -226,7 +225,7 @@ def main():
     garmin_password = os.getenv("GARMIN_PASSWORD")
     notion_token = os.getenv("NOTION_TOKEN")
     database_id = os.getenv("NOTION_DB_ID")
-    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "10")) # Default reduced to 10 to check recent updates first
+    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "50")) # Increased to 50 to backfill more history
 
     garmin_client = GarminClient(garmin_email, garmin_password)
     garmin_client.login()
