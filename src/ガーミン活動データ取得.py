@@ -150,10 +150,16 @@ def get_activity_properties(activity: dict) -> dict:
     if splits:
         for i, split in enumerate(splits, 1):
             distance_km = round(split.get('distance', 0) / 1000, 2)
-            duration_min = format_duration(split.get('duration', 0))
+            duration_s = split.get('duration', 0)
+            duration_str = format_duration(duration_s)
             avg_speed = split.get('averageSpeed', 0)
             pace = format_pace(avg_speed)
-            laps_text += f"Lap {i}: {distance_km}km, {duration_min}, {pace}/km\n"
+            
+            # Skip noise laps (e.g., < 10 meters and < 10 seconds)
+            if distance_km < 0.01 and duration_s < 10:
+                continue
+                
+            laps_text += f"Lap {i}: {distance_km}km, {duration_str}, {pace}\n"
 
     properties = {
         "日付": {"date": {"start": activity_date}},
@@ -197,7 +203,7 @@ def update_activity(notion_client: NotionClient, page_id: str, activity: dict) -
     page = {"properties": properties}
     if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
     notion_client.pages.update(page_id, **page)
-    print(f"Updated: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
+    print(f"Updated Backfill: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
 
 def format_duration(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
@@ -225,7 +231,7 @@ def main():
     garmin_password = os.getenv("GARMIN_PASSWORD")
     notion_token = os.getenv("NOTION_TOKEN")
     database_id = os.getenv("NOTION_DB_ID")
-    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "50")) # Increased to 50 to backfill more history
+    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "200")) # Increased to 200 for deep backfillory
 
     garmin_client = GarminClient(garmin_email, garmin_password)
     garmin_client.login()
