@@ -59,36 +59,62 @@ def main():
 
     # 3. Format Data for Google Sheets
     # Prepare header and rows
-    headers = ["Date", "Type", "Name", "Distance (km)", "Time (min)", "Pace (/km)", "Training Effect"]
+    headers = [
+        "Date", "Type", "Sub Type", "Name", "Distance (km)", "Time (min)", 
+        "Pace (/km)", "Calories", "Avg Power", "Max Power", 
+        "Training Effect", "Aerobic TE", "Anaerobic TE"
+    ]
     rows = [headers]
     
     for page in all_activities:
         props = page.get("properties", {})
         
+        # 1. Date
         date_prop = props.get("日付", {}).get("date", {})
         date_str = date_prop.get("start") if date_prop else "Unknown"
         
+        # 2. Type & Sub Type
         activity_type = props.get("種目", {}).get("select", {}).get("name", "Unknown")
+        sub_type = props.get("詳細種目", {}).get("select", {}).get("name", "-")
+        
+        # 3. Name
         activity_name_list = props.get("アクティビティ名", {}).get("title", [])
         activity_name = activity_name_list[0].get("text", {}).get("content", "") if activity_name_list else "Untitled"
         
+        # 4. Metrics
         distance = props.get("距離 (km)", {}).get("number", 0)
         time_minutes = props.get("タイム (分)", {}).get("number", 0)
+        calories = props.get("カロリー", {}).get("number", 0)
         
+        # 5. Pace
         pace_list = props.get("平均ペース", {}).get("rich_text", [])
         pace = pace_list[0].get("text", {}).get("content", "") if pace_list else "-"
         
+        # 6. Power
+        avg_power = props.get("平均パワー", {}).get("number", 0)
+        max_power = props.get("最大パワー", {}).get("number", 0)
+        
+        # 7. Training Effect
         te_select = props.get("トレーニング効果", {}).get("select", {})
         training_effect = te_select.get("name", "-") if te_select else "-"
+        
+        aerobic_te = props.get("有酸素", {}).get("number", 0)
+        anaerobic_te = props.get("無酸素", {}).get("number", 0)
         
         rows.append([
             date_str,
             activity_type,
+            sub_type,
             activity_name,
             distance,
             time_minutes,
             pace,
-            training_effect
+            calories,
+            avg_power,
+            max_power,
+            training_effect,
+            aerobic_te,
+            anaerobic_te
         ])
 
     # 4. Upload to Google Drive as Google Sheets
