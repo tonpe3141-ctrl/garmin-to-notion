@@ -131,12 +131,11 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
     results = query['results']
     return results[0] if results else None
 
-def create_activity(notion_client: NotionClient, database_id: str, activity: dict) -> None:
+def get_activity_properties(activity: dict) -> dict:
     activity_date = activity.get('startTimeGMT')
     activity_name = activity.get('activityName', '無題のアクティビティ')
     activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
-    icon_url = ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
-
+    
     # ... (Processing additional metrics)
     average_hr = activity.get('averageHR')
     max_hr = activity.get('maxHR')
@@ -180,10 +179,26 @@ def create_activity(notion_client: NotionClient, database_id: str, activity: dic
         "自己ベスト": {"checkbox": activity.get('pr', False)},
         "お気に入り": {"checkbox": activity.get('favorite', False)}
     }
+    return properties, icon_url_from_type(activity_type, activity_subtype)
 
+def icon_url_from_type(activity_type, activity_subtype):
+    return ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
+
+def create_activity(notion_client: NotionClient, database_id: str, activity: dict) -> None:
+    properties, icon_url = get_activity_properties(activity)
     page = {"parent": {"database_id": database_id}, "properties": properties}
     if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
     notion_client.pages.create(**page)
+    print(f"Created: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
+
+def update_activity(notion_client: NotionClient, page_id: str, activity: dict) -> None:
+    properties, icon_url = get_activity_properties(activity)
+    # Remove '日付' from updates to avoid timezone shifts if not necessary, but here we keep it for consistency
+    # Notion API 'update' merges properties.
+    page = {"properties": properties}
+    if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
+    notion_client.pages.update(page_id, **page)
+    print(f"Updated: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
 
 def format_duration(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
@@ -211,7 +226,7 @@ def main():
     garmin_password = os.getenv("GARMIN_PASSWORD")
     notion_token = os.getenv("NOTION_TOKEN")
     database_id = os.getenv("NOTION_DB_ID")
-    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "1000"))
+    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "10")) # Default reduced to 10 to check recent updates first
 
     garmin_client = GarminClient(garmin_email, garmin_password)
     garmin_client.login()
@@ -221,6 +236,8 @@ def main():
     update_database_schema(notion_client, database_id)
 
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
+    print(f"Fetched {len(activities)} activities from Garmin.")
+    
     for activity in activities:
         activity_date_raw = activity.get('startTimeGMT')
         activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
@@ -228,7 +245,10 @@ def main():
         activity_type, _ = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
 
         existing_activity = activity_exists(notion_client, database_id, activity_date, activity_type, activity_name)
-        if not existing_activity:
+        if existing_activity:
+            # Update existing activity to fill in new fields (HR, GAP, Laps)
+            update_activity(notion_client, existing_activity['id'], activity)
+        else:
             create_activity(notion_client, database_id, activity)
 
 if __name__ == '__main__':
