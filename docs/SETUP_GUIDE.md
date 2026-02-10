@@ -32,21 +32,12 @@ GarminのランニングデータをNotebookLMやGeminiカスタムGemで利用�
     *   例: `drive.google.com/drive/u/0/folders/1aBcDeFgHiJkLmNoPqRsTuVwXyZ` → `1aBcDeFgHiJkLmNoPqRsTuVwXyZ` がID。
 
 ## 4.5. ファイルの準備（重要）
-**サービスアカウントにはストレージ容量がないため、ファイルを新規作成できません。**
-ユーザー自身で空のファイルを作成し、それをプログラムに更新させる必要があります。
+**サービスアカウントは新規作成ができないため、空のGoogleドキュメントを用意する必要があります。**
 
-1.  共有設定したGoogleドライブのフォルダ内に、空のファイルを作成します。最も簡単な方法は以下の通りです：
-    *   **Macのテキストエディットを使う場合（詳細）**:
-        1.  アプリを開くと「開く」画面が出ますが、「新規書類」を選びます。
-        2.  **今開いている「保存」画面はいったん「キャンセル」してください。**
-        3.  画面の**一番上にあるメニューバー**（リンゴマークの並び）の **「フォーマット」** をクリックします。
-        4.  **「標準テキストにする」** をクリックします（ショートカット: `Shift + Command + T`）。
-            *   ※これでウィンドウの定規などが消え、文字だけのモードになります。
-        5.  この状態で保存（`Command + S`）すると、自動的に `.txt` 形式で保存できるようになります。ファイル名を `Garmin_Running_Journal.txt` にして保存してください。
-    *   **Googleドライブ上で作る場合**:
-        1.  Googleドキュメントを新規作成し、タイトルを `Garmin_Running_Journal.txt` に変更します（拡張子 .txt を名前に含める）。
-        2.  ただし、確実なのは **パソコンで作ってアップロード** する方法です。
-2.  このファイルが存在することで、プログラムが中身を上書きできるようになります。
+1.  Googleドライブの「Garmin Data」フォルダを開きます。
+2.  **「新規」 > 「Google ドキュメント」 > 「空白のドキュメント」** を作成します。
+3.  ドキュメントのタイトルを **`Garmin Running Journal`** に変更します（.txtは不要）。
+4.  これで準備完了です！プログラムがこのドキュメントの中身を自動更新します。
 
 ## 5. GitHub Secretsの設定
 1.  GitHubリポジトリの **Settings > Secrets and variables > Actions** を開きます。
@@ -57,11 +48,17 @@ GarminのランニングデータをNotebookLMやGeminiカスタムGemで利用�
 | **`GOOGLE_SERVICE_ACCOUNT_JSON`** | ダウンロードしたJSONファイルの**中身すべて**を貼り付けます |
 | **`GOOGLE_DRIVE_FOLDER_ID`** | 手順4で確認した**フォルダID** |
 
-## 6. 完了！
-次回のGitHub Actions実行時（毎日AM 1:00 JST、または手動実行）に、指定したGoogleドライブフォルダの中に `Garmin_Running_Journal.txt` というファイルが生成・更新されます。
+## 6. プログラム構成（参考）
+わかりやすくするために、プログラム名を日本語に変更しました。
+*   `src/AIコーチアドバイス作成.py`: Geminiを使ってアドバイスを生成する
+*   `src/Googleドライブ同期.py`: NotionのデータをGoogleドキュメントに同期する
+*   `src/ガーミン活動データ取得.py`: Garminから最新データを取得する
+
+## 7. 完了！
+次回のGitHub Actions実行時（毎朝 8:30 JST、または手動実行）に、指定したGoogleドキュメントが更新されます。
 
 ### NotebookLM / Gemini での使い方
-*   **NotebookLM**: ソース追加画面で「Googleドライブ」を選択し、`Garmin_Running_Journal.txt` を選んでください。
+*   **NotebookLM**: ソース追加画面で「Googleドライブ」を選択し、`Garmin Running Journal` を選んでください。
 *   **Gemini カスタムGem**: 知識ベースとしてGoogleドライブ上の同ファイルを選択してください。
 
 これで、あなたのランニングデータに基づいたコーチングが可能になります！🏃
