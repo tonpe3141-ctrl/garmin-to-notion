@@ -134,7 +134,8 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
     
     return results[0] if results else None
 
-def get_activity_properties(activity: dict) -> dict:
+def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
+    activity_id = activity.get('activityId')
     activity_date = activity.get('startTimeGMT')
     activity_name = activity.get('activityName', '無題のアクティビティ')
     activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
@@ -147,9 +148,18 @@ def get_activity_properties(activity: dict) -> dict:
     # Format GAP
     gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
 
-    # Format Laps (splitSummaries)
-    splits = activity.get('splitSummaries', [])
+    # Format Laps (Try to fetch detailed splits first, fall back to summary)
     laps_text = ""
+    splits = []
+    try:
+        # 詳細なスプリット情報を取得（インターバル等の詳細が含まれる可能性が高い）
+        splits = garmin_client.get_activity_splits(activity_id)
+        if not splits:
+             splits = activity.get('splitSummaries', [])
+    except Exception as e:
+        print(f"Warning: Could not fetch detailed splits for {activity_id}: {e}")
+        splits = activity.get('splitSummaries', [])
+
     if splits:
         for i, split in enumerate(splits, 1):
             distance_km = round(split.get('distance', 0) / 1000, 2)
@@ -159,13 +169,22 @@ def get_activity_properties(activity: dict) -> dict:
             pace = format_pace(avg_speed)
             
             # Garminの生のsplitIdを使う（なければ連番）
-            raw_id = split.get('splitId')
-            lap_label = str(raw_id) if raw_id is not None else str(i)
+            raw_id = split.get('splitId') # 1, 2, ...
+            # splitType: RINTERVAL (Run), RRECOVERY (Rest), etc.
+            split_type_key = split.get('splitType', {}).get('typeKey', '')
+            type_label = ""
+            if 'INTERVAL' in split_type_key.upper(): type_label = " [Run]"
+            elif 'RECOVERY' in split_type_key.upper(): type_label = " [Rest]"
             
+            # 距離が短すぎる、かつ時間が短いものはノイズとしてスキップ（ただしインターバルのレストは0kmでも残す）
+            if distance_km < 0.01 and duration_s < 5 and "RECOVERY" not in split_type_key.upper():
+                continue
+
+            lap_label = str(raw_id) if raw_id is not None else str(i)
             # ラップごとの心拍数があれば表示
             lap_hr = f" HR:{int(split.get('averageHR'))}" if split.get('averageHR') else ""
             
-            laps_text += f"Lap {lap_label}: {distance_km}km, {duration_str}, {pace}{lap_hr}\n"
+            laps_text += f"Lap {lap_label}{type_label}: {distance_km}km, {duration_str}, {pace}{lap_hr}\n"
 
     properties = {
         "日付": {"date": {"start": activity_date}},
@@ -195,15 +214,15 @@ def get_activity_properties(activity: dict) -> dict:
 def icon_url_from_type(activity_type, activity_subtype):
     return ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
 
-def create_activity(notion_client: NotionClient, database_id: str, activity: dict) -> None:
-    properties, icon_url = get_activity_properties(activity)
+def create_activity(notion_client: NotionClient, database_id: str, activity: dict, garmin_client: GarminClient) -> None:
+    properties, icon_url = get_activity_properties(garmin_client, activity)
     page = {"parent": {"database_id": database_id}, "properties": properties}
     if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
     notion_client.pages.create(**page)
     print(f"Created: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
 
-def update_activity(notion_client: NotionClient, page_id: str, activity: dict) -> None:
-    properties, icon_url = get_activity_properties(activity)
+def update_activity(notion_client: NotionClient, page_id: str, activity: dict, garmin_client: GarminClient) -> None:
+    properties, icon_url = get_activity_properties(garmin_client, activity)
     # Remove '日付' from updates to avoid timezone shifts if not necessary, but here we keep it for consistency
     # Notion API 'update' merges properties.
     page = {"properties": properties}
@@ -260,9 +279,10 @@ def main():
         if existing_activity:
             # Update existing activity to fill in new fields (HR, GAP, Laps)
             # 古いデータ（ "Running" 等）も新しいデータ内容で上書き更新される
-            update_activity(notion_client, existing_activity['id'], activity)
+            # activity['activityId'] を使って詳細スプリットを取得するため、clientを渡す
+            update_activity(notion_client, existing_activity['id'], activity, garmin_client)
         else:
-            create_activity(notion_client, database_id, activity)
+            create_activity(notion_client, database_id, activity, garmin_client)
 
 if __name__ == '__main__':
     main()
