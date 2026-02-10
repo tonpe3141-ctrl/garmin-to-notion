@@ -7,8 +7,8 @@ GarminのランニングデータをNotebookLMやGeminiカスタムGemで利用�
 1.  [Google Cloud Console](https://console.cloud.google.com/) にアクセスします。
 2.  画面左上のプロジェクト選択プルダウンから **「新しいプロジェクト」** を作成します（名前は `garmin-notebooklm` など任意）。
 3.  作成したプロジェクトを選択した状態で、**「APIとサービス」 > 「有効なAPIとサービス」** を開きます。
-4.  **「+ APIとサービスの有効化」** をクリックし、検索窓に `Google Drive API` と入力します。
-5.  **Google Drive API** を選択し、**「有効にする」** をクリックします。
+4.  **「+ APIとサービスの有効化」** をクリックし、検索窓に `Google Drive API` と入力して有効化します。
+5.  続けて、検索窓に **`Google Sheets API`** と入力し、こちらも **「有効にする」** をクリックします（これ重要！）。
 
 ## 2. サービスアカウント（ロボットユーザー）の作成
 1.  同じく「APIとサービス」メニューから **「認証情報」** を選択します。
@@ -26,18 +26,25 @@ GarminのランニングデータをNotebookLMやGeminiカスタムGemで利用�
 ## 4. Googleドライブのフォルダ設定
 1.  ご自身の [Googleドライブ](https://drive.google.com/) を開き、新しいフォルダを作成します（例: `Garmin Data`）。
 2.  そのフォルダを右クリックし、**「共有」** を選択します。
-3.  **「ユーザーやグループを追加」** の欄に、**先ほど作成したサービスアカウントのメールアドレス**（JSONファイル内の `client_email` の値、またはGCPコンソールで確認できる `xxx@yyy.iam.gserviceaccount.com`）を入力します。
+3.  **「ユーザーやグループを追加」** の欄に、**先ほど作成したサービスアカウントのメールアドレス**を入力します。
 4.  権限が **「編集者」** になっていることを確認し、「送信」をクリックします。
-5.  **フォルダIDの確認**: フォルダを開いた状態で、ブラウザのURLバーを確認してください。末尾のランダムな文字列がフォルダIDです。
-    *   例: `drive.google.com/drive/u/0/folders/1aBcDeFgHiJkLmNoPqRsTuVwXyZ` → `1aBcDeFgHiJkLmNoPqRsTuVwXyZ` がID。
+5.  **フォルダIDの確認**: フォルダを開いた状態で、URL末尾のランダムな文字列をコピーしておきます。
 
 ## 4.5. ファイルの準備（重要）
-**サービスアカウントは新規作成ができないため、空のGoogleドキュメントを用意する必要があります。**
+**今回は「Googleスプレッドシート」を使います。**
 
 1.  Googleドライブの「Garmin Data」フォルダを開きます。
-2.  **「新規」 > 「Google ドキュメント」 > 「空白のドキュメント」** を作成します。
-3.  ドキュメントのタイトルを **`Garmin Running Journal`** に変更します（.txtは不要）。
-4.  これで準備完了です！プログラムがこのドキュメントの中身を自動更新します。
+2.  **「新規」 > 「Google スプレッドシート」** を作成します。
+3.  スプレッドシートのタイトルを **`Garmin Running Log`** に変更します。
+4.  **重要**: 1行目にヘッダー（見出し）を手動で入力してください：
+    *   A1: `Date`
+    *   B1: `Type`
+    *   C1: `Name`
+    *   D1: `Distance (km)`
+    *   E1: `Time (min)`
+    *   F1: `Pace (/km)`
+    *   G1: `Training Effect`
+5.  これで準備完了です！プログラムが2行目以降にデータを追記・更新します。
 
 ## 5. GitHub Secretsの設定
 1.  GitHubリポジトリの **Settings > Secrets and variables > Actions** を開きます。
@@ -49,15 +56,14 @@ GarminのランニングデータをNotebookLMやGeminiカスタムGemで利用�
 | **`GOOGLE_DRIVE_FOLDER_ID`** | 手順4で確認した**フォルダID** |
 
 ## 6. プログラム構成（参考）
-わかりやすくするために、プログラム名を日本語に変更しました。
-*   `src/Googleドライブ同期.py`: NotionのデータをGoogleドキュメントに同期する
+*   `src/Googleドライブ同期.py`: NotionのデータをGoogleスプレッドシートに同期する
 *   `src/ガーミン活動データ取得.py`: Garminから最新データを取得する
 
 ## 7. 完了！
-次回のGitHub Actions実行時（毎朝 8:30 JST、または手動実行）に、指定したGoogleドキュメントが更新されます。
+次回のGitHub Actions実行時（毎朝 8:30 JST、または手動実行）に、スプレッドシートが更新されます。
 
 ### NotebookLM / Gemini での使い方
-*   **NotebookLM**: ソース追加画面で「Googleドライブ」を選択し、`Garmin Running Journal` を選んでください。
+*   **NotebookLM**: ソース追加画面で「Googleスライド/シート」を選択し、`Garmin Running Log` を選んでください。
 *   **Gemini カスタムGem**: 知識ベースとしてGoogleドライブ上の同ファイルを選択してください。
 
 これで、あなたのランニングデータに基づいたコーチングが可能になります！🏃

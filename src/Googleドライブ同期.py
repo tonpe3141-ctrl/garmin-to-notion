@@ -57,9 +57,10 @@ def main():
 
     print(f"Fetched {len(all_activities)} activities.")
 
-    # 3. Format Data for NotebookLM
-    journal_content = "# Garmin Running Journal\n\n"
-    journal_content += f"Last Updated: {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n\n"
+    # 3. Format Data for Google Sheets
+    # Prepare header and rows
+    headers = ["Date", "Type", "Name", "Distance (km)", "Time (min)", "Pace (/km)", "Training Effect"]
+    rows = [headers]
     
     for page in all_activities:
         props = page.get("properties", {})
@@ -80,45 +81,41 @@ def main():
         te_select = props.get("トレーニング効果", {}).get("select", {})
         training_effect = te_select.get("name", "-") if te_select else "-"
         
-        journal_content += f"## {date_str} - {activity_name}\n"
-        journal_content += f"- Type: {activity_type}\n"
-        journal_content += f"- Distance: {distance} km\n"
-        journal_content += f"- Duration: {time_minutes} min\n"
-        journal_content += f"- Pace: {pace} /km\n"
-        journal_content += f"- Training Effect: {training_effect}\n"
-        journal_content += "\n---\n\n"
+        rows.append([
+            date_str,
+            activity_type,
+            activity_name,
+            distance,
+            time_minutes,
+            pace,
+            training_effect
+        ])
 
-    # 4. Upload to Google Drive as Google Docs format
-    print("Authenticating with Google Drive...")
+    # 4. Upload to Google Drive as Google Sheets
+    print("Authenticating with Google Drive & Sheets...")
     try:
+        scopes = [
+            'https://www.googleapis.com/auth/drive',
+            'https://www.googleapis.com/auth/spreadsheets'
+        ]
+        
         if google_sa_json.strip().startswith("{"):
             creds_info = json.loads(google_sa_json)
-            creds = Credentials.from_service_account_info(
-                creds_info, 
-                scopes=[
-                    'https://www.googleapis.com/auth/drive',
-                    'https://www.googleapis.com/auth/documents'
-                ]
-            )
+            creds = Credentials.from_service_account_info(creds_info, scopes=scopes)
         else:
-            creds = Credentials.from_service_account_file(
-                google_sa_json, 
-                scopes=[
-                    'https://www.googleapis.com/auth/drive',
-                    'https://www.googleapis.com/auth/documents'
-                ]
-            )
+            creds = Credentials.from_service_account_file(google_sa_json, scopes=scopes)
 
         if hasattr(creds, 'service_account_email'):
              print(f"Authenticated as Service Account: {creds.service_account_email}")
         
         drive_service = build('drive', 'v3', credentials=creds)
-        docs_service = build('docs', 'v1', credentials=creds)
+        sheets_service = build('sheets', 'v4', credentials=creds)
         
-        # Search for existing Google Doc named "Garmin Running Journal"
+        # Search for existing Google Sheet named "Garmin Running Log"
         print(f"Checking contents of folder ID: {target_folder_id}...")
-        doc_name = "Garmin Running Journal"
-        list_query = f"'{target_folder_id}' in parents and trashed = false"
+        sheet_name = "Garmin Running Log"
+        # mimeType for Google Sheets is application/vnd.google-apps.spreadsheet
+        list_query = f"'{target_folder_id}' in parents and trashed = false and mimeType = 'application/vnd.google-apps.spreadsheet'"
         results = drive_service.files().list(
             q=list_query, 
             spaces='drive', 
@@ -128,63 +125,52 @@ def main():
         ).execute()
         all_files = results.get('files', [])
         
-        target_doc = None
+        target_sheet = None
         for f in all_files:
-            print(f" - Found: '{f['name']}' (Type: {f['mimeType']})")
-            # Look for a Google Doc (either with or without spaces in name)
-            if f['mimeType'] == 'application/vnd.google-apps.document':
-                if 'Garmin' in f['name'] and 'Running' in f['name']:
-                    target_doc = f
-                    break
+            print(f" - Found: '{f['name']}' (ID: {f['id']})")
+            if f['name'] == sheet_name:
+                target_sheet = f
+                break
         
-        if target_doc:
-            doc_id = target_doc['id']
-            print(f"Found existing Google Doc: '{target_doc['name']}' (ID: {doc_id})")
+        if target_sheet:
+            spreadsheet_id = target_sheet['id']
+            print(f"Found existing Google Sheet: '{target_sheet['name']}' (ID: {spreadsheet_id})")
             
-            # Get document to find the end index
-            doc = docs_service.documents().get(documentId=doc_id).execute()
-            
-            # Clear existing content (delete from index 1 to end)
-            end_index = doc['body']['content'][-1]['endIndex']
-            
-            requests = []
-            # Only delete if there's actual content (end_index > 2 means there's more than just a newline)
-            if end_index > 2:
-                requests.append({
-                    'deleteContentRange': {
-                        'range': {
-                            'startIndex': 1,
-                            'endIndex': end_index - 1
-                        }
-                    }
-                })
-            
-            # Insert new content
-            requests.append({
-                'insertText': {
-                    'location': {'index': 1},
-                    'text': journal_content
-                }
-            })
-            
-            docs_service.documents().batchUpdate(
-                documentId=doc_id,
-                body={'requests': requests}
+            # 1. Clear existing content
+            print("Clearing existing content...")
+            sheets_service.spreadsheets().values().clear(
+                spreadsheetId=spreadsheet_id,
+                range="Sheet1!A1:Z1000" # Assuming Sheet1 and reasonable size
             ).execute()
             
-            print("Google Doc updated successfully!")
+            # 2. Write new content
+            print("Writing new data...")
+            body = {
+                'values': rows
+            }
+            sheets_service.spreadsheets().values().update(
+                spreadsheetId=spreadsheet_id,
+                range="Sheet1!A1",
+                valueInputOption="USER_ENTERED",
+                body=body
+            ).execute()
+            
+            print(f"Google Sheet updated successfully! ({len(rows)} rows)")
             
         else:
-            print(f"\nError: No Google Doc found in the folder.")
+            print(f"\nError: Google Sheet '{sheet_name}' not found in the folder.")
             print("Action Required:")
             print("1. Open Google Drive and go to your 'Garmin Data' folder.")
-            print("2. Click 'New' > 'Google Docs' > 'Blank document'.")
-            print(f"3. Name it: '{doc_name}'")
-            print("4. Re-run this workflow.")
+            print("2. Click 'New' > 'Google Sheets'.")
+            print(f"3. Name it: '{sheet_name}'")
+            print("4. (Optional) Rename the first sheet tab to 'Sheet1' if it isn't already.")
+            print("5. Re-run this workflow.")
             sys.exit(1)
         
     except Exception as e:
-        print(f"Error interacting with Google Drive/Docs: {e}")
+        print(f"Error interacting with Google Drive/Sheets: {e}")
+        if "403" in str(e) and "Sheets API" in str(e):
+            print("HINT: Have you enabled the 'Google Sheets API' in Google Cloud Console?")
         sys.exit(1)
 
 if __name__ == "__main__":
