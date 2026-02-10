@@ -137,6 +137,26 @@ def create_activity(notion_client: NotionClient, database_id: str, activity: dic
     activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
     icon_url = ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
 
+    # ... (Processing additional metrics)
+    average_hr = activity.get('averageHR')
+    max_hr = activity.get('maxHR')
+    avg_gap_speed = activity.get('avgGradeAdjustedSpeed') # m/s
+    
+    # Format GAP
+    gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
+
+    # Format Laps (splitSummaries)
+    splits = activity.get('splitSummaries', [])
+    laps_text = ""
+    if splits:
+        for split in splits:
+            distance_km = round(split.get('distance', 0) / 1000, 2)
+            duration_min = format_duration(split.get('duration', 0))
+            avg_speed = split.get('averageSpeed', 0)
+            pace = format_pace(avg_speed)
+            lap_idx = split.get('splitId', '?')
+            laps_text += f"Lap {lap_idx}: {distance_km}km, {duration_min}, {pace}/km\n"
+
     properties = {
         "日付": {"date": {"start": activity_date}},
         "種目": {"select": {"name": activity_type}},
@@ -146,6 +166,9 @@ def create_activity(notion_client: NotionClient, database_id: str, activity: dic
         "タイム (分)": {"number": round(activity.get('duration', 0) / 60, 2)},
         "カロリー": {"number": round(activity.get('calories', 0))},
         "平均ペース": {"rich_text": [{"text": {"content": format_pace(activity.get('averageSpeed', 0))}}]},
+        "GAP": {"rich_text": [{"text": {"content": gap_str}}]},
+        "平均心拍": {"number": round(average_hr) if average_hr else None},
+        "最大心拍": {"number": round(max_hr) if max_hr else None},
         "平均パワー": {"number": round(activity.get('avgPower', 0), 1)},
         "最大パワー": {"number": round(activity.get('maxPower', 0), 1)},
         "トレーニング効果": {"select": {"name": format_training_effect(activity.get('trainingEffectLabel', 'Unknown'))}},
@@ -153,6 +176,7 @@ def create_activity(notion_client: NotionClient, database_id: str, activity: dic
         "有酸素効果": {"select": {"name": format_training_message(activity.get('aerobicTrainingEffectMessage', 'Unknown'))}},
         "無酸素": {"number": round(activity.get('anaerobicTrainingEffect', 0), 1)},
         "無酸素効果": {"select": {"name": format_training_message(activity.get('anaerobicTrainingEffectMessage', 'Unknown'))}},
+        "ラップ": {"rich_text": [{"text": {"content": laps_text[:2000]}}]}, # Notion limit check
         "自己ベスト": {"checkbox": activity.get('pr', False)},
         "お気に入り": {"checkbox": activity.get('favorite', False)}
     }
@@ -160,6 +184,26 @@ def create_activity(notion_client: NotionClient, database_id: str, activity: dic
     page = {"parent": {"database_id": database_id}, "properties": properties}
     if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
     notion_client.pages.create(**page)
+
+def format_duration(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m}:{s:02d}"
+
+def update_database_schema(notion_client: NotionClient, database_id: str) -> None:
+    """Ensure new properties exist in the database."""
+    try:
+        notion_client.databases.update(
+            database_id=database_id,
+            properties={
+                "平均心拍": {"number": {}},
+                "最大心拍": {"number": {}},
+                "GAP": {"rich_text": {}},
+                "ラップ": {"rich_text": {}}
+            }
+        )
+        print("Updated Notion Database Schema with new columns.")
+    except Exception as e:
+        print(f"Warning: Could not update database schema (might already exist or permission issue): {e}")
 
 def main():
     load_dotenv()
@@ -172,6 +216,9 @@ def main():
     garmin_client = GarminClient(garmin_email, garmin_password)
     garmin_client.login()
     notion_client = NotionClient(auth=notion_token)
+    
+    # Update Schema if needed
+    update_database_schema(notion_client, database_id)
 
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
     for activity in activities:

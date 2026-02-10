@@ -61,8 +61,9 @@ def main():
     # Prepare header and rows
     headers = [
         "Date", "Type", "Sub Type", "Name", "Distance (km)", "Time (min)", 
-        "Pace (/km)", "Calories", "Avg Power", "Max Power", 
-        "Training Effect", "Aerobic TE", "Anaerobic TE"
+        "Pace (/km)", "GAP (/km)", "Avg HR", "Max HR", "Calories", 
+        "Avg Power", "Max Power", 
+        "Training Effect", "Aerobic TE", "Anaerobic TE", "Laps"
     ]
     rows = [headers]
     
@@ -86,11 +87,16 @@ def main():
         time_minutes = props.get("タイム (分)", {}).get("number", 0)
         calories = props.get("カロリー", {}).get("number", 0)
         
-        # 5. Pace
+        # 5. Pace & GAP
         pace_list = props.get("平均ペース", {}).get("rich_text", [])
         pace = pace_list[0].get("text", {}).get("content", "") if pace_list else "-"
         
-        # 6. Power
+        gap_list = props.get("GAP", {}).get("rich_text", [])
+        gap = gap_list[0].get("text", {}).get("content", "") if gap_list else "-"
+        
+        # 6. Heart Rate & Power
+        avg_hr = props.get("平均心拍", {}).get("number", "0")
+        max_hr = props.get("最大心拍", {}).get("number", "0")
         avg_power = props.get("平均パワー", {}).get("number", 0)
         max_power = props.get("最大パワー", {}).get("number", 0)
         
@@ -101,6 +107,10 @@ def main():
         aerobic_te = props.get("有酸素", {}).get("number", 0)
         anaerobic_te = props.get("無酸素", {}).get("number", 0)
         
+        # 8. Laps
+        laps_list = props.get("ラップ", {}).get("rich_text", [])
+        laps = laps_list[0].get("text", {}).get("content", "") if laps_list else "-"
+        
         rows.append([
             date_str,
             activity_type,
@@ -109,12 +119,16 @@ def main():
             distance,
             time_minutes,
             pace,
+            gap,
+            avg_hr,
+            max_hr,
             calories,
             avg_power,
             max_power,
             training_effect,
             aerobic_te,
-            anaerobic_te
+            anaerobic_te,
+            laps
         ])
 
     # 4. Upload to Google Drive as Google Sheets
