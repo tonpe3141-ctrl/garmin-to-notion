@@ -162,11 +162,22 @@ def main():
             spreadsheet_id = target_sheet['id']
             print(f"Found existing Google Sheet: '{target_sheet['name']}' (ID: {spreadsheet_id})")
             
+            # Get spreadsheet metadata to find the correct sheet name
+            spreadsheet_metadata = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+            sheets = spreadsheet_metadata.get('sheets', [])
+            if not sheets:
+                print("Error: No sheets found in the spreadsheet.")
+                sys.exit(1)
+            
+            # Use the first sheet's title
+            first_sheet_title = sheets[0].get("properties", {}).get("title", "Sheet1")
+            print(f"Using sheet: '{first_sheet_title}'")
+            
             # 1. Clear existing content
             print("Clearing existing content...")
             sheets_service.spreadsheets().values().clear(
                 spreadsheetId=spreadsheet_id,
-                range="Sheet1!A1:Z1000" # Assuming Sheet1 and reasonable size
+                range=f"'{first_sheet_title}'!A1:Z1000"
             ).execute()
             
             # 2. Write new content
@@ -176,7 +187,7 @@ def main():
             }
             sheets_service.spreadsheets().values().update(
                 spreadsheetId=spreadsheet_id,
-                range="Sheet1!A1",
+                range=f"'{first_sheet_title}'!A1",
                 valueInputOption="USER_ENTERED",
                 body=body
             ).execute()
