@@ -153,15 +153,31 @@ def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict
     splits = []
     try:
         # 詳細なスプリット情報を取得（インターバル等の詳細が含まれる可能性が高い）
-        splits = garmin_client.get_activity_splits(activity_id)
-        if not splits:
+        detailed_splits = garmin_client.get_activity_splits(activity_id)
+        
+        if isinstance(detailed_splits, list):
+            splits = detailed_splits
+        elif isinstance(detailed_splits, dict):
+            # 辞書の場合は中身を探す
+            if 'splitSummaries' in detailed_splits:
+                splits = detailed_splits['splitSummaries']
+            elif 'lapSummaries' in detailed_splits:
+                splits = detailed_splits['lapSummaries']
+            else:
+                print(f"Warning: detailed_splits is a dict with keys {list(detailed_splits.keys())}, falling back to summary.")
+                splits = activity.get('splitSummaries', [])
+        else:
              splits = activity.get('splitSummaries', [])
+             
     except Exception as e:
         print(f"Warning: Could not fetch detailed splits for {activity_id}: {e}")
         splits = activity.get('splitSummaries', [])
 
     if splits:
         for i, split in enumerate(splits, 1):
+            if not isinstance(split, dict):
+                continue
+            
             distance_km = round(split.get('distance', 0) / 1000, 2)
             duration_s = split.get('duration', 0)
             duration_str = format_duration(duration_s)
