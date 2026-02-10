@@ -47,6 +47,7 @@ jobs:
           TZ: 'America/Montreal'
         run: |
           python src/ガーミン活動データ取得.py
+          python src/debug_garmin_data.py
           # python src/AIコーチアドバイス作成.py (Removed as per user request)
           python src/Googleドライブ同期.py
           # python src/自己ベスト更新確認.py
