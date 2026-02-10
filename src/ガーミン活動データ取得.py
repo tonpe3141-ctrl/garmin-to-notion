@@ -163,6 +163,8 @@ def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict
                 splits = detailed_splits['splitSummaries']
             elif 'lapSummaries' in detailed_splits:
                 splits = detailed_splits['lapSummaries']
+            elif 'lapDTOs' in detailed_splits:
+                splits = detailed_splits['lapDTOs']
             else:
                 print(f"Warning: detailed_splits is a dict with keys {list(detailed_splits.keys())}, falling back to summary.")
                 splits = activity.get('splitSummaries', [])
@@ -170,7 +172,7 @@ def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict
              splits = activity.get('splitSummaries', [])
              
     except Exception as e:
-        print(f"Warning: Could not fetch detailed splits for {activity_id}: {e}")
+        print(f"Warning: Could not fetch detailed splits for {activity_id}: ({type(e).__name__}) {e}")
         splits = activity.get('splitSummaries', [])
 
     if splits:
@@ -185,9 +187,17 @@ def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict
             pace = format_pace(avg_speed)
             
             # Garminの生のsplitIdを使う（なければ連番）
-            raw_id = split.get('splitId') # 1, 2, ...
+            raw_id = split.get('splitId') or split.get('lapIndex') # lapDTOs uses lapIndex
+            
             # splitType: RINTERVAL (Run), RRECOVERY (Rest), etc.
-            split_type_key = split.get('splitType', {}).get('typeKey', '')
+            # splitType might be a dict (with typeKey) or a simple string, or missing
+            split_type_val = split.get('splitType')
+            split_type_key = ""
+            if isinstance(split_type_val, dict):
+                split_type_key = split_type_val.get('typeKey', '')
+            elif isinstance(split_type_val, str):
+                split_type_key = split_type_val
+            
             type_label = ""
             if 'INTERVAL' in split_type_key.upper(): type_label = " [Run]"
             elif 'RECOVERY' in split_type_key.upper(): type_label = " [Rest]"
