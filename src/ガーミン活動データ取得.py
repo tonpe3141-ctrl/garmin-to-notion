@@ -113,22 +113,25 @@ def format_pace(average_speed: float) -> str:
         return f"{minutes}:{seconds:02d} /km"
     return ""
 
-def activity_exists(notion_client: NotionClient, database_id: str, activity_date: datetime, activity_type: str, activity_name: str) -> dict | None:
-    lookup_type = "ストレッチ" if "stretch" in activity_name.lower() else activity_type
-    lookup_min_date = activity_date - timedelta(minutes=5)
-    lookup_max_date = activity_date + timedelta(minutes=5)
+def activity_exists(notion_client: NotionClient, database_id: str, activity_date: datetime) -> dict | None:
+    # 検索範囲を広げる（前後2分）- 時間が最も確実なキー
+    lookup_min_date = activity_date - timedelta(minutes=2)
+    lookup_max_date = activity_date + timedelta(minutes=2)
+    
     query = notion_client.databases.query(
         database_id=database_id,
         filter={
             "and": [
                 {"property": "日付", "date": {"on_or_after": lookup_min_date.isoformat()}},
                 {"property": "日付", "date": {"on_or_before": lookup_max_date.isoformat()}},
-                {"property": "種目", "select": {"equals": lookup_type}},
-                {"property": "アクティビティ名", "title": {"equals": activity_name}}
             ]
         }
     )
     results = query['results']
+    # 複数見つかった場合は、ログを出して最初のものを返す（通常は重複しないはず）
+    if len(results) > 1:
+        print(f"Warning: Multiple activities found around {activity_date}. Using the first one.")
+    
     return results[0] if results else None
 
 def get_activity_properties(activity: dict) -> dict:
@@ -155,11 +158,14 @@ def get_activity_properties(activity: dict) -> dict:
             avg_speed = split.get('averageSpeed', 0)
             pace = format_pace(avg_speed)
             
-            # Skip noise laps (e.g., < 10 meters and < 10 seconds)
-            if distance_km < 0.01 and duration_s < 10:
-                continue
-                
-            laps_text += f"Lap {i}: {distance_km}km, {duration_str}, {pace}\n"
+            # Garminの生のsplitIdを使う（なければ連番）
+            raw_id = split.get('splitId')
+            lap_label = str(raw_id) if raw_id is not None else str(i)
+            
+            # ラップごとの心拍数があれば表示
+            lap_hr = f" HR:{int(split.get('averageHR'))}" if split.get('averageHR') else ""
+            
+            laps_text += f"Lap {lap_label}: {distance_km}km, {duration_str}, {pace}{lap_hr}\n"
 
     properties = {
         "日付": {"date": {"start": activity_date}},
@@ -249,9 +255,11 @@ def main():
         activity_name = activity.get('activityName', '無題のアクティビティ')
         activity_type, _ = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
 
-        existing_activity = activity_exists(notion_client, database_id, activity_date, activity_type, activity_name)
+        # 日付のみで検索して、既存データ（英語・古い形式含む）を捕捉する
+        existing_activity = activity_exists(notion_client, database_id, activity_date)
         if existing_activity:
             # Update existing activity to fill in new fields (HR, GAP, Laps)
+            # 古いデータ（ "Running" 等）も新しいデータ内容で上書き更新される
             update_activity(notion_client, existing_activity['id'], activity)
         else:
             create_activity(notion_client, database_id, activity)
