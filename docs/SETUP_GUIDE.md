@@ -50,7 +50,6 @@ GarminのランニングデータをNotebookLMやGeminiカスタムGemで利用�
 
 ## 6. プログラム構成（参考）
 わかりやすくするために、プログラム名を日本語に変更しました。
-*   `src/AIコーチアドバイス作成.py`: Geminiを使ってアドバイスを生成する
 *   `src/Googleドライブ同期.py`: NotionのデータをGoogleドキュメントに同期する
 *   `src/ガーミン活動データ取得.py`: Garminから最新データを取得する
 
