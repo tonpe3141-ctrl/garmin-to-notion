@@ -46,9 +46,9 @@ jobs:
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
           TZ: 'America/Montreal'
         run: |
-          python garmin-activities.py
-          python ai_coach.py
-          python sync_to_drive.py
-          # python personal-records.py
-          # python daily-steps.py
-          # python sleep-data.py
+          python src/garmin-activities.py
+          python src/ai_coach.py
+          python src/sync_to_drive.py
+          # python src/personal-records.py
+          # python src/daily-steps.py
+          # python src/sleep-data.py
