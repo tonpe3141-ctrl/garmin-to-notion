@@ -67,6 +67,9 @@ def main():
     ]
     rows = [headers]
     
+    # Timezone
+    jst = datetime.timezone(datetime.timedelta(hours=9))
+
     for page in all_activities:
         props = page.get("properties", {})
         
@@ -75,10 +78,14 @@ def main():
         if date_str:
             try:
                 # Notion ISO date to datetime obj
-                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
-                # If naive, assume UTC or let JST strings be. But standard notion date is localized or UTC.
-                # Just formatting:
-                date_str = dt.strftime('%Y-%m-%d %H:%M')
+                if 'Z' in date_str:
+                    dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                else:
+                    dt = datetime.fromisoformat(date_str)
+                
+                # Convert to JST
+                dt_jst = dt.astimezone(jst)
+                date_str = dt_jst.strftime('%Y-%m-%d %H:%M')
             except ValueError:
                 pass # keep original if parse fails
         
