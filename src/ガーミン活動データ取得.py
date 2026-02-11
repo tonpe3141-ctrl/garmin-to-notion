@@ -414,15 +414,29 @@ def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account
         # Header with Laps restored
         header = ["日付", "種目", "詳細種目", "アクティビティ名", "距離 (km)", "タイム (分)", 
                   "カロリー", "平均ペース", "GAP", "平均心拍", "最大心拍", "ピッチ", "ストライド", 
-                  "有酸素TE", "無酸素TE", "ラップ", "タイムスタンプ"]
+                  "有酸素TE", "無酸素TE", "ラップ"]
         
         values = [header]
         
         for activity in activities:
+            # Parse Date
             activity_date_raw = activity.get('startTimeGMT')
             date_str = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC).astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
             activity_name = activity.get('activityName', '無題')
             activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
+            
+            distance_km = round(activity.get('distance', 0) / 1000, 2)
+            duration_min = round(activity.get('duration', 0) / 60, 2)
+            calories = round(activity.get('calories', 0))
+            avg_pace = format_pace(activity.get('averageSpeed', 0))
+            avg_hr = round(activity.get('averageHR')) if activity.get('averageHR') else ""
+            max_hr = round(activity.get('maxHR')) if activity.get('maxHR') else ""
+            
+            cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else ""
+            stride = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else "" # cm to m? normally displayed in m or cm. Garmin sends cm usually. Notion asks for what? Let's assume m for now or cm. usually cm.
+            
+            aerobic = round(activity.get('aerobicTrainingEffect', 0), 1)
+            anaerobic = round(activity.get('anaerobicTrainingEffect', 0), 1)
             
             avg_gap_speed = activity.get('avgGradeAdjustedSpeed')
             gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
@@ -432,19 +446,18 @@ def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account
                 activity_type,
                 activity_subtype,
                 activity_name,
-                round(activity.get('distance', 0) / 1000, 2),
-                round(activity.get('duration', 0) / 60, 2),
-                round(activity.get('calories', 0)),
-                format_pace(activity.get('averageSpeed', 0)),
+                distance_km,
+                duration_min,
+                calories,
+                avg_pace,
                 gap_str,
-                round(activity.get('averageHR')) if activity.get('averageHR') else "",
-                round(activity.get('maxHR')) if activity.get('maxHR') else "",
-                round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else "",
-                round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else "",
-                round(activity.get('aerobicTrainingEffect', 0), 1),
-                round(activity.get('anaerobicTrainingEffect', 0), 1),
-                activity.get('laps_text', ""), # Use the enriched laps text
-                datetime.now(local_tz).isoformat()
+                avg_hr,
+                max_hr,
+                cadence,
+                stride,
+                aerobic,
+                anaerobic,
+                activity.get('laps_text', "")
             ]
             values.append(row)
             
