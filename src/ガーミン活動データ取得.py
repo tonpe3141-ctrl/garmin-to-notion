@@ -213,12 +213,12 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
             continue
 
     if closest_match:
-        # 12時間以内のズレなら同一とみなす（JST 9時間ズレなどを許容）
-        if min_diff < 12 * 3600:
-            print(f"Match found! Diff: {min_diff/3600:.2f} hours")
+        # 日付のみ（00:00）のレコードと、遅い時間のラン（例: 21:00）との差が12時間を超えることがあるため、24時間まで許容する
+        if min_diff < 24 * 3600:
+            print(f"Match found! Diff: {min_diff/3600:.2f} hours (Page ID: {closest_match['id']})")
             return closest_match
         else:
-            print(f"Candidates found but time diff is too large: {min_diff/3600:.2f} hours")
+            print(f"Candidates found but time diff is too large: {min_diff/3600:.2f} hours. Treating as new.")
             return None
 
     return None
