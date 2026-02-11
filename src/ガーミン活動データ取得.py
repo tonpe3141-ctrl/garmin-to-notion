@@ -159,7 +159,17 @@ def format_pace(average_speed: float) -> str:
     return ""
 
 def activity_exists(notion_client: NotionClient, database_id: str, activity_date: datetime) -> dict | None:
-    # 検索範囲を広げる（前後24時間）- タイムゾーンのズレや時間設定の誤差を許容
+    # タイムゾーン考慮: Garminの時間をJSTに変換して、その「日付(YYYY-MM-DD)」が一致するものを探す
+    # activity_date は UTC で渡されてくる前提
+    if activity_date.tzinfo is None:
+        activity_date = activity_date.replace(tzinfo=UTC)
+    
+    activity_jst = activity_date.astimezone(local_tz)
+    target_date_str = activity_jst.strftime('%Y-%m-%d')
+    
+    # 検索範囲: Notion上でその日のタイムレンジ（JST 00:00 - 23:59）
+    # Notionでは日付クエリはISO文字列で行うが、安全のため前後24h広めに取ってフィルタするのは維持し、
+    # Python側で厳密に文字列マッチさせる
     lookup_min_date = activity_date - timedelta(hours=24)
     lookup_max_date = activity_date + timedelta(hours=24)
     
@@ -177,50 +187,24 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
     if not results:
         return None
         
-    # Python上で最も時刻が近いものを探す
-    closest_match = None
-    min_diff = float('inf')
-    
+    # 文字列（YYYY-MM-DD）で完全一致するものを探す（これが最も確実）
     for page in results:
         try:
             date_prop = page['properties']['日付']['date']
             if not date_prop: continue
             
-            start_str = date_prop['start']
-            # Notionの日付文字列をパース（ISOフォーマット）
-            # 時間が含まれていない場合（YYYY-MM-DD）のケアも必要だが、通常は時間付きのはず
-            if 'T' in start_str:
-                page_date = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            else:
-                # 時間がない場合は、activity_dateの日付と比較
-                page_date = datetime.fromisoformat(start_str).replace(tzinfo=UTC) # 仮にUTCとする
-
-            # タイムゾーン情報を調整して差分計算
-            if page_date.tzinfo is None:
-                page_date = page_date.replace(tzinfo=UTC)
-            if activity_date.tzinfo is None:
-                activity_date = activity_date.replace(tzinfo=UTC)
-                
-            diff = abs((page_date - activity_date).total_seconds())
+            start_str = date_prop['start'] # ISO string or YYYY-MM-DD
+            page_date_str = start_str[:10] # 先頭10文字 (YYYY-MM-DD)
             
-            # 差分が最小のものを記録
-            if diff < min_diff:
-                min_diff = diff
-                closest_match = page
+            if page_date_str == target_date_str:
+                print(f"Match found by Date String: {page_date_str} (Page ID: {page['id']})")
+                return page
                 
         except Exception as e:
-            print(f"Warning: Error parsing date for page {page['id']}: {e}")
+            print(f"Warning: Error checking page {page['id']}: {e}")
             continue
 
-    if closest_match:
-        # 日付のみ（00:00）のレコードと、遅い時間のラン（例: 21:00）との差が12時間を超えることがあるため、24時間まで許容する
-        if min_diff < 24 * 3600:
-            print(f"Match found! Diff: {min_diff/3600:.2f} hours (Page ID: {closest_match['id']})")
-            return closest_match
-        else:
-            print(f"Candidates found but time diff is too large: {min_diff/3600:.2f} hours. Treating as new.")
-            return None
-
+    print(f"No match found for {target_date_str} among {len(results)} candidates.")
     return None
 
 def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
