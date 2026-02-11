@@ -32,53 +32,54 @@ ACTIVITY_ICONS = {
     "ヨガ/ピラティス": "https://img.icons8.com/?size=100&id=9783&format=png&color=000000",
 }
 
-def get_all_activities(garmin_client: GarminClient, max_limit: int = 1000) -> list[dict]:
-    # 確実性を高めるため、7日ずつ小分けにして過去60日分を取得する
+def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> list[dict]:
+    # 日付指定が不安定なため、確実な「インデックス指定（ページネーション）」で過去データを総ざらいする
     all_activities = []
+    batch_size = 50 # 安全のため少し小さめに
+    start_index = 0
     
-    # 今日から遡る
-    end_date = datetime.now(local_tz)
-    # 60日前まで（約2ヶ月）
-    final_start_date = end_date - timedelta(days=60)
+    # どこまで遡るか（例: 90日前）
+    target_history_days = 90
+    cutoff_date = datetime.now(local_tz) - timedelta(days=target_history_days)
     
-    current_end = end_date
+    print(f"Fetching activities via Pagination (Target: Last {target_history_days} days)...")
     
-    print(f"Fetching activities in chunks (7 days per request) from {final_start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}...")
-    
-    while current_end > final_start_date:
-        current_start = current_end - timedelta(days=6) # 7-day window
-        
-        start_str = current_start.strftime("%Y-%m-%d")
-        end_str = current_end.strftime("%Y-%m-%d")
-        
-        print(f"  Fetching {start_str} to {end_str}...", end=" ", flush=True)
+    while True:
         try:
-            # activityType='' gets all types
-            activities = garmin_client.get_activities_by_date(start_str, end_str, "")
-            if activities:
-                print(f"Found {len(activities)} activities.")
-                all_activities.extend(activities)
-            else:
-                print("None.")
+            print(f"  Fetching index {start_index} to {start_index + batch_size}...", end=" ", flush=True)
+            activities = garmin_client.get_activities(start_index, batch_size)
+            
+            if not activities:
+                print("No more activities found.")
+                break
                 
+            all_activities.extend(activities)
+            print(f"Fetched {len(activities)} items.")
+            
+            # 日付チェック：一番古いデータがカットオフより古ければ終了
+            last_activity = activities[-1]
+            last_date_str = last_activity.get('startTimeGMT')
+            last_date = datetime.strptime(last_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC).astimezone(local_tz)
+            
+            print(f"    Oldest in batch: {last_date.strftime('%Y-%m-%d')}")
+            
+            if last_date < cutoff_date:
+                print(f"    Reached cutoff date ({cutoff_date.strftime('%Y-%m-%d')}). stopping.")
+                break
+                
+            if len(all_activities) >= max_limit:
+                print(f"    Reached max limit ({max_limit}). stopping.")
+                break
+            
+            start_index += batch_size
+            
         except Exception as e:
-            print(f"Error: {e}")
-        
-        # Move back for next iteration
-        current_end = current_start - timedelta(days=1)
-        
-        if len(all_activities) >= max_limit:
+            print(f"Error in pagination at index {start_index}: {e}")
+            # エラーが出ても、そこまで取れた分は返す
             break
             
-    # Deduplicate by activityId
-    unique_activities = {act['activityId']: act for act in all_activities}
-    result = list(unique_activities.values())
-    
-    # Sort by date desc (Newest first)
-    result.sort(key=lambda x: x.get('startTimeGMT'), reverse=True)
-    
-    print(f"Total unique activities fetched: {len(result)}")
-    return result[:max_limit]
+    print(f"Total fetched: {len(all_activities)}")
+    return all_activities
 
 def format_activity_type(activity_type: str, activity_name: str = "") -> tuple[str, str]:
     formatted_type = activity_type.replace('_', ' ').title() if activity_type else "Unknown"
