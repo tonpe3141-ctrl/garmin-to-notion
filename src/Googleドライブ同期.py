@@ -1,5 +1,5 @@
 import os
-import datetime
+from datetime import datetime
 import sys
 from notion_client import Client
 from google.oauth2.service_account import Credentials
