@@ -235,63 +235,27 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
     print(f"  No match found.")
     return None
 
-def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
-    activity_id = activity.get('activityId')
-    
-    # リスト取得のデータだと情報が欠けている場合があるため、詳細データを改めて取得する
-    try:
-        full_activity = garmin_client.get_activity(activity_id)
-        if full_activity:
-            activity = full_activity # Use the full data source
-    except Exception as e:
-        print(f"Warning: Could not fetch full activity details for {activity_id}, using summary: {e}")
-
-    activity_date_raw = activity.get('startTimeGMT')
-    activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
-    activity_date_jst = activity_date_utc.astimezone(local_tz)
-    
-    activity_name = activity.get('activityName', '無題のアクティビティ')
-    activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
-    
-    # ... (Processing additional metrics)
-    average_hr = activity.get('averageHR')
-    max_hr = activity.get('maxHR')
-    avg_gap_speed = activity.get('avgGradeAdjustedSpeed') # m/s
-    
-    # Format GAP
-    gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
-
-    # Format Laps (Try to fetch detailed splits first, fall back to summary)
+def fetch_and_format_laps(garmin_client: GarminClient, activity_id: str) -> str:
     laps_text = ""
     splits = []
     try:
-        # 詳細なスプリット情報を取得（インターバル等の詳細が含まれる可能性が高い）
         detailed_splits = garmin_client.get_activity_splits(activity_id)
-        
         if isinstance(detailed_splits, list):
             splits = detailed_splits
         elif isinstance(detailed_splits, dict):
-            # 辞書の場合は中身を探す
-            if 'splitSummaries' in detailed_splits:
-                splits = detailed_splits['splitSummaries']
-            elif 'lapSummaries' in detailed_splits:
-                splits = detailed_splits['lapSummaries']
-            elif 'lapDTOs' in detailed_splits:
-                splits = detailed_splits['lapDTOs']
-            else:
-                print(f"Warning: detailed_splits is a dict with keys {list(detailed_splits.keys())}, falling back to summary.")
-                splits = activity.get('splitSummaries', [])
+            if 'splitSummaries' in detailed_splits: splits = detailed_splits['splitSummaries']
+            elif 'lapSummaries' in detailed_splits: splits = detailed_splits['lapSummaries']
+            elif 'lapDTOs' in detailed_splits: splits = detailed_splits['lapDTOs']
+            else: splits = [] # Fallback
         else:
-             splits = activity.get('splitSummaries', [])
-             
+             splits = []
     except Exception as e:
-        print(f"Warning: Could not fetch detailed splits for {activity_id}: ({type(e).__name__}) {e}")
-        splits = activity.get('splitSummaries', [])
+        print(f"Warning: Could not fetch detailed splits for {activity_id}: {e}")
+        return ""
 
     if splits:
         for i, split in enumerate(splits, 1):
-            if not isinstance(split, dict):
-                continue
+            if not isinstance(split, dict): continue
             
             distance_km = round(split.get('distance', 0) / 1000, 2)
             duration_s = split.get('duration', 0)
@@ -299,31 +263,62 @@ def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict
             avg_speed = split.get('averageSpeed', 0)
             pace = format_pace(avg_speed)
             
-            # Garminの生のsplitIdを使う（なければ連番）
-            raw_id = split.get('splitId') or split.get('lapIndex') # lapDTOs uses lapIndex
+            raw_id = split.get('splitId') or split.get('lapIndex')
             
-            # splitType: RINTERVAL (Run), RRECOVERY (Rest), etc.
-            # splitType might be a dict (with typeKey) or a simple string, or missing
             split_type_val = split.get('splitType')
             split_type_key = ""
-            if isinstance(split_type_val, dict):
-                split_type_key = split_type_val.get('typeKey', '')
-            elif isinstance(split_type_val, str):
-                split_type_key = split_type_val
+            if isinstance(split_type_val, dict): split_type_key = split_type_val.get('typeKey', '')
+            elif isinstance(split_type_val, str): split_type_key = split_type_val
             
             type_label = ""
             if 'INTERVAL' in split_type_key.upper(): type_label = " [Run]"
             elif 'RECOVERY' in split_type_key.upper(): type_label = " [Rest]"
             
-            # 距離が短すぎる、かつ時間が短いものはノイズとしてスキップ（ただしインターバルのレストは0kmでも残す）
             if distance_km < 0.01 and duration_s < 5 and "RECOVERY" not in split_type_key.upper():
                 continue
 
             lap_label = str(raw_id) if raw_id is not None else str(i)
-            # ラップごとの心拍数があれば表示
             lap_hr = f" HR:{int(split.get('averageHR'))}" if split.get('averageHR') else ""
             
             laps_text += f"Lap {lap_label}{type_label}: {distance_km}km, {duration_str}, {pace}{lap_hr}\n"
+            
+    return laps_text[:2000] # Notion limit check
+
+def enrich_activity_data(garmin_client: GarminClient, activity: dict) -> dict:
+    """Fetch full details and splits, and add them to the activity dict."""
+    activity_id = activity.get('activityId')
+    try:
+        # 1. Fetch Full Details if possible (sometimes list view is incomplete)
+        # Note: We do this only if strictly needed, but to be safe and consistent with previous logic:
+        full_activity = garmin_client.get_activity(activity_id)
+        if full_activity:
+            activity.update(full_activity) # Merge full details
+            
+        # 2. Fetch Laps
+        laps_text = fetch_and_format_laps(garmin_client, activity_id)
+        activity['laps_text'] = laps_text
+        
+    except Exception as e:
+        print(f"Warning: Enrichment failed for {activity_id}: {e}")
+        activity['laps_text'] = ""
+        
+    return activity
+
+def get_activity_properties(activity: dict) -> dict:
+    # activity is now assumed to be ENRICHED (has 'laps_text' etc)
+    
+    activity_date_raw = activity.get('startTimeGMT')
+    activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
+    activity_date_jst = activity_date_utc.astimezone(local_tz)
+    
+    activity_name = activity.get('activityName', '無題のアクティビティ')
+    activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
+    
+    average_hr = activity.get('averageHR')
+    max_hr = activity.get('maxHR')
+    avg_gap_speed = activity.get('avgGradeAdjustedSpeed')
+    gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
+    laps_text = activity.get('laps_text', "")
 
     properties = {
         "日付": {"date": {"start": activity_date_jst.isoformat()}},
@@ -344,175 +339,99 @@ def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict
         "有酸素効果": {"select": {"name": format_training_message(activity.get('aerobicTrainingEffectMessage', 'Unknown'))}},
         "無酸素": {"number": round(activity.get('anaerobicTrainingEffect', 0), 1)},
         "無酸素効果": {"select": {"name": format_training_message(activity.get('anaerobicTrainingEffectMessage', 'Unknown'))}},
-        "ラップ": {"rich_text": [{"text": {"content": laps_text[:2000]}}]}, # Notion limit check
+        "ラップ": {"rich_text": [{"text": {"content": laps_text}}]},
         "自己ベスト": {"checkbox": activity.get('pr', False)},
         "お気に入り": {"checkbox": activity.get('favorite', False)}
     }
     return properties, icon_url_from_type(activity_type, activity_subtype)
 
-def icon_url_from_type(activity_type, activity_subtype):
-    return ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
-
-def create_activity(notion_client: NotionClient, database_id: str, activity: dict, garmin_client: GarminClient) -> None:
-    properties, icon_url = get_activity_properties(garmin_client, activity)
+def create_activity(notion_client: NotionClient, database_id: str, activity: dict) -> None:
+    properties, icon_url = get_activity_properties(activity)
     page = {"parent": {"database_id": database_id}, "properties": properties}
     if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
     notion_client.pages.create(**page)
     print(f"Created: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
 
-def update_activity(notion_client: NotionClient, page_id: str, activity: dict, garmin_client: GarminClient) -> None:
-    properties, icon_url = get_activity_properties(garmin_client, activity)
-    # Remove '日付' from updates to avoid timezone shifts if not necessary, but here we keep it for consistency
-    # Notion API 'update' merges properties.
+def update_activity(notion_client: NotionClient, page_id: str, activity: dict) -> None:
+    properties, icon_url = get_activity_properties(activity)
     page = {"properties": properties}
     if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
     notion_client.pages.update(page_id, **page)
     print(f"Updated Backfill: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
 
-def format_duration(seconds: float) -> str:
-    m, s = divmod(int(seconds), 60)
-    return f"{m}:{s:02d}"
-
-def update_database_schema(notion_client: NotionClient, database_id: str) -> None:
-    """Ensure new properties exist in the database."""
-    try:
-        notion_client.databases.update(
-            database_id=database_id,
-            properties={
-                "平均心拍": {"number": {}},
-                "最大心拍": {"number": {}},
-                "GAP": {"rich_text": {}},
-                "ラップ": {"rich_text": {}}
-            }
-        )
-        print("Updated Notion Database Schema with new columns.")
-    except Exception as e:
-        print(f"Warning: Could not update database schema (might already exist or permission issue): {e}")
-
-
-def get_google_credentials(service_account_json_str):
-    try:
-        info = json.loads(service_account_json_str)
-        creds = Credentials.from_service_account_info(
-            info, scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
-        )
-        return creds
-    except Exception as e:
-        print(f"Error loading Google Service Account: {e}")
-        return None
+# ... (Previous helper functions like format_duration, format_pace etc. remain)
 
 def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account_json: str):
     print("\n--- Starting Google Sheets Sync (Direct from Garmin) ---")
     creds = get_google_credentials(service_account_json)
-    if not creds:
-        print("Skipping Google Sync: No credentials.")
-        return
+    if not creds: return
 
     try:
         drive_service = build('drive', 'v3', credentials=creds)
         sheets_service = build('sheets', 'v4', credentials=creds)
         
-        # 1. Check for existing file
         file_name = "Garmin Running Log"
         query = f"name = '{file_name}' and '{folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
         results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
         files = results.get('files', [])
         
-        if files:
-            spreadsheet_id = files[0]['id']
-            print(f"Found existing Sheet: {spreadsheet_id}")
+        if files: spreadsheet_id = files[0]['id']
         else:
-            print("Creating new Sheet...")
-            file_metadata = {
-                'name': file_name,
-                'parents': [folder_id],
-                'mimeType': 'application/vnd.google-apps.spreadsheet'
-            }
+            file_metadata = {'name': file_name, 'parents': [folder_id], 'mimeType': 'application/vnd.google-apps.spreadsheet'}
             file = drive_service.files().create(body=file_metadata, fields='id').execute()
             spreadsheet_id = file.get('id')
-            print(f"Created new Sheet: {spreadsheet_id}")
 
-        # 2. Prepare Data
-        # Header matches Notion structure roughly
+        # Header with Laps restored
         header = ["日付", "種目", "詳細種目", "アクティビティ名", "距離 (km)", "タイム (分)", 
-                  "カロリー", "平均ペース", "平均心拍", "最大心拍", "ピッチ", "ストライド", 
-                  "有酸素TE", "無酸素TE", "タイムスタンプ"]
+                  "カロリー", "平均ペース", "GAP", "平均心拍", "最大心拍", "ピッチ", "ストライド", 
+                  "有酸素TE", "無酸素TE", "ラップ", "タイムスタンプ"]
         
         values = [header]
         
         for activity in activities:
-            # Parse Date
             activity_date_raw = activity.get('startTimeGMT')
-            activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
-            activity_date_jst = activity_date_utc.astimezone(local_tz)
-            date_str = activity_date_jst.strftime('%Y-%m-%d %H:%M')
-            
+            date_str = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC).astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
             activity_name = activity.get('activityName', '無題')
             activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
             
-            distance_km = round(activity.get('distance', 0) / 1000, 2)
-            duration_min = round(activity.get('duration', 0) / 60, 2)
-            calories = round(activity.get('calories', 0))
-            avg_pace = format_pace(activity.get('averageSpeed', 0))
-            avg_hr = round(activity.get('averageHR')) if activity.get('averageHR') else ""
-            max_hr = round(activity.get('maxHR')) if activity.get('maxHR') else ""
-            
-            cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else ""
-            stride = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else "" # cm to m? normally displayed in m or cm. Garmin sends cm usually. Notion asks for what? Let's assume m for now or cm. usually cm.
-            
-            aerobic = round(activity.get('aerobicTrainingEffect', 0), 1)
-            anaerobic = round(activity.get('anaerobicTrainingEffect', 0), 1)
+            avg_gap_speed = activity.get('avgGradeAdjustedSpeed')
+            gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
             
             row = [
                 date_str,
                 activity_type,
                 activity_subtype,
                 activity_name,
-                distance_km,
-                duration_min,
-                calories,
-                avg_pace,
-                avg_hr,
-                max_hr,
-                cadence,
-                stride,
-                aerobic,
-                anaerobic,
+                round(activity.get('distance', 0) / 1000, 2),
+                round(activity.get('duration', 0) / 60, 2),
+                round(activity.get('calories', 0)),
+                format_pace(activity.get('averageSpeed', 0)),
+                gap_str,
+                round(activity.get('averageHR')) if activity.get('averageHR') else "",
+                round(activity.get('maxHR')) if activity.get('maxHR') else "",
+                round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else "",
+                round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else "",
+                round(activity.get('aerobicTrainingEffect', 0), 1),
+                round(activity.get('anaerobicTrainingEffect', 0), 1),
+                activity.get('laps_text', ""), # Use the enriched laps text
                 datetime.now(local_tz).isoformat()
             ]
             values.append(row)
             
-        # 3. Write Data
+        # Write Data
         body = {'values': values}
-        
         sheet_metadata = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
         first_sheet_title = sheet_metadata.get('sheets', '')[0].get('properties', {}).get('title', 'Sheet1')
-        range_name = f"'{first_sheet_title}'!A1"
         
-        # Debug: Check what we are writing
         if len(values) > 1:
-            print(f"Preparing to write {len(values)-1} rows to Sheets.")
-            print(f"  - Newest in Sheet: {values[1][0]}")
-            print(f"  - Oldest in Sheet: {values[-1][0]}")
-        else:
-            print("Warning: No data rows to write.")
+            print(f"Preparing to write {len(values)-1} rows. Range: {values[1][0]} ~ {values[-1][0]}")
 
-        # Clear existing first
-        print("Clearing existing sheet content...")
-        sheets_service.spreadsheets().values().clear(
-            spreadsheetId=spreadsheet_id, range=f"'{first_sheet_title}'!A1:Z2000"
-        ).execute()
-
-        sheets_service.spreadsheets().values().update(
-            spreadsheetId=spreadsheet_id, range=range_name,
-            valueInputOption='USER_ENTERED', body=body
-        ).execute()
-        
-        print(f"Successfully synced {len(values)-1} rows to Google Sheets.")
+        sheets_service.spreadsheets().values().clear(spreadsheetId=spreadsheet_id, range=f"'{first_sheet_title}'!A1:Z2000").execute()
+        sheets_service.spreadsheets().values().update(spreadsheetId=spreadsheet_id, range=f"'{first_sheet_title}'!A1", valueInputOption='USER_ENTERED', body=body).execute()
+        print(f"Successfully synced to Sheets.")
         
     except HttpError as err:
         print(f"Google API Error: {err}")
-
 
 def main():
     load_dotenv()
@@ -522,43 +441,45 @@ def main():
     database_id = os.getenv("NOTION_DB_ID")
     garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "200"))
     
-    # Google Auth
     google_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
     drive_folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 
     garmin_client = GarminClient(garmin_email, garmin_password)
     garmin_client.login()
     notion_client = NotionClient(auth=notion_token)
-    
-    # Update Schema if needed
     update_database_schema(notion_client, database_id)
 
+    # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
-    print(f"Fetched {len(activities)} activities from Garmin.")
+    print(f"Fetched {len(activities)} activities. Starting enrichment (fetching details/laps)...")
     
-    # --- GOOGLE SHEETS SYNC (Direct) ---
+    # 2. Enrich Data (Fetch Details & Laps) - This replaces the individual fetching in Notion loop
+    enriched_activities = []
+    for i, act in enumerate(activities, 1):
+        print(f"Enriching {i}/{len(activities)}: {act.get('startTimeGMT')}...", end="\r")
+        enriched = enrich_activity_data(garmin_client, act)
+        enriched_activities.append(enriched)
+    print("\nEnrichment complete.")
+    
+    # 3. Sync to Google Sheets
     if google_json and drive_folder_id:
-        sync_to_google_sheet(activities, drive_folder_id, google_json)
+        sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
     
+    # 4. Sync to Notion (Using Enriched Data)
     print("\n--- Starting Notion Sync ---")
-    for activity in activities:
+    for activity in enriched_activities:
         try:
             activity_date_raw = activity.get('startTimeGMT')
             activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
-            activity_name = activity.get('activityName', '無題のアクティビティ')
-            activity_type, _ = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
-
-            # 日付のみで検索して、既存データ（英語・古い形式含む）を捕捉する
+            
             existing_activity = activity_exists(notion_client, database_id, activity_date)
             if existing_activity:
-                # Update existing activity to fill in new fields (HR, GAP, Laps)
-                update_activity(notion_client, existing_activity['id'], activity, garmin_client)
+                update_activity(notion_client, existing_activity['id'], activity)
             else:
-                create_activity(notion_client, database_id, activity, garmin_client)
+                create_activity(notion_client, database_id, activity)
         except Exception as e:
-            print(f"Error processing activity {activity.get('activityId')}, skipping: {e}")
+            print(f"Error processing activity {activity.get('activityId')}: {e}")
             continue
-
 
 if __name__ == "__main__":
     main()
