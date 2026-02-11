@@ -180,6 +180,15 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
 
 def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
     activity_id = activity.get('activityId')
+    
+    # リスト取得のデータだと情報が欠けている場合があるため、詳細データを改めて取得する
+    try:
+        full_activity = garmin_client.get_activity(activity_id)
+        if full_activity:
+            activity = full_activity # Use the full data source
+    except Exception as e:
+        print(f"Warning: Could not fetch full activity details for {activity_id}, using summary: {e}")
+
     activity_date_raw = activity.get('startTimeGMT')
     activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
     activity_date_jst = activity_date_utc.astimezone(local_tz)
