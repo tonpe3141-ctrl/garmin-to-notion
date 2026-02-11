@@ -359,7 +359,37 @@ def update_activity(notion_client: NotionClient, page_id: str, activity: dict) -
     notion_client.pages.update(page_id, **page)
     print(f"Updated Backfill: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
 
-# ... (Previous helper functions like format_duration, format_pace etc. remain)
+def format_duration(seconds: float) -> str:
+    m, s = divmod(int(seconds), 60)
+    return f"{m}:{s:02d}"
+
+def update_database_schema(notion_client: NotionClient, database_id: str) -> None:
+    """Ensure new properties exist in the database."""
+    try:
+        notion_client.databases.update(
+            database_id=database_id,
+            properties={
+                "平均心拍": {"number": {}},
+                "最大心拍": {"number": {}},
+                "GAP": {"rich_text": {}},
+                "ラップ": {"rich_text": {}}
+            }
+        )
+        print("Updated Notion Database Schema with new columns.")
+    except Exception as e:
+        print(f"Warning: Could not update database schema (might already exist or permission issue): {e}")
+
+
+def get_google_credentials(service_account_json_str):
+    try:
+        info = json.loads(service_account_json_str)
+        creds = Credentials.from_service_account_info(
+            info, scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+        )
+        return creds
+    except Exception as e:
+        print(f"Error loading Google Service Account: {e}")
+        return None
 
 def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account_json: str):
     print("\n--- Starting Google Sheets Sync (Direct from Garmin) ---")
