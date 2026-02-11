@@ -180,7 +180,10 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
 
 def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
     activity_id = activity.get('activityId')
-    activity_date = activity.get('startTimeGMT')
+    activity_date_raw = activity.get('startTimeGMT')
+    activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
+    activity_date_jst = activity_date_utc.astimezone(local_tz)
+    
     activity_name = activity.get('activityName', '無題のアクティビティ')
     activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
     
@@ -257,7 +260,7 @@ def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict
             laps_text += f"Lap {lap_label}{type_label}: {distance_km}km, {duration_str}, {pace}{lap_hr}\n"
 
     properties = {
-        "日付": {"date": {"start": activity_date}},
+        "日付": {"date": {"start": activity_date_jst.isoformat()}},
         "種目": {"select": {"name": activity_type}},
         "詳細種目": {"select": {"name": activity_subtype}},
         "アクティビティ名": {"title": [{"text": {"content": activity_name}}]},
@@ -339,20 +342,21 @@ def main():
     print(f"Fetched {len(activities)} activities from Garmin.")
     
     for activity in activities:
-        activity_date_raw = activity.get('startTimeGMT')
-        activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
-        activity_name = activity.get('activityName', '無題のアクティビティ')
-        activity_type, _ = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
+        try:
+            activity_date_raw = activity.get('startTimeGMT')
+            activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
+            activity_name = activity.get('activityName', '無題のアクティビティ')
+            activity_type, _ = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
 
-        # 日付のみで検索して、既存データ（英語・古い形式含む）を捕捉する
-        existing_activity = activity_exists(notion_client, database_id, activity_date)
-        if existing_activity:
-            # Update existing activity to fill in new fields (HR, GAP, Laps)
-            # 古いデータ（ "Running" 等）も新しいデータ内容で上書き更新される
-            # activity['activityId'] を使って詳細スプリットを取得するため、clientを渡す
-            update_activity(notion_client, existing_activity['id'], activity, garmin_client)
-        else:
-            create_activity(notion_client, database_id, activity, garmin_client)
-
-if __name__ == '__main__':
-    main()
+            # 日付のみで検索して、既存データ（英語・古い形式含む）を捕捉する
+            existing_activity = activity_exists(notion_client, database_id, activity_date)
+            if existing_activity:
+                # Update existing activity to fill in new fields (HR, GAP, Laps)
+                # 古いデータ（ "Running" 等）も新しいデータ内容で上書き更新される
+                # activity['activityId'] を使って詳細スプリットを取得するため、clientを渡す
+                update_activity(notion_client, existing_activity['id'], activity, garmin_client)
+            else:
+                create_activity(notion_client, database_id, activity, garmin_client)
+        except Exception as e:
+            print(f"Error processing activity {activity.get('activityId')}, skipping: {e}")
+            continue

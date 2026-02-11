@@ -70,9 +70,17 @@ def main():
     for page in all_activities:
         props = page.get("properties", {})
         
-        # 1. Date
-        date_prop = props.get("日付", {}).get("date", {})
-        date_str = date_prop.get("start") if date_prop else "Unknown"
+        # Date Parsing & Formatting
+        date_str = props.get('日付', {}).get('date', {}).get('start', '')
+        if date_str:
+            try:
+                # Notion ISO date to datetime obj
+                dt = datetime.fromisoformat(date_str.replace('Z', '+00:00'))
+                # If naive, assume UTC or let JST strings be. But standard notion date is localized or UTC.
+                # Just formatting:
+                date_str = dt.strftime('%Y-%m-%d %H:%M')
+            except ValueError:
+                pass # keep original if parse fails
         
         # 2. Type & Sub Type
         activity_type = props.get("種目", {}).get("select", {}).get("name", "Unknown")
