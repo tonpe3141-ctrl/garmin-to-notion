@@ -1,10 +1,16 @@
 import os
+import json
 from datetime import datetime, UTC, timedelta
 
 import pytz
 from dotenv import load_dotenv
 from garminconnect import Garmin as GarminClient
 from notion_client import Client as NotionClient
+
+# Google API Imports
+from google.oauth2.service_account import Credentials
+from googleapiclient.discovery import build
+from googleapiclient.errors import HttpError
 
 # タイムゾーンの設定
 local_tz = pytz.timezone('Asia/Tokyo')
@@ -189,6 +195,7 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
         return None
         
     # 文字列（YYYY-MM-DD）で完全一致するものを探す（これが最も確実）
+    # 文字列（YYYY-MM-DD）で完全一致するものを探す（これが最も確実）
     for page in results:
         try:
             date_prop = page['properties']['日付']['date']
@@ -197,17 +204,35 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
             start_str = date_prop['start'] # ISO string or YYYY-MM-DD
             page_date_str = start_str[:10] # 先頭10文字 (YYYY-MM-DD)
             
-            print(f"  - Compare: Notion({page_date_str}) vs Target({target_date_str}) [ID: {page['id']}]")
+            # print(f"  - Compare: Notion({page_date_str}) vs Target({target_date_str}) [ID: {page['id']}]")
             
             if page_date_str == target_date_str:
-                print(f"    -> MATCH FOUND!")
+                print(f"    -> MATCH FOUND (Exact Date)!")
                 return page
+            
+            # フォールバック用: 時間差計算
+            if 'T' in start_str:
+                page_date_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+            else:
+                page_date_dt = datetime.fromisoformat(start_str).replace(tzinfo=UTC)
+            
+            if page_date_dt.tzinfo is None: page_date_dt = page_date_dt.replace(tzinfo=UTC)
+            
+            diff = abs((page_date_dt - activity_date).total_seconds())
+            if diff < min_diff:
+                min_diff = diff
+                closest_match = page
                 
         except Exception as e:
             print(f"Warning: Error checking page {page['id']}: {e}")
             continue
 
-    print(f"  No exact string match found.")
+    # 文字列一致がなくても、48時間以内のデータがあればそれを使う（表記揺れやタイムゾーンずれの救済）
+    if closest_match and min_diff < 48 * 3600:
+         print(f"    -> MATCH FOUND (Approximate, Diff: {min_diff/3600:.1f}h)!")
+         return closest_match
+
+    print(f"  No match found.")
     return None
 
 def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
@@ -364,13 +389,136 @@ def update_database_schema(notion_client: NotionClient, database_id: str) -> Non
     except Exception as e:
         print(f"Warning: Could not update database schema (might already exist or permission issue): {e}")
 
+
+def get_google_credentials(service_account_json_str):
+    try:
+        info = json.loads(service_account_json_str)
+        creds = Credentials.from_service_account_info(
+            info, scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+        )
+        return creds
+    except Exception as e:
+        print(f"Error loading Google Service Account: {e}")
+        return None
+
+def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account_json: str):
+    print("\n--- Starting Google Sheets Sync (Direct from Garmin) ---")
+    creds = get_google_credentials(service_account_json)
+    if not creds:
+        print("Skipping Google Sync: No credentials.")
+        return
+
+    try:
+        drive_service = build('drive', 'v3', credentials=creds)
+        sheets_service = build('sheets', 'v4', credentials=creds)
+        
+        # 1. Check for existing file
+        file_name = "Garmin Running Log"
+        query = f"name = '{file_name}' and '{folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+        results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        files = results.get('files', [])
+        
+        if files:
+            spreadsheet_id = files[0]['id']
+            print(f"Found existing Sheet: {spreadsheet_id}")
+        else:
+            print("Creating new Sheet...")
+            file_metadata = {
+                'name': file_name,
+                'parents': [folder_id],
+                'mimeType': 'application/vnd.google-apps.spreadsheet'
+            }
+            file = drive_service.files().create(body=file_metadata, fields='id').execute()
+            spreadsheet_id = file.get('id')
+            print(f"Created new Sheet: {spreadsheet_id}")
+
+        # 2. Prepare Data
+        # Header matches Notion structure roughly
+        header = ["日付", "種目", "詳細種目", "アクティビティ名", "距離 (km)", "タイム (分)", 
+                  "カロリー", "平均ペース", "平均心拍", "最大心拍", "ピッチ", "ストライド", 
+                  "有酸素TE", "無酸素TE", "タイムスタンプ"]
+        
+        values = [header]
+        
+        for activity in activities:
+            # Parse Date
+            activity_date_raw = activity.get('startTimeGMT')
+            activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
+            activity_date_jst = activity_date_utc.astimezone(local_tz)
+            date_str = activity_date_jst.strftime('%Y-%m-%d %H:%M')
+            
+            activity_name = activity.get('activityName', '無題')
+            activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
+            
+            distance_km = round(activity.get('distance', 0) / 1000, 2)
+            duration_min = round(activity.get('duration', 0) / 60, 2)
+            calories = round(activity.get('calories', 0))
+            avg_pace = format_pace(activity.get('averageSpeed', 0))
+            avg_hr = round(activity.get('averageHR')) if activity.get('averageHR') else ""
+            max_hr = round(activity.get('maxHR')) if activity.get('maxHR') else ""
+            
+            cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else ""
+            stride = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else "" # cm to m? normally displayed in m or cm. Garmin sends cm usually. Notion asks for what? Let's assume m for now or cm. usually cm.
+            
+            aerobic = round(activity.get('aerobicTrainingEffect', 0), 1)
+            anaerobic = round(activity.get('anaerobicTrainingEffect', 0), 1)
+            
+            row = [
+                date_str,
+                activity_type,
+                activity_subtype,
+                activity_name,
+                distance_km,
+                duration_min,
+                calories,
+                avg_pace,
+                avg_hr,
+                max_hr,
+                cadence,
+                stride,
+                aerobic,
+                anaerobic,
+                datetime.now(local_tz).isoformat()
+            ]
+            values.append(row)
+            
+        # 3. Write Data
+        body = {'values': values}
+        range_name = 'Sheet1!A1' # Default sheet name often "Sheet1" or "シート1". Try A1.
+        
+        # Try to clear first or just overwrite? update updates info.
+        # Let's clear to be safe or overwrite. 
+        # Actually, let's just update. "USER_ENTERED" allows parsing.
+        
+        # Check sheet name logic? Usually "Sheet1" in English, "シート1" in Japanese locale.
+        # We can get sheet info but let's just try default.
+        # Or better: Get the first sheet's name.
+        sheet_metadata = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        first_sheet_title = sheet_metadata.get('sheets', '')[0].get('properties', {}).get('title', 'Sheet1')
+        range_name = f"{first_sheet_title}!A1"
+        
+        sheets_service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id, range=range_name,
+            valueInputOption='USER_ENTERED', body=body
+        ).execute()
+        
+        print(f"Successfully synced {len(values)-1} rows to Google Sheets.")
+        
+    except HttpError as err:
+        print(f"Google API Error: {err}")
+
+
 def main():
     load_dotenv()
     garmin_email = os.getenv("GARMIN_EMAIL")
     garmin_password = os.getenv("GARMIN_PASSWORD")
     notion_token = os.getenv("NOTION_TOKEN")
     database_id = os.getenv("NOTION_DB_ID")
-    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "200")) # Increased to 200 for deep backfillory
+    garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "200"))
+    
+    # Google Auth
+    google_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
+    drive_folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 
     garmin_client = GarminClient(garmin_email, garmin_password)
     garmin_client.login()
@@ -382,6 +530,11 @@ def main():
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
     print(f"Fetched {len(activities)} activities from Garmin.")
     
+    # --- GOOGLE SHEETS SYNC (Direct) ---
+    if google_json and drive_folder_id:
+        sync_to_google_sheet(activities, drive_folder_id, google_json)
+    
+    print("\n--- Starting Notion Sync ---")
     for activity in activities:
         try:
             activity_date_raw = activity.get('startTimeGMT')
@@ -393,11 +546,10 @@ def main():
             existing_activity = activity_exists(notion_client, database_id, activity_date)
             if existing_activity:
                 # Update existing activity to fill in new fields (HR, GAP, Laps)
-                # 古いデータ（ "Running" 等）も新しいデータ内容で上書き更新される
-                # activity['activityId'] を使って詳細スプリットを取得するため、clientを渡す
                 update_activity(notion_client, existing_activity['id'], activity, garmin_client)
             else:
                 create_activity(notion_client, database_id, activity, garmin_client)
         except Exception as e:
             print(f"Error processing activity {activity.get('activityId')}, skipping: {e}")
             continue
+
