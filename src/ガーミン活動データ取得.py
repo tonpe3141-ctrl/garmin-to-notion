@@ -484,19 +484,25 @@ def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account
             
         # 3. Write Data
         body = {'values': values}
-        range_name = 'Sheet1!A1' # Default sheet name often "Sheet1" or "シート1". Try A1.
         
-        # Try to clear first or just overwrite? update updates info.
-        # Let's clear to be safe or overwrite. 
-        # Actually, let's just update. "USER_ENTERED" allows parsing.
-        
-        # Check sheet name logic? Usually "Sheet1" in English, "シート1" in Japanese locale.
-        # We can get sheet info but let's just try default.
-        # Or better: Get the first sheet's name.
         sheet_metadata = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
         first_sheet_title = sheet_metadata.get('sheets', '')[0].get('properties', {}).get('title', 'Sheet1')
-        range_name = f"{first_sheet_title}!A1"
+        range_name = f"'{first_sheet_title}'!A1"
         
+        # Debug: Check what we are writing
+        if len(values) > 1:
+            print(f"Preparing to write {len(values)-1} rows to Sheets.")
+            print(f"  - Newest in Sheet: {values[1][0]}")
+            print(f"  - Oldest in Sheet: {values[-1][0]}")
+        else:
+            print("Warning: No data rows to write.")
+
+        # Clear existing first
+        print("Clearing existing sheet content...")
+        sheets_service.spreadsheets().values().clear(
+            spreadsheetId=spreadsheet_id, range=f"'{first_sheet_title}'!A1:Z2000"
+        ).execute()
+
         sheets_service.spreadsheets().values().update(
             spreadsheetId=spreadsheet_id, range=range_name,
             valueInputOption='USER_ENTERED', body=body
