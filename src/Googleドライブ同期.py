@@ -1,5 +1,5 @@
 import os
-from datetime import datetime
+from datetime import datetime, timezone, timedelta
 import sys
 from notion_client import Client
 from google.oauth2.service_account import Credentials
@@ -68,7 +68,7 @@ def main():
     rows = [headers]
     
     # Timezone
-    jst = datetime.timezone(datetime.timedelta(hours=9))
+    jst = timezone(timedelta(hours=9))
 
     for page in all_activities:
         props = page.get("properties", {})
