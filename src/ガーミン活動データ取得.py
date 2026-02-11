@@ -32,8 +32,38 @@ ACTIVITY_ICONS = {
     "ヨガ/ピラティス": "https://img.icons8.com/?size=100&id=9783&format=png&color=000000",
 }
 
-def get_all_activities(garmin_client: GarminClient, limit: int = 1000) -> list[dict]:
-    return garmin_client.get_activities(0, limit)
+def get_all_activities(garmin_client: GarminClient, max_limit: int = 1000) -> list[dict]:
+    all_activities = []
+    batch_size = 100
+    start_index = 0
+    
+    print(f"Fetching activities (Limit: {max_limit})...")
+    
+    while True:
+        try:
+            # Fetch batch
+            activities = garmin_client.get_activities(start_index, batch_size)
+            if not activities:
+                break
+                
+            all_activities.extend(activities)
+            print(f"  Fetched {len(activities)} activities (Total: {len(all_activities)})")
+            
+            # Check conditions
+            if len(all_activities) >= max_limit:
+                break
+            
+            # Garmin returns less than batch_size if end of list
+            if len(activities) < batch_size:
+                break
+                
+            start_index += batch_size
+            
+        except Exception as e:
+            print(f"Error checking activities at index {start_index}: {e}")
+            break
+            
+    return all_activities[:max_limit]
 
 def format_activity_type(activity_type: str, activity_name: str = "") -> tuple[str, str]:
     formatted_type = activity_type.replace('_', ' ').title() if activity_type else "Unknown"
