@@ -164,14 +164,13 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
     if activity_date.tzinfo is None:
         activity_date = activity_date.replace(tzinfo=UTC)
     
-    activity_jst = activity_date.astimezone(local_tz)
-    target_date_str = activity_jst.strftime('%Y-%m-%d')
+    print(f"Target Activity Date (JST): {target_date_str} (Original UTC: {activity_date})")
     
     # 検索範囲: Notion上でその日のタイムレンジ（JST 00:00 - 23:59）
     # Notionでは日付クエリはISO文字列で行うが、安全のため前後24h広めに取ってフィルタするのは維持し、
     # Python側で厳密に文字列マッチさせる
-    lookup_min_date = activity_date - timedelta(hours=24)
-    lookup_max_date = activity_date + timedelta(hours=24)
+    lookup_min_date = activity_date - timedelta(hours=48) # 念のため48時間に拡大
+    lookup_max_date = activity_date + timedelta(hours=48)
     
     query = notion_client.databases.query(
         database_id=database_id,
@@ -183,6 +182,7 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
         }
     )
     results = query['results']
+    print(f"  Notion Query found {len(results)} candidates in range.")
     
     if not results:
         return None
@@ -196,15 +196,17 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
             start_str = date_prop['start'] # ISO string or YYYY-MM-DD
             page_date_str = start_str[:10] # 先頭10文字 (YYYY-MM-DD)
             
+            print(f"  - Compare: Notion({page_date_str}) vs Target({target_date_str}) [ID: {page['id']}]")
+            
             if page_date_str == target_date_str:
-                print(f"Match found by Date String: {page_date_str} (Page ID: {page['id']})")
+                print(f"    -> MATCH FOUND!")
                 return page
                 
         except Exception as e:
             print(f"Warning: Error checking page {page['id']}: {e}")
             continue
 
-    print(f"No match found for {target_date_str} among {len(results)} candidates.")
+    print(f"  No exact string match found.")
     return None
 
 def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
