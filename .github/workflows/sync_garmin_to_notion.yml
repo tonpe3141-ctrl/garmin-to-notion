@@ -31,6 +31,13 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
+      - name: Debug Garmin History
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          TZ: 'America/Montreal'
+        run: python src/debug_garmin_history.py
+
       - name: Run script
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
