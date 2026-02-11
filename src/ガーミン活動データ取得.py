@@ -114,9 +114,9 @@ def format_pace(average_speed: float) -> str:
     return ""
 
 def activity_exists(notion_client: NotionClient, database_id: str, activity_date: datetime) -> dict | None:
-    # 検索範囲を広げる（前後2分）- 時間が最も確実なキー
-    lookup_min_date = activity_date - timedelta(minutes=2)
-    lookup_max_date = activity_date + timedelta(minutes=2)
+    # 検索範囲を広げる（前後24時間）- タイムゾーンのズレや時間設定の誤差を許容
+    lookup_min_date = activity_date - timedelta(hours=24)
+    lookup_max_date = activity_date + timedelta(hours=24)
     
     query = notion_client.databases.query(
         database_id=database_id,
@@ -128,11 +128,55 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
         }
     )
     results = query['results']
-    # 複数見つかった場合は、ログを出して最初のものを返す（通常は重複しないはず）
-    if len(results) > 1:
-        print(f"Warning: Multiple activities found around {activity_date}. Using the first one.")
     
-    return results[0] if results else None
+    if not results:
+        return None
+        
+    # Python上で最も時刻が近いものを探す
+    closest_match = None
+    min_diff = float('inf')
+    
+    for page in results:
+        try:
+            date_prop = page['properties']['日付']['date']
+            if not date_prop: continue
+            
+            start_str = date_prop['start']
+            # Notionの日付文字列をパース（ISOフォーマット）
+            # 時間が含まれていない場合（YYYY-MM-DD）のケアも必要だが、通常は時間付きのはず
+            if 'T' in start_str:
+                page_date = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
+            else:
+                # 時間がない場合は、activity_dateの日付と比較
+                page_date = datetime.fromisoformat(start_str).replace(tzinfo=UTC) # 仮にUTCとする
+
+            # タイムゾーン情報を調整して差分計算
+            if page_date.tzinfo is None:
+                page_date = page_date.replace(tzinfo=UTC)
+            if activity_date.tzinfo is None:
+                activity_date = activity_date.replace(tzinfo=UTC)
+                
+            diff = abs((page_date - activity_date).total_seconds())
+            
+            # 差分が最小のものを記録
+            if diff < min_diff:
+                min_diff = diff
+                closest_match = page
+                
+        except Exception as e:
+            print(f"Warning: Error parsing date for page {page['id']}: {e}")
+            continue
+
+    if closest_match:
+        # 12時間以内のズレなら同一とみなす（JST 9時間ズレなどを許容）
+        if min_diff < 12 * 3600:
+            print(f"Match found! Diff: {min_diff/3600:.2f} hours")
+            return closest_match
+        else:
+            print(f"Candidates found but time diff is too large: {min_diff/3600:.2f} hours")
+            return None
+
+    return None
 
 def get_activity_properties(garmin_client: GarminClient, activity: dict) -> dict:
     activity_id = activity.get('activityId')
