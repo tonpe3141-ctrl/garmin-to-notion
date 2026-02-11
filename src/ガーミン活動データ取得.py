@@ -33,45 +33,52 @@ ACTIVITY_ICONS = {
 }
 
 def get_all_activities(garmin_client: GarminClient, max_limit: int = 1000) -> list[dict]:
-    # 過去データが取れない問題を解決するため、日付指定で1年分取得する戦略に変更
+    # 確実性を高めるため、7日ずつ小分けにして過去60日分を取得する
+    all_activities = []
+    
+    # 今日から遡る
     end_date = datetime.now(local_tz)
-    start_date = end_date - timedelta(days=365) # 1年前まで遡る
+    # 60日前まで（約2ヶ月）
+    final_start_date = end_date - timedelta(days=60)
     
-    start_str = start_date.strftime("%Y-%m-%d")
-    end_str = end_date.strftime("%Y-%m-%d")
+    current_end = end_date
     
-    print(f"Fetching activities from {start_str} to {end_str}...")
+    print(f"Fetching activities in chunks (7 days per request) from {final_start_date.strftime('%Y-%m-%d')} to {end_date.strftime('%Y-%m-%d')}...")
     
-    try:
-        # 日付範囲指定で取得（この方が確実）
-        activities = garmin_client.get_activities_by_date(start_str, end_str, "")
+    while current_end > final_start_date:
+        current_start = current_end - timedelta(days=6) # 7-day window
         
-        print(f"  Fetched {len(activities)} activities.")
+        start_str = current_start.strftime("%Y-%m-%d")
+        end_str = current_end.strftime("%Y-%m-%d")
         
-        # もしmax_limitより多ければカット（古い方からか新しい方からか確認が必要だが、通常リストは新しい順）
-        if len(activities) > max_limit:
-            return activities[:max_limit]
-        return activities
+        print(f"  Fetching {start_str} to {end_str}...", end=" ", flush=True)
+        try:
+            # activityType='' gets all types
+            activities = garmin_client.get_activities_by_date(start_str, end_str, "")
+            if activities:
+                print(f"Found {len(activities)} activities.")
+                all_activities.extend(activities)
+            else:
+                print("None.")
+                
+        except Exception as e:
+            print(f"Error: {e}")
         
-    except Exception as e:
-        print(f"Error fetching activities by date: {e}")
-        # フォールバック：通常のページネーション
-        print("Falling back to pagination...")
-        all_activities = []
-        batch_size = 100
-        start_index = 0
-        while True:
-            try:
-                batch = garmin_client.get_activities(start_index, batch_size)
-                if not batch: break
-                all_activities.extend(batch)
-                print(f"  Batch {start_index}: {len(batch)} items. First: {batch[0].get('startTimeLocal')}")
-                if len(all_activities) >= max_limit or len(batch) < batch_size: break
-                start_index += batch_size
-            except Exception as e2:
-                print(f"Error in pagination: {e2}")
-                break
-        return all_activities[:max_limit]
+        # Move back for next iteration
+        current_end = current_start - timedelta(days=1)
+        
+        if len(all_activities) >= max_limit:
+            break
+            
+    # Deduplicate by activityId
+    unique_activities = {act['activityId']: act for act in all_activities}
+    result = list(unique_activities.values())
+    
+    # Sort by date desc (Newest first)
+    result.sort(key=lambda x: x.get('startTimeGMT'), reverse=True)
+    
+    print(f"Total unique activities fetched: {len(result)}")
+    return result[:max_limit]
 
 def format_activity_type(activity_type: str, activity_name: str = "") -> tuple[str, str]:
     formatted_type = activity_type.replace('_', ' ').title() if activity_type else "Unknown"
