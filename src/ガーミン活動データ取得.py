@@ -559,3 +559,7 @@ def main():
             print(f"Error processing activity {activity.get('activityId')}, skipping: {e}")
             continue
 
+
+if __name__ == "__main__":
+    main()
+
