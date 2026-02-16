@@ -171,6 +171,7 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
     if activity_date.tzinfo is None:
         activity_date = activity_date.replace(tzinfo=UTC)
     
+    target_date_str = activity_date.astimezone(local_tz).strftime('%Y-%m-%d')
     print(f"Target Activity Date (JST): {target_date_str} (Original UTC: {activity_date})")
     
     # 検索範囲: Notion上でその日のタイムレンジ（JST 00:00 - 23:59）
