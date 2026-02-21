@@ -196,7 +196,8 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
         return None
         
     # 文字列（YYYY-MM-DD）で完全一致するものを探す（これが最も確実）
-    # 文字列（YYYY-MM-DD）で完全一致するものを探す（これが最も確実）
+    min_diff = float('inf')
+    closest_match = None
     for page in results:
         try:
             date_prop = page['properties']['日付']['date']
@@ -344,7 +345,8 @@ def get_activity_properties(activity: dict) -> dict:
         "自己ベスト": {"checkbox": activity.get('pr', False)},
         "お気に入り": {"checkbox": activity.get('favorite', False)}
     }
-    return properties, icon_url_from_type(activity_type, activity_subtype)
+    icon_url = ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
+    return properties, icon_url
 
 def create_activity(notion_client: NotionClient, database_id: str, activity: dict) -> None:
     properties, icon_url = get_activity_properties(activity)
