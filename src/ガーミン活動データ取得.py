@@ -1,6 +1,7 @@
 import os
 import json
-from datetime import datetime, UTC, timedelta
+from datetime import datetime, timedelta
+from typing import List, Optional
 
 import pytz
 from dotenv import load_dotenv
@@ -38,7 +39,7 @@ ACTIVITY_ICONS = {
     "ヨガ/ピラティス": "https://img.icons8.com/?size=100&id=9783&format=png&color=000000",
 }
 
-def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> list[dict]:
+def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> List[dict]:
     # 日付指定が不安定なため、確実な「インデックス指定（ページネーション）」で過去データを総ざらいする
     all_activities = []
     batch_size = 50 # 安全のため少し小さめに
@@ -65,7 +66,7 @@ def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> li
             # 日付チェック：一番古いデータがカットオフより古ければ終了
             last_activity = activities[-1]
             last_date_str = last_activity.get('startTimeGMT')
-            last_date = datetime.strptime(last_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC).astimezone(local_tz)
+            last_date = datetime.strptime(last_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz)
             
             print(f"    Oldest in batch: {last_date.strftime('%Y-%m-%d')}")
             
@@ -165,11 +166,11 @@ def format_pace(average_speed: float) -> str:
         return f"{minutes}:{seconds:02d} /km"
     return ""
 
-def activity_exists(notion_client: NotionClient, database_id: str, activity_date: datetime) -> dict | None:
+def activity_exists(notion_client: NotionClient, database_id: str, activity_date: datetime) -> Optional[dict]:
     # タイムゾーン考慮: Garminの時間をJSTに変換して、その「日付(YYYY-MM-DD)」が一致するものを探す
     # activity_date は UTC で渡されてくる前提
     if activity_date.tzinfo is None:
-        activity_date = activity_date.replace(tzinfo=UTC)
+        activity_date = activity_date.replace(tzinfo=pytz.UTC)
     
     target_date_str = activity_date.astimezone(local_tz).strftime('%Y-%m-%d')
     print(f"Target Activity Date (JST): {target_date_str} (Original UTC: {activity_date})")
@@ -216,9 +217,9 @@ def activity_exists(notion_client: NotionClient, database_id: str, activity_date
             if 'T' in start_str:
                 page_date_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
             else:
-                page_date_dt = datetime.fromisoformat(start_str).replace(tzinfo=UTC)
+                page_date_dt = datetime.fromisoformat(start_str).replace(tzinfo=pytz.UTC)
             
-            if page_date_dt.tzinfo is None: page_date_dt = page_date_dt.replace(tzinfo=UTC)
+            if page_date_dt.tzinfo is None: page_date_dt = page_date_dt.replace(tzinfo=pytz.UTC)
             
             diff = abs((page_date_dt - activity_date).total_seconds())
             if diff < min_diff:
@@ -286,23 +287,36 @@ def fetch_and_format_laps(garmin_client: GarminClient, activity_id: str) -> str:
             
     return laps_text[:2000] # Notion limit check
 
-def enrich_activity_data(garmin_client: GarminClient, activity: dict) -> dict:
-    """Fetch full details and splits, and add them to the activity dict."""
+def garmin_enhance_activity(garmin_client: GarminClient, activity: dict) -> dict:
+    """Fetch additional details for an activity using its activity_id."""
     activity_id = activity.get('activityId')
+    
     try:
-        # 1. Fetch Full Details if possible (sometimes list view is incomplete)
-        # Note: We do this only if strictly needed, but to be safe and consistent with previous logic:
-        full_activity = garmin_client.get_activity(activity_id)
-        if full_activity:
-            activity.update(full_activity) # Merge full details
+        # 1. Fetch Full Details if possible 
+        try:
+            full_activity = garmin_client.get_activity_details(activity_id)
+            if full_activity:
+                activity.update(full_activity) 
+        except Exception as e:
+            print(f"Warning: Could not fetch details for {activity_id}: {e}")
             
         # 2. Fetch Laps
-        laps_text = fetch_and_format_laps(garmin_client, activity_id)
-        activity['laps_text'] = laps_text
+        try:
+            laps_text = fetch_and_format_laps(garmin_client, activity_id)
+            activity['laps_text'] = laps_text
+        except Exception as e:
+            print(f"Warning: Could not fetch laps for {activity_id}: {e}")
         
+        # 3. Fetch Weather
+        try:
+            weather = garmin_client.get_activity_weather(activity_id)
+            if weather:
+                activity['weather'] = weather
+        except Exception as e:
+            print(f"Warning: Could not fetch weather for {activity_id}: {e}")
+            
     except Exception as e:
-        print(f"Warning: Enrichment failed for {activity_id}: {e}")
-        activity['laps_text'] = ""
+        print(f"    Warning: Enrichment failed for {activity_id}: {e}")
         
     return activity
 
@@ -310,7 +324,7 @@ def get_activity_properties(activity: dict) -> dict:
     # activity is now assumed to be ENRICHED (has 'laps_text' etc)
     
     activity_date_raw = activity.get('startTimeGMT')
-    activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
+    activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC)
     activity_date_jst = activity_date_utc.astimezone(local_tz)
     
     activity_name = activity.get('activityName', '無題のアクティビティ')
@@ -321,6 +335,20 @@ def get_activity_properties(activity: dict) -> dict:
     avg_gap_speed = activity.get('avgGradeAdjustedSpeed')
     gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
     laps_text = activity.get('laps_text', "")
+    
+    # Running Dynamics
+    gct = activity.get('avgGroundContactTime')
+    vo = round(activity.get('avgVerticalOscillation', 0) / 10, 1) if activity.get('avgVerticalOscillation') else None # mm to cm
+    balance = activity.get('avgGroundContactBalance')
+    if balance:
+        left_balance = round(balance / 100, 1)
+        right_balance = round(100 - left_balance, 1)
+        balance_str = f"L {left_balance}% / R {right_balance}%"
+    else:
+        balance_str = None
+    
+    stride_length = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else None # cm to m
+    cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else None
 
     properties = {
         "日付": {"date": {"start": activity_date_jst.isoformat()}},
@@ -335,7 +363,7 @@ def get_activity_properties(activity: dict) -> dict:
         "平均心拍": {"number": round(average_hr) if average_hr else None},
         "最大心拍": {"number": round(max_hr) if max_hr else None},
         "平均パワー": {"number": round(activity.get('avgPower', 0), 1)},
-        "最大パワー": {"number": round(activity.get('maxPower', 0), 1)},
+        "最大パワー": {"number": round(activity.get('maxPower', 0), 1) if "maxPower" in activity else None},
         "トレーニング効果": {"select": {"name": format_training_effect(activity.get('trainingEffectLabel', 'Unknown'))}},
         "有酸素": {"number": round(activity.get('aerobicTrainingEffect', 0), 1)},
         "有酸素効果": {"select": {"name": format_training_message(activity.get('aerobicTrainingEffectMessage', 'Unknown'))}},
@@ -343,8 +371,22 @@ def get_activity_properties(activity: dict) -> dict:
         "無酸素効果": {"select": {"name": format_training_message(activity.get('anaerobicTrainingEffectMessage', 'Unknown'))}},
         "ラップ": {"rich_text": [{"text": {"content": laps_text}}]},
         "自己ベスト": {"checkbox": activity.get('pr', False)},
-        "お気に入り": {"checkbox": activity.get('favorite', False)}
+        "お気に入り": {"checkbox": activity.get('favorite', False)},
+        "接地時間 (ms)": {"number": round(gct) if gct else None},
+        "上下動 (cm)": {"number": vo},
+        "左右バランス": {"rich_text": [{"text": {"content": balance_str}}] if balance_str else []},
+        "ピッチ (spm)": {"number": cadence},
+        "ストライド (m)": {"number": stride_length}
     }
+    
+    # Remove None values explicitly to avoid Notion API errors
+    for key in list(properties.keys()):
+        if isinstance(properties[key], dict):
+            if 'number' in properties[key] and properties[key]['number'] is None:
+                del properties[key]
+            elif 'select' in properties[key] and properties[key]['select'] is None:
+                del properties[key]
+
     icon_url = ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
     return properties, icon_url
 
@@ -375,7 +417,12 @@ def update_database_schema(notion_client: NotionClient, database_id: str) -> Non
                 "平均心拍": {"number": {}},
                 "最大心拍": {"number": {}},
                 "GAP": {"rich_text": {}},
-                "ラップ": {"rich_text": {}}
+                "ラップ": {"rich_text": {}},
+                "接地時間 (ms)": {"number": {}},
+                "上下動 (cm)": {"number": {}},
+                "左右バランス": {"rich_text": {}},
+                "ピッチ (spm)": {"number": {}},
+                "ストライド (m)": {"number": {}}
             }
         )
         print("Updated Notion Database Schema with new columns.")
@@ -394,7 +441,7 @@ def get_google_credentials(service_account_json_str):
         print(f"Error loading Google Service Account: {e}")
         return None
 
-def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account_json: str):
+def sync_to_google_sheet(activities: List[dict], folder_id: str, service_account_json: str):
     print("\n--- Starting Google Sheets Sync (Direct from Garmin) ---")
     creds = get_google_credentials(service_account_json)
     if not creds: return
@@ -424,7 +471,7 @@ def sync_to_google_sheet(activities: list[dict], folder_id: str, service_account
         for activity in activities:
             # Parse Date
             activity_date_raw = activity.get('startTimeGMT')
-            date_str = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC).astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
+            date_str = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
             activity_name = activity.get('activityName', '無題')
             activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
             
@@ -501,9 +548,8 @@ def main():
     
     # 2. Enrich Data (Fetch Details & Laps) - This replaces the individual fetching in Notion loop
     enriched_activities = []
-    for i, act in enumerate(activities, 1):
-        print(f"Enriching {i}/{len(activities)}: {act.get('startTimeGMT')}...", end="\r")
-        enriched = enrich_activity_data(garmin_client, act)
+    for act in activities:
+        enriched = garmin_enhance_activity(garmin_client, act)
         enriched_activities.append(enriched)
     print("\nEnrichment complete.")
     
@@ -516,7 +562,7 @@ def main():
     for activity in enriched_activities:
         try:
             activity_date_raw = activity.get('startTimeGMT')
-            activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=UTC)
+            activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC)
             
             existing_activity = activity_exists(notion_client, database_id, activity_date)
             if existing_activity:
