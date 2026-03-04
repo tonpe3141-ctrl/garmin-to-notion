@@ -434,7 +434,11 @@ def get_google_credentials(service_account_json_str):
     try:
         info = json.loads(service_account_json_str)
         creds = Credentials.from_service_account_info(
-            info, scopes=['https://www.googleapis.com/auth/drive', 'https://www.googleapis.com/auth/spreadsheets']
+            info, scopes=[
+                'https://www.googleapis.com/auth/drive',
+                'https://www.googleapis.com/auth/spreadsheets',
+                'https://www.googleapis.com/auth/documents'
+            ]
         )
         return creds
     except Exception as e:
@@ -526,6 +530,321 @@ def sync_to_google_sheet(activities: List[dict], folder_id: str, service_account
     except HttpError as err:
         print(f"Google API Error: {err}")
 
+
+def sync_to_google_doc(activities: List[dict], folder_id: str, service_account_json: str) -> None:
+    """Garminから取得したランニングデータをGoogle ドキュメントに書き込む"""
+    print("\n--- Starting Google Doc Sync (Running Only) ---")
+    
+    creds = get_google_credentials(service_account_json)
+    if not creds:
+        return
+    
+    doc_name = "Garmin Running Log (Document)"
+    
+    try:
+        drive_service = build('drive', 'v3', credentials=creds)
+        docs_service = build('docs', 'v1', credentials=creds)
+        
+        # 既存ドキュメントを検索
+        list_query = (
+            f"'{folder_id}' in parents and trashed = false "
+            f"and mimeType = 'application/vnd.google-apps.document' "
+            f"and name = '{doc_name}'"
+        )
+        results = drive_service.files().list(
+            q=list_query,
+            spaces='drive',
+            fields='files(id, name)'
+        ).execute()
+        files = results.get('files', [])
+        
+        if files:
+            document_id = files[0]['id']
+            print(f"Found existing document. ID: {document_id}")
+        else:
+            print(f"\nError: Google Document '{doc_name}' not found in the folder.")
+            print("Action Required:")
+            print("1. Open Google Drive and go to your Garmin data folder.")
+            print("2. Click 'New' > 'Google Docs'.")
+            print(f"3. Name it: '{doc_name}'")
+            print("4. Re-run this script.")
+            return
+        
+        # ドキュメントのテキストを組み立てる
+        now_str = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M JST')
+        lines = [f"# ランニングログ (最終更新: {now_str})\n\n"]
+        lines.append(
+            "このドキュメントはGarminのランニングデータを自動的に更新します。\n"
+            "AIコーチング用途として最新データを参照してください。\n\n"
+        )
+        lines.append("---\n\n")
+        
+        # ランニングのみフィルタリング
+        running_acts = [
+            a for a in activities
+            if format_activity_type(
+                a.get('activityType', {}).get('typeKey', ''), a.get('activityName', '')
+            )[0] == 'ランニング'
+        ]
+        
+        print(f"  Writing {len(running_acts)} running activities to document...")
+        
+        for activity in running_acts:
+            try:
+                activity_date_raw = activity.get('startTimeGMT')
+                activity_date_jst = datetime.strptime(
+                    activity_date_raw, '%Y-%m-%d %H:%M:%S'
+                ).replace(tzinfo=pytz.UTC).astimezone(local_tz)
+                date_str = activity_date_jst.strftime('%Y-%m-%d (%a)')
+                
+                distance_km = round(activity.get('distance', 0) / 1000, 2)
+                duration_min = activity.get('duration', 0) / 60
+                m = int(duration_min)
+                s = int((duration_min - m) * 60)
+                time_str = f"{m}:{s:02d}"
+                
+                avg_pace = format_pace(activity.get('averageSpeed', 0))
+                avg_gap_speed = activity.get('avgGradeAdjustedSpeed')
+                gap_str = format_pace(avg_gap_speed) if avg_gap_speed else None
+                avg_hr = round(activity.get('averageHR')) if activity.get('averageHR') else None
+                max_hr_val = round(activity.get('maxHR')) if activity.get('maxHR') else None
+                aerobic_te = round(activity.get('aerobicTrainingEffect', 0), 1)
+                anaerobic_te = round(activity.get('anaerobicTrainingEffect', 0), 1)
+                te_label = format_training_effect(activity.get('trainingEffectLabel', 'Unknown'))
+                laps_text = activity.get('laps_text', '')
+                
+                lines.append(f"## {date_str} ランニング\n")
+                lines.append(f"- 距離: {distance_km} km\n")
+                lines.append(f"- タイム: {time_str} ({avg_pace})\n")
+                if gap_str:
+                    lines.append(f"- GAP: {gap_str}\n")
+                if avg_hr:
+                    lines.append(f"- 平均心拍: {avg_hr} bpm / 最大: {max_hr_val} bpm\n")
+                lines.append(f"- トレーニング効果: {te_label} (有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te})\n")
+                if laps_text and laps_text.strip():
+                    lines.append("- ラップ:\n")
+                    for lap_line in laps_text.strip().split('\n'):
+                        if lap_line.strip():
+                            lines.append(f"  {lap_line.strip()}\n")
+                lines.append("\n")
+            except Exception as e:
+                print(f"  Warning: Skipping activity due to error: {e}")
+                continue
+        
+        full_text = "".join(lines)
+        
+        # ドキュメントを全削除→再書き込み
+        doc = docs_service.documents().get(documentId=document_id).execute()
+        content = doc.get('body', {}).get('content', [])
+        end_index = 1
+        for element in content:
+            if 'endIndex' in element:
+                end_index = element['endIndex']
+        
+        update_requests = []
+        if end_index > 2:
+            update_requests.append({
+                'deleteContentRange': {
+                    'range': {'startIndex': 1, 'endIndex': end_index - 1}
+                }
+            })
+        update_requests.append({
+            'insertText': {
+                'location': {'index': 1},
+                'text': full_text
+            }
+        })
+        
+        docs_service.documents().batchUpdate(
+            documentId=document_id,
+            body={'requests': update_requests}
+        ).execute()
+        
+        print(f"Google Doc updated successfully! ({len(running_acts)} running records)")
+        print(f"  Document URL: https://docs.google.com/document/d/{document_id}/edit")
+        
+    except HttpError as err:
+        print(f"Google API Error (Docs): {err}")
+    except Exception as e:
+        print(f"Error syncing to Google Doc: {e}")
+        import traceback
+        traceback.print_exc()
+
+
+def sync_doc_from_notion(notion_client: NotionClient, database_id: str, folder_id: str, service_account_json: str) -> None:
+    """NotionのDBから全ランニング履歴を取得してGoogle ドキュメントに書き込む。
+    GARMIN_ACTIVITIES_FETCH_LIMITに関係なく、常にNotionの全件履歴から生成するため
+    GitHub Actionsの少件数取得でもドキュメントが正しく更新される。
+    """
+    print("\n--- Starting Google Doc Sync (from Notion full history) ---")
+    
+    # 1. Notionから全ランニングデータを取得
+    try:
+        all_runs = []
+        has_more = True
+        start_cursor = None
+        while has_more:
+            params = {
+                "database_id": database_id,
+                "sorts": [{"property": "日付", "direction": "descending"}],
+                "filter": {"property": "種目", "select": {"equals": "ランニング"}}
+            }
+            if start_cursor:
+                params["start_cursor"] = start_cursor
+            resp = notion_client.databases.query(**params)
+            all_runs.extend(resp.get("results", []))
+            has_more = resp.get("has_more", False)
+            start_cursor = resp.get("next_cursor")
+            if len(all_runs) >= 500:  # 安全上限
+                break
+        print(f"  Fetched {len(all_runs)} running records from Notion.")
+    except Exception as e:
+        print(f"  Error fetching from Notion: {e}")
+        return
+
+    # 2. ドキュメント取得
+    creds = get_google_credentials(service_account_json)
+    if not creds:
+        return
+
+    doc_name = "Garmin Running Log (Document)"
+
+    try:
+        drive_service = build('drive', 'v3', credentials=creds)
+        docs_service = build('docs', 'v1', credentials=creds)
+
+        list_query = (
+            f"'{folder_id}' in parents and trashed = false "
+            f"and mimeType = 'application/vnd.google-apps.document' "
+            f"and name = '{doc_name}'"
+        )
+        results = drive_service.files().list(
+            q=list_query, spaces='drive', fields='files(id, name)',
+            supportsAllDrives=True, includeItemsFromAllDrives=True
+        ).execute()
+        files = results.get('files', [])
+
+        if not files:
+            print(f"\nError: Google Document '{doc_name}' not found in the folder.")
+            print("Action Required:")
+            print("1. Open Google Drive and go to your Garmin data folder.")
+            print("2. Click 'New' > 'Google Docs'.")
+            print(f"3. Name it: '{doc_name}'")
+            print("4. Re-run this script.")
+            return
+
+        document_id = files[0]['id']
+        print(f"  Found document. ID: {document_id}")
+
+        # 3. テキスト組み立て
+        jst = pytz.timezone('Asia/Tokyo')
+        now_str = datetime.now(jst).strftime('%Y-%m-%d %H:%M JST')
+        lines = [f"# ランニングログ (最終更新: {now_str})\n\n"]
+        lines.append(
+            "このドキュメントはGarminのランニングデータを自動的に更新します。\n"
+            "AIコーチング用途として最新データを参照してください。\n\n"
+        )
+        lines.append("---\n\n")
+
+        for page in all_runs:
+            try:
+                props = page.get("properties", {})
+
+                date_str_raw = props.get("日付", {}).get("date", {}).get("start", "")
+                if date_str_raw:
+                    if "T" in date_str_raw:
+                        dt = datetime.fromisoformat(date_str_raw.replace("Z", "+00:00"))
+                        dt_jst = dt.astimezone(jst)
+                    else:
+                        dt_jst = datetime.fromisoformat(date_str_raw).replace(tzinfo=jst)
+                    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+                    date_label = f"{dt_jst.strftime('%Y-%m-%d')} ({weekdays[dt_jst.weekday()]})"
+                else:
+                    date_label = "不明"
+
+                distance = props.get("距離 (km)", {}).get("number", 0) or 0
+                time_min = props.get("タイム (分)", {}).get("number", 0) or 0
+                m = int(time_min)
+                s = int((time_min - m) * 60)
+                time_str = f"{m}:{s:02d}"
+
+                pace_list = props.get("平均ペース", {}).get("rich_text", [])
+                pace = pace_list[0].get("text", {}).get("content", "") if pace_list else "-"
+
+                gap_list = props.get("GAP", {}).get("rich_text", [])
+                gap = gap_list[0].get("text", {}).get("content", "") if gap_list else ""
+
+                avg_hr = props.get("平均心拍", {}).get("number")
+                max_hr = props.get("最大心拍", {}).get("number")
+                aerobic_te = props.get("有酸素", {}).get("number")
+                anaerobic_te = props.get("無酸素", {}).get("number")
+                te_select = props.get("トレーニング効果", {}).get("select", {})
+                te_label = te_select.get("name", "") if te_select else ""
+
+                laps_list = props.get("ラップ", {}).get("rich_text", [])
+                laps = laps_list[0].get("text", {}).get("content", "") if laps_list else ""
+
+                lines.append(f"## {date_label} ランニング\n")
+                lines.append(f"- 距離: {distance} km\n")
+                lines.append(f"- タイム: {time_str} ({pace})\n")
+                if gap and gap != "-":
+                    lines.append(f"- GAP: {gap}\n")
+                if avg_hr:
+                    lines.append(f"- 平均心拍: {int(avg_hr)} bpm / 最大: {int(max_hr) if max_hr else '-'} bpm\n")
+                if te_label:
+                    lines.append(f"- トレーニング効果: {te_label}")
+                    if aerobic_te is not None:
+                        lines.append(f" (有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te})")
+                    lines.append("\n")
+                if laps and laps.strip():
+                    lines.append("- ラップ:\n")
+                    for lap_line in laps.strip().split("\n"):
+                        if lap_line.strip():
+                            lines.append(f"  {lap_line.strip()}\n")
+                lines.append("\n")
+            except Exception as e:
+                print(f"  Warning: Skipping record due to error: {e}")
+                continue
+
+        full_text = "".join(lines)
+
+        # 4. ドキュメントを全削除→再書き込み
+        doc = docs_service.documents().get(documentId=document_id).execute()
+        content = doc.get("body", {}).get("content", [])
+        end_index = 1
+        for element in content:
+            if "endIndex" in element:
+                end_index = element["endIndex"]
+
+        update_requests = []
+        if end_index > 2:
+            update_requests.append({
+                "deleteContentRange": {
+                    "range": {"startIndex": 1, "endIndex": end_index - 1}
+                }
+            })
+        update_requests.append({
+            "insertText": {
+                "location": {"index": 1},
+                "text": full_text
+            }
+        })
+
+        docs_service.documents().batchUpdate(
+            documentId=document_id,
+            body={"requests": update_requests}
+        ).execute()
+
+        print(f"Google Doc updated successfully! ({len(all_runs)} running records from Notion)")
+        print(f"  Document URL: https://docs.google.com/document/d/{document_id}/edit")
+
+    except HttpError as err:
+        print(f"Google API Error (Docs): {err}")
+    except Exception as e:
+        print(f"Error syncing to Google Doc: {e}")
+        import traceback
+        traceback.print_exc()
+
 def main():
     load_dotenv()
     garmin_email = os.getenv("GARMIN_EMAIL")
@@ -556,6 +875,10 @@ def main():
     # 3. Sync to Google Sheets
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
+    
+    # 3b. Sync to Google Doc from Notion full history (Running only)
+    if google_json and drive_folder_id:
+        sync_doc_from_notion(notion_client, database_id, drive_folder_id, google_json)
     
     # 4. Sync to Notion (Using Enriched Data)
     print("\n--- Starting Notion Sync ---")

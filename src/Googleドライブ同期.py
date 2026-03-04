@@ -151,7 +151,8 @@ def main():
     try:
         scopes = [
             'https://www.googleapis.com/auth/drive',
-            'https://www.googleapis.com/auth/spreadsheets'
+            'https://www.googleapis.com/auth/spreadsheets',
+            'https://www.googleapis.com/auth/documents'
         ]
         
         if google_sa_json.strip().startswith("{"):
@@ -232,6 +233,15 @@ def main():
             print("4. (Optional) Rename the first sheet tab to 'Sheet1' if it isn't already.")
             print("5. Re-run this workflow.")
             sys.exit(1)
+
+        # --- Google Doc Sync (ランニングのみ) ---
+        running_rows = [rows[0]] + [r for r in rows[1:] if r[1] == "ランニング"]
+        sync_to_google_doc(
+            rows=running_rows,
+            folder_id=target_folder_id,
+            creds=creds,
+            drive_service=drive_service
+        )
         
     except Exception as e:
         print(f"Error interacting with Google Drive/Sheets: {e}")
@@ -239,5 +249,147 @@ def main():
             print("HINT: Have you enabled the 'Google Sheets API' in Google Cloud Console?")
         sys.exit(1)
 
+
+def sync_to_google_doc(rows: list, folder_id: str, creds, drive_service) -> None:
+    """Notionから取得したランニングデータをGoogle ドキュメントに書き込む"""
+    print("\n--- Starting Google Doc Sync (Running Only) ---")
+    
+    doc_name = "Garmin Running Log (Document)"
+    
+    try:
+        docs_service = build('docs', 'v1', credentials=creds)
+        
+        # 既存ドキュメントを検索
+        list_query = (
+            f"'{folder_id}' in parents and trashed = false "
+            f"and mimeType = 'application/vnd.google-apps.document' "
+            f"and name = '{doc_name}'"
+        )
+        results = drive_service.files().list(
+            q=list_query,
+            spaces='drive',
+            fields='files(id, name)',
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
+        ).execute()
+        files = results.get('files', [])
+        
+        if files:
+            document_id = files[0]['id']
+            print(f"Found existing document. ID: {document_id}")
+        else:
+            print(f"\nError: Google Document '{doc_name}' not found in the folder.")
+            print("Action Required:")
+            print("1. Open Google Drive and go to your Garmin data folder.")
+            print("2. Click 'New' > 'Google Docs'.")
+            print(f"3. Name it: '{doc_name}'")
+            print("4. Re-run this script.")
+            return
+        
+        # ドキュメントの内容を組み立てる
+        jst = timezone(timedelta(hours=9))
+        now_str = datetime.now(jst).strftime('%Y-%m-%d %H:%M JST')
+        
+        lines = [f"# ランニングログ (最終更新: {now_str})\n\n"]
+        lines.append(
+            "このドキュメントはGarminのランニングデータを自動的に更新します。\n"
+            "AIコーチング用途として最新データを参照してください。\n\n"
+        )
+        lines.append("---\n\n")
+        
+        # ヘッダー行を除いたデータ行を処理 (rows[0] はヘッダー)
+        headers = rows[0]
+        idx = {h: i for i, h in enumerate(headers)}
+        
+        for row in rows[1:]:
+            try:
+                date_str = row[idx.get("Date", 0)] if "Date" in idx else row[0]
+                distance = row[idx.get("Distance (km)", 4)] if "Distance (km)" in idx else row[4]
+                time_min = row[idx.get("Time (min)", 5)] if "Time (min)" in idx else row[5]
+                pace = row[idx.get("Pace (/km)", 6)] if "Pace (/km)" in idx else row[6]
+                gap = row[idx.get("GAP (/km)", 7)] if "GAP (/km)" in idx else row[7]
+                avg_hr = row[idx.get("Avg HR", 8)] if "Avg HR" in idx else row[8]
+                max_hr = row[idx.get("Max HR", 9)] if "Max HR" in idx else row[9]
+                aerobic_te = row[idx.get("Aerobic TE", 14)] if "Aerobic TE" in idx else (row[14] if len(row) > 14 else "")
+                anaerobic_te = row[idx.get("Anaerobic TE", 15)] if "Anaerobic TE" in idx else (row[15] if len(row) > 15 else "")
+                laps = row[idx.get("Laps", 16)] if "Laps" in idx else (row[16] if len(row) > 16 else "")
+                
+                # 時間 (分) を mm:ss 形式に変換
+                try:
+                    total_min = float(time_min)
+                    m = int(total_min)
+                    s = int((total_min - m) * 60)
+                    time_str = f"{m}:{s:02d}"
+                except:
+                    time_str = str(time_min)
+                
+                lines.append(f"## {date_str} ランニング\n")
+                lines.append(f"- 距離: {distance} km\n")
+                lines.append(f"- タイム: {time_str} ({pace})\n")
+                if gap and gap != "-":
+                    lines.append(f"- GAP: {gap}\n")
+                lines.append(f"- 平均心拍: {avg_hr} bpm / 最大: {max_hr} bpm\n")
+                if aerobic_te:
+                    lines.append(f"- 有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te}\n")
+                if laps and laps.strip():
+                    lines.append("- ラップ:\n")
+                    for lap_line in laps.strip().split("\n"):
+                        if lap_line.strip():
+                            lines.append(f"  {lap_line.strip()}\n")
+                lines.append("\n")
+            except Exception as e:
+                print(f"  Warning: Skipping row due to error: {e}")
+                continue
+        
+        full_text = "".join(lines)
+        
+        # 既存のドキュメントのコンテンツを取得して全削除→再書き込み
+        doc = docs_service.documents().get(documentId=document_id).execute()
+        content = doc.get('body', {}).get('content', [])
+        
+        # 末尾のインデックスを取得 (最低1)
+        end_index = 1
+        for element in content:
+            if 'endIndex' in element:
+                end_index = element['endIndex']
+        
+        requests = []
+        
+        # 既存テキストを全削除 (内容がある場合のみ)
+        if end_index > 2:
+            requests.append({
+                'deleteContentRange': {
+                    'range': {
+                        'startIndex': 1,
+                        'endIndex': end_index - 1
+                    }
+                }
+            })
+        
+        # 新しいテキストを挿入
+        requests.append({
+            'insertText': {
+                'location': {'index': 1},
+                'text': full_text
+            }
+        })
+        
+        if requests:
+            docs_service.documents().batchUpdate(
+                documentId=document_id,
+                body={'requests': requests}
+            ).execute()
+        
+        data_count = len(rows) - 1  # ヘッダーを除く
+        print(f"Google Doc updated successfully! ({data_count} running records)")
+        print(f"  Document URL: https://docs.google.com/document/d/{document_id}/edit")
+        
+    except Exception as e:
+        print(f"Error syncing to Google Doc: {e}")
+        import traceback
+        traceback.print_exc()
+
+
 if __name__ == "__main__":
     main()
+
