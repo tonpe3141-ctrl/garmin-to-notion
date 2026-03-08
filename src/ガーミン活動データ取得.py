@@ -535,7 +535,16 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
         )[0] == 'ランニング'
     ]
     running_acts.sort(key=lambda a: a.get('startTimeGMT', ''), reverse=True)
-    print(f"  {len(running_acts)} running activities found.")
+    print(f"  {len(running_acts)} running activities found. Fetching details & laps...")
+
+    # ランニングのみ詳細取得（ラップ・心拍・動的指標）
+    enriched_runs = []
+    for i, act in enumerate(running_acts, 1):
+        print(f"  Enriching {i}/{len(running_acts)}: {act.get('startTimeGMT', '')[:10]}", end=" ", flush=True)
+        enriched = garmin_enhance_activity(garmin_client, act)
+        enriched_runs.append(enriched)
+        print("done")
+    print(f"  Enrichment complete for {len(enriched_runs)} running activities.")
 
     creds = get_google_credentials(service_account_json)
     if not creds:
@@ -580,7 +589,7 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
         lines.append("---\n\n")
 
         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        for activity in running_acts:
+        for activity in enriched_runs:
             try:
                 activity_date_raw = activity.get('startTimeGMT')
                 activity_date_jst = datetime.strptime(
@@ -602,7 +611,20 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
                 aerobic_te = round(activity.get('aerobicTrainingEffect', 0), 1)
                 anaerobic_te = round(activity.get('anaerobicTrainingEffect', 0), 1)
                 te_label = format_training_effect(activity.get('trainingEffectLabel', 'Unknown'))
-                # ラップはサマリーデータには含まれないためスキップ（enrichedでない）
+                calories = round(activity.get('calories', 0))
+
+                # ランニングダイナミクス
+                cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else None
+                stride = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else None
+                gct = round(activity.get('avgGroundContactTime')) if activity.get('avgGroundContactTime') else None
+                vo = round(activity.get('avgVerticalOscillation', 0) / 10, 1) if activity.get('avgVerticalOscillation') else None
+                balance = activity.get('avgGroundContactBalance')
+                if balance:
+                    left_b = round(balance / 100, 1)
+                    balance_str = f"L {left_b}% / R {round(100 - left_b, 1)}%"
+                else:
+                    balance_str = None
+
                 laps_text = activity.get('laps_text', '')
 
                 lines.append(f"## {date_label} ランニング\n")
@@ -610,9 +632,19 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
                 lines.append(f"- タイム: {time_str} ({avg_pace})\n")
                 if gap_str:
                     lines.append(f"- GAP: {gap_str}\n")
+                lines.append(f"- カロリー: {calories} kcal\n")
                 if avg_hr:
                     lines.append(f"- 平均心拍: {avg_hr} bpm / 最大: {max_hr_val} bpm\n")
                 lines.append(f"- トレーニング効果: {te_label} (有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te})\n")
+                # ランニングダイナミクス
+                dynamics_parts = []
+                if cadence: dynamics_parts.append(f"ピッチ: {cadence} spm")
+                if stride: dynamics_parts.append(f"ストライド: {stride} m")
+                if gct: dynamics_parts.append(f"接地時間: {gct} ms")
+                if vo: dynamics_parts.append(f"上下動: {vo} cm")
+                if balance_str: dynamics_parts.append(f"左右バランス: {balance_str}")
+                if dynamics_parts:
+                    lines.append(f"- ランニングダイナミクス: {' / '.join(dynamics_parts)}\n")
                 if laps_text and laps_text.strip():
                     lines.append("- ラップ:\n")
                     for lap_line in laps_text.strip().split('\n'):
