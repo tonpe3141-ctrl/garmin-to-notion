@@ -1,12 +1,11 @@
 import os
 import json
 from datetime import datetime, timedelta
-from typing import List, Optional
+from typing import List
 
 import pytz
 from dotenv import load_dotenv
 from garminconnect import Garmin as GarminClient
-from notion_client import Client as NotionClient
 
 # Google API Imports
 from google.oauth2.service_account import Credentials
@@ -166,77 +165,7 @@ def format_pace(average_speed: float) -> str:
         return f"{minutes}:{seconds:02d} /km"
     return ""
 
-def activity_exists(notion_client: NotionClient, database_id: str, activity_date: datetime) -> Optional[dict]:
-    # タイムゾーン考慮: Garminの時間をJSTに変換して、その「日付(YYYY-MM-DD)」が一致するものを探す
-    # activity_date は UTC で渡されてくる前提
-    if activity_date.tzinfo is None:
-        activity_date = activity_date.replace(tzinfo=pytz.UTC)
-    
-    target_date_str = activity_date.astimezone(local_tz).strftime('%Y-%m-%d')
-    print(f"Target Activity Date (JST): {target_date_str} (Original UTC: {activity_date})")
-    
-    # 検索範囲: Notion上でその日のタイムレンジ（JST 00:00 - 23:59）
-    # Notionでは日付クエリはISO文字列で行うが、安全のため前後24h広めに取ってフィルタするのは維持し、
-    # Python側で厳密に文字列マッチさせる
-    lookup_min_date = activity_date - timedelta(hours=48) # 念のため48時間に拡大
-    lookup_max_date = activity_date + timedelta(hours=48)
-    
-    query = notion_client.databases.query(
-        database_id=database_id,
-        filter={
-            "and": [
-                {"property": "日付", "date": {"on_or_after": lookup_min_date.isoformat()}},
-                {"property": "日付", "date": {"on_or_before": lookup_max_date.isoformat()}},
-            ]
-        }
-    )
-    results = query['results']
-    print(f"  Notion Query found {len(results)} candidates in range.")
-    
-    if not results:
-        return None
-        
-    # 文字列（YYYY-MM-DD）で完全一致するものを探す（これが最も確実）
-    min_diff = float('inf')
-    closest_match = None
-    for page in results:
-        try:
-            date_prop = page['properties']['日付']['date']
-            if not date_prop: continue
-            
-            start_str = date_prop['start'] # ISO string or YYYY-MM-DD
-            page_date_str = start_str[:10] # 先頭10文字 (YYYY-MM-DD)
-            
-            # print(f"  - Compare: Notion({page_date_str}) vs Target({target_date_str}) [ID: {page['id']}]")
-            
-            if page_date_str == target_date_str:
-                print(f"    -> MATCH FOUND (Exact Date)!")
-                return page
-            
-            # フォールバック用: 時間差計算
-            if 'T' in start_str:
-                page_date_dt = datetime.fromisoformat(start_str.replace('Z', '+00:00'))
-            else:
-                page_date_dt = datetime.fromisoformat(start_str).replace(tzinfo=pytz.UTC)
-            
-            if page_date_dt.tzinfo is None: page_date_dt = page_date_dt.replace(tzinfo=pytz.UTC)
-            
-            diff = abs((page_date_dt - activity_date).total_seconds())
-            if diff < min_diff:
-                min_diff = diff
-                closest_match = page
-                
-        except Exception as e:
-            print(f"Warning: Error checking page {page['id']}: {e}")
-            continue
 
-    # 文字列一致がなくても、48時間以内のデータがあればそれを使う（表記揺れやタイムゾーンずれの救済）
-    if closest_match and min_diff < 48 * 3600:
-         print(f"    -> MATCH FOUND (Approximate, Diff: {min_diff/3600:.1f}h)!")
-         return closest_match
-
-    print(f"  No match found.")
-    return None
 
 def fetch_and_format_laps(garmin_client: GarminClient, activity_id: str) -> str:
     laps_text = ""
@@ -320,114 +249,9 @@ def garmin_enhance_activity(garmin_client: GarminClient, activity: dict) -> dict
         
     return activity
 
-def get_activity_properties(activity: dict) -> dict:
-    # activity is now assumed to be ENRICHED (has 'laps_text' etc)
-    
-    activity_date_raw = activity.get('startTimeGMT')
-    activity_date_utc = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC)
-    activity_date_jst = activity_date_utc.astimezone(local_tz)
-    
-    activity_name = activity.get('activityName', '無題のアクティビティ')
-    activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
-    
-    average_hr = activity.get('averageHR')
-    max_hr = activity.get('maxHR')
-    avg_gap_speed = activity.get('avgGradeAdjustedSpeed')
-    gap_str = format_pace(avg_gap_speed) if avg_gap_speed else "-"
-    laps_text = activity.get('laps_text', "")
-    
-    # Running Dynamics
-    gct = activity.get('avgGroundContactTime')
-    vo = round(activity.get('avgVerticalOscillation', 0) / 10, 1) if activity.get('avgVerticalOscillation') else None # mm to cm
-    balance = activity.get('avgGroundContactBalance')
-    if balance:
-        left_balance = round(balance / 100, 1)
-        right_balance = round(100 - left_balance, 1)
-        balance_str = f"L {left_balance}% / R {right_balance}%"
-    else:
-        balance_str = None
-    
-    stride_length = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else None # cm to m
-    cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else None
-
-    properties = {
-        "日付": {"date": {"start": activity_date_jst.isoformat()}},
-        "種目": {"select": {"name": activity_type}},
-        "詳細種目": {"select": {"name": activity_subtype}},
-        "アクティビティ名": {"title": [{"text": {"content": activity_name}}]},
-        "距離 (km)": {"number": round(activity.get('distance', 0) / 1000, 2)},
-        "タイム (分)": {"number": round(activity.get('duration', 0) / 60, 2)},
-        "カロリー": {"number": round(activity.get('calories', 0))},
-        "平均ペース": {"rich_text": [{"text": {"content": format_pace(activity.get('averageSpeed', 0))}}]},
-        "GAP": {"rich_text": [{"text": {"content": gap_str}}]},
-        "平均心拍": {"number": round(average_hr) if average_hr else None},
-        "最大心拍": {"number": round(max_hr) if max_hr else None},
-        "平均パワー": {"number": round(activity.get('avgPower', 0), 1)},
-        "最大パワー": {"number": round(activity.get('maxPower', 0), 1) if "maxPower" in activity else None},
-        "トレーニング効果": {"select": {"name": format_training_effect(activity.get('trainingEffectLabel', 'Unknown'))}},
-        "有酸素": {"number": round(activity.get('aerobicTrainingEffect', 0), 1)},
-        "有酸素効果": {"select": {"name": format_training_message(activity.get('aerobicTrainingEffectMessage', 'Unknown'))}},
-        "無酸素": {"number": round(activity.get('anaerobicTrainingEffect', 0), 1)},
-        "無酸素効果": {"select": {"name": format_training_message(activity.get('anaerobicTrainingEffectMessage', 'Unknown'))}},
-        "ラップ": {"rich_text": [{"text": {"content": laps_text}}]},
-        "自己ベスト": {"checkbox": activity.get('pr', False)},
-        "お気に入り": {"checkbox": activity.get('favorite', False)},
-        "接地時間 (ms)": {"number": round(gct) if gct else None},
-        "上下動 (cm)": {"number": vo},
-        "左右バランス": {"rich_text": [{"text": {"content": balance_str}}] if balance_str else []},
-        "ピッチ (spm)": {"number": cadence},
-        "ストライド (m)": {"number": stride_length}
-    }
-    
-    # Remove None values explicitly to avoid Notion API errors
-    for key in list(properties.keys()):
-        if isinstance(properties[key], dict):
-            if 'number' in properties[key] and properties[key]['number'] is None:
-                del properties[key]
-            elif 'select' in properties[key] and properties[key]['select'] is None:
-                del properties[key]
-
-    icon_url = ACTIVITY_ICONS.get(activity_subtype if activity_subtype != activity_type else activity_type)
-    return properties, icon_url
-
-def create_activity(notion_client: NotionClient, database_id: str, activity: dict) -> None:
-    properties, icon_url = get_activity_properties(activity)
-    page = {"parent": {"database_id": database_id}, "properties": properties}
-    if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
-    notion_client.pages.create(**page)
-    print(f"Created: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
-
-def update_activity(notion_client: NotionClient, page_id: str, activity: dict) -> None:
-    properties, icon_url = get_activity_properties(activity)
-    page = {"properties": properties}
-    if icon_url: page["icon"] = {"type": "external", "external": {"url": icon_url}}
-    notion_client.pages.update(page_id, **page)
-    print(f"Updated Backfill: {properties['日付']['date']['start']} - {properties['種目']['select']['name']}")
-
 def format_duration(seconds: float) -> str:
     m, s = divmod(int(seconds), 60)
     return f"{m}:{s:02d}"
-
-def update_database_schema(notion_client: NotionClient, database_id: str) -> None:
-    """Ensure new properties exist in the database."""
-    try:
-        notion_client.databases.update(
-            database_id=database_id,
-            properties={
-                "平均心拍": {"number": {}},
-                "最大心拍": {"number": {}},
-                "GAP": {"rich_text": {}},
-                "ラップ": {"rich_text": {}},
-                "接地時間 (ms)": {"number": {}},
-                "上下動 (cm)": {"number": {}},
-                "左右バランス": {"rich_text": {}},
-                "ピッチ (spm)": {"number": {}},
-                "ストライド (m)": {"number": {}}
-            }
-        )
-        print("Updated Notion Database Schema with new columns.")
-    except Exception as e:
-        print(f"Warning: Could not update database schema (might already exist or permission issue): {e}")
 
 
 def get_google_credentials(service_account_json_str):
@@ -671,38 +495,48 @@ def sync_to_google_doc(activities: List[dict], folder_id: str, service_account_j
         traceback.print_exc()
 
 
-def sync_doc_from_notion(notion_client: NotionClient, database_id: str, folder_id: str, service_account_json: str) -> None:
-    """NotionのDBから全ランニング履歴を取得してGoogle ドキュメントに書き込む。
-    GARMIN_ACTIVITIES_FETCH_LIMITに関係なく、常にNotionの全件履歴から生成するため
-    GitHub Actionsの少件数取得でもドキュメントが正しく更新される。
+def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_account_json: str) -> None:
+    """Garminから過去90日のランニングデータを独立取得し、Google ドキュメントに書き込む。
+    GARMIN_ACTIVITIES_FETCH_LIMIT に関係なく常に全期間のランニング履歴を反映する。
     """
-    print("\n--- Starting Google Doc Sync (from Notion full history) ---")
-    
-    # 1. Notionから全ランニングデータを取得
-    try:
-        all_runs = []
-        has_more = True
-        start_cursor = None
-        while has_more:
-            params = {
-                "database_id": database_id,
-                "sorts": [{"property": "日付", "direction": "descending"}],
-                "filter": {"property": "種目", "select": {"equals": "ランニング"}}
-            }
-            if start_cursor:
-                params["start_cursor"] = start_cursor
-            resp = notion_client.databases.query(**params)
-            all_runs.extend(resp.get("results", []))
-            has_more = resp.get("has_more", False)
-            start_cursor = resp.get("next_cursor")
-            if len(all_runs) >= 500:  # 安全上限
-                break
-        print(f"  Fetched {len(all_runs)} running records from Notion.")
-    except Exception as e:
-        print(f"  Error fetching from Notion: {e}")
-        return
+    print("\n--- Starting Google Doc Sync (Running Only, independent full fetch) ---")
 
-    # 2. ドキュメント取得
+    # --- 1. Garminから独立して90日分を全量取得 ---
+    target_history_days = 90
+    cutoff_date = datetime.now(local_tz) - timedelta(days=target_history_days)
+    all_activities = []
+    batch_size = 50
+    start_index = 0
+    print(f"  Fetching all activities for last {target_history_days} days from Garmin...")
+    while True:
+        try:
+            batch = garmin_client.get_activities(start_index, batch_size)
+            if not batch:
+                break
+            all_activities.extend(batch)
+            last_date_str = batch[-1].get('startTimeGMT', '')
+            if last_date_str:
+                last_date = datetime.strptime(last_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz)
+                if last_date < cutoff_date:
+                    break
+            if len(all_activities) >= 2000:
+                break
+            start_index += batch_size
+        except Exception as e:
+            print(f"  Warning: fetch stopped at index {start_index}: {e}")
+            break
+    print(f"  Fetched {len(all_activities)} total activities.")
+
+    # ランニングのみ抽出（新しい順）
+    running_acts = [
+        a for a in all_activities
+        if format_activity_type(
+            a.get('activityType', {}).get('typeKey', ''), a.get('activityName', '')
+        )[0] == 'ランニング'
+    ]
+    running_acts.sort(key=lambda a: a.get('startTimeGMT', ''), reverse=True)
+    print(f"  {len(running_acts)} running activities found.")
+
     creds = get_google_credentials(service_account_json)
     if not creds:
         return
@@ -736,9 +570,8 @@ def sync_doc_from_notion(notion_client: NotionClient, database_id: str, folder_i
         document_id = files[0]['id']
         print(f"  Found document. ID: {document_id}")
 
-        # 3. テキスト組み立て
-        jst = pytz.timezone('Asia/Tokyo')
-        now_str = datetime.now(jst).strftime('%Y-%m-%d %H:%M JST')
+        # --- 2. テキスト組み立て ---
+        now_str = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M JST')
         lines = [f"# ランニングログ (最終更新: {now_str})\n\n"]
         lines.append(
             "このドキュメントはGarminのランニングデータを自動的に更新します。\n"
@@ -746,69 +579,53 @@ def sync_doc_from_notion(notion_client: NotionClient, database_id: str, folder_i
         )
         lines.append("---\n\n")
 
-        for page in all_runs:
+        weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+        for activity in running_acts:
             try:
-                props = page.get("properties", {})
+                activity_date_raw = activity.get('startTimeGMT')
+                activity_date_jst = datetime.strptime(
+                    activity_date_raw, '%Y-%m-%d %H:%M:%S'
+                ).replace(tzinfo=pytz.UTC).astimezone(local_tz)
+                date_label = f"{activity_date_jst.strftime('%Y-%m-%d')} ({weekdays[activity_date_jst.weekday()]})"
 
-                date_str_raw = props.get("日付", {}).get("date", {}).get("start", "")
-                if date_str_raw:
-                    if "T" in date_str_raw:
-                        dt = datetime.fromisoformat(date_str_raw.replace("Z", "+00:00"))
-                        dt_jst = dt.astimezone(jst)
-                    else:
-                        dt_jst = datetime.fromisoformat(date_str_raw).replace(tzinfo=jst)
-                    weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-                    date_label = f"{dt_jst.strftime('%Y-%m-%d')} ({weekdays[dt_jst.weekday()]})"
-                else:
-                    date_label = "不明"
+                distance_km = round(activity.get('distance', 0) / 1000, 2)
+                duration_min = activity.get('duration', 0) / 60
+                m_part = int(duration_min)
+                s_part = int((duration_min - m_part) * 60)
+                time_str = f"{m_part}:{s_part:02d}"
 
-                distance = props.get("距離 (km)", {}).get("number", 0) or 0
-                time_min = props.get("タイム (分)", {}).get("number", 0) or 0
-                m = int(time_min)
-                s = int((time_min - m) * 60)
-                time_str = f"{m}:{s:02d}"
-
-                pace_list = props.get("平均ペース", {}).get("rich_text", [])
-                pace = pace_list[0].get("text", {}).get("content", "") if pace_list else "-"
-
-                gap_list = props.get("GAP", {}).get("rich_text", [])
-                gap = gap_list[0].get("text", {}).get("content", "") if gap_list else ""
-
-                avg_hr = props.get("平均心拍", {}).get("number")
-                max_hr = props.get("最大心拍", {}).get("number")
-                aerobic_te = props.get("有酸素", {}).get("number")
-                anaerobic_te = props.get("無酸素", {}).get("number")
-                te_select = props.get("トレーニング効果", {}).get("select", {})
-                te_label = te_select.get("name", "") if te_select else ""
-
-                laps_list = props.get("ラップ", {}).get("rich_text", [])
-                laps = laps_list[0].get("text", {}).get("content", "") if laps_list else ""
+                avg_pace = format_pace(activity.get('averageSpeed', 0))
+                avg_gap_speed = activity.get('avgGradeAdjustedSpeed')
+                gap_str = format_pace(avg_gap_speed) if avg_gap_speed else None
+                avg_hr = round(activity.get('averageHR')) if activity.get('averageHR') else None
+                max_hr_val = round(activity.get('maxHR')) if activity.get('maxHR') else None
+                aerobic_te = round(activity.get('aerobicTrainingEffect', 0), 1)
+                anaerobic_te = round(activity.get('anaerobicTrainingEffect', 0), 1)
+                te_label = format_training_effect(activity.get('trainingEffectLabel', 'Unknown'))
+                # ラップはサマリーデータには含まれないためスキップ（enrichedでない）
+                laps_text = activity.get('laps_text', '')
 
                 lines.append(f"## {date_label} ランニング\n")
-                lines.append(f"- 距離: {distance} km\n")
-                lines.append(f"- タイム: {time_str} ({pace})\n")
-                if gap and gap != "-":
-                    lines.append(f"- GAP: {gap}\n")
+                lines.append(f"- 距離: {distance_km} km\n")
+                lines.append(f"- タイム: {time_str} ({avg_pace})\n")
+                if gap_str:
+                    lines.append(f"- GAP: {gap_str}\n")
                 if avg_hr:
-                    lines.append(f"- 平均心拍: {int(avg_hr)} bpm / 最大: {int(max_hr) if max_hr else '-'} bpm\n")
-                if te_label:
-                    lines.append(f"- トレーニング効果: {te_label}")
-                    if aerobic_te is not None:
-                        lines.append(f" (有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te})")
-                    lines.append("\n")
-                if laps and laps.strip():
+                    lines.append(f"- 平均心拍: {avg_hr} bpm / 最大: {max_hr_val} bpm\n")
+                lines.append(f"- トレーニング効果: {te_label} (有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te})\n")
+                if laps_text and laps_text.strip():
                     lines.append("- ラップ:\n")
-                    for lap_line in laps.strip().split("\n"):
+                    for lap_line in laps_text.strip().split('\n'):
                         if lap_line.strip():
                             lines.append(f"  {lap_line.strip()}\n")
                 lines.append("\n")
             except Exception as e:
-                print(f"  Warning: Skipping record due to error: {e}")
+                print(f"  Warning: Skipping activity due to error: {e}")
                 continue
 
         full_text = "".join(lines)
 
-        # 4. ドキュメントを全削除→再書き込み
+        # --- 3. ドキュメントを全削除→再書き込み ---
         doc = docs_service.documents().get(documentId=document_id).execute()
         content = doc.get("body", {}).get("content", [])
         end_index = 1
@@ -835,7 +652,7 @@ def sync_doc_from_notion(notion_client: NotionClient, database_id: str, folder_i
             body={"requests": update_requests}
         ).execute()
 
-        print(f"Google Doc updated successfully! ({len(all_runs)} running records from Notion)")
+        print(f"Google Doc updated successfully! ({len(running_acts)} running records)")
         print(f"  Document URL: https://docs.google.com/document/d/{document_id}/edit")
 
     except HttpError as err:
@@ -849,52 +666,33 @@ def main():
     load_dotenv()
     garmin_email = os.getenv("GARMIN_EMAIL")
     garmin_password = os.getenv("GARMIN_PASSWORD")
-    notion_token = os.getenv("NOTION_TOKEN")
-    database_id = os.getenv("NOTION_DB_ID")
     garmin_fetch_limit = int(os.getenv("GARMIN_ACTIVITIES_FETCH_LIMIT", "200"))
-    
+
     google_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
     drive_folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 
     garmin_client = GarminClient(garmin_email, garmin_password)
     garmin_client.login()
-    notion_client = NotionClient(auth=notion_token)
-    update_database_schema(notion_client, database_id)
 
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
     print(f"Fetched {len(activities)} activities. Starting enrichment (fetching details/laps)...")
-    
-    # 2. Enrich Data (Fetch Details & Laps) - This replaces the individual fetching in Notion loop
+
+    # 2. Enrich Data (Fetch Details & Laps)
     enriched_activities = []
     for act in activities:
         enriched = garmin_enhance_activity(garmin_client, act)
         enriched_activities.append(enriched)
     print("\nEnrichment complete.")
-    
+
     # 3. Sync to Google Sheets
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
-    
-    # 3b. Sync to Google Doc from Notion full history (Running only)
+
+    # 4. Sync to Google Doc (Running only, always fetches full 90-day history independently)
     if google_json and drive_folder_id:
-        sync_doc_from_notion(notion_client, database_id, drive_folder_id, google_json)
-    
-    # 4. Sync to Notion (Using Enriched Data)
-    print("\n--- Starting Notion Sync ---")
-    for activity in enriched_activities:
-        try:
-            activity_date_raw = activity.get('startTimeGMT')
-            activity_date = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC)
-            
-            existing_activity = activity_exists(notion_client, database_id, activity_date)
-            if existing_activity:
-                update_activity(notion_client, existing_activity['id'], activity)
-            else:
-                create_activity(notion_client, database_id, activity)
-        except Exception as e:
-            print(f"Error processing activity {activity.get('activityId')}: {e}")
-            continue
+        sync_doc_from_garmin(garmin_client, drive_folder_id, google_json)
+
 
 if __name__ == "__main__":
     main()
