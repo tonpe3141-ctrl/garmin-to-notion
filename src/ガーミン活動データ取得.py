@@ -703,8 +703,17 @@ def main():
     google_json = os.getenv("GOOGLE_SERVICE_ACCOUNT_JSON")
     drive_folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 
-    garmin_client = GarminClient(garmin_email, garmin_password)
-    garmin_client.login()
+    token_dir = os.path.expanduser("~/.garth")
+    try:
+        garmin_client = GarminClient()
+        garmin_client.login(tokenstore=token_dir)
+        print("Logged in using cached Garmin tokens")
+    except Exception:
+        print("Cached tokens invalid or missing, performing fresh login...")
+        garmin_client = GarminClient(garmin_email, garmin_password)
+        garmin_client.login()
+        garmin_client.garth.dump(token_dir)
+        print("Fresh login successful, tokens saved")
 
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
