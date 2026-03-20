@@ -704,16 +704,32 @@ def main():
     drive_folder_id = os.getenv("GOOGLE_DRIVE_FOLDER_ID")
 
     token_dir = os.path.expanduser("~/.garth")
+    tokens_b64 = os.getenv("GARTH_TOKENS_B64")
+
+    # Priority 1: Actions cache (~/.garth) - most recently refreshed tokens
+    # Priority 2: GitHub Secret (GARTH_TOKENS_B64) - initial tokens set manually
+    # Priority 3: Fresh login - last resort (may hit Garmin rate limit)
+    garmin_client = None
     try:
         garmin_client = GarminClient()
         garmin_client.login(tokenstore=token_dir)
-        print("Logged in using cached Garmin tokens")
-    except Exception:
-        print("Cached tokens invalid or missing, performing fresh login...")
-        garmin_client = GarminClient(garmin_email, garmin_password)
-        garmin_client.login()
-        garmin_client.garth.dump(token_dir)
-        print("Fresh login successful, tokens saved")
+        print("Logged in using cached Garmin tokens (~/.garth)")
+    except Exception as e1:
+        if tokens_b64:
+            try:
+                garmin_client = GarminClient()
+                garmin_client.login(tokenstore_base64=tokens_b64)
+                garmin_client.garth.dump(token_dir)
+                print("Logged in using GARTH_TOKENS_B64 secret, tokens saved to cache")
+            except Exception as e2:
+                print(f"GARTH_TOKENS_B64 login failed: {e2}")
+                garmin_client = None
+        if garmin_client is None:
+            print("Falling back to fresh login (password)...")
+            garmin_client = GarminClient(garmin_email, garmin_password)
+            garmin_client.login()
+            garmin_client.garth.dump(token_dir)
+            print("Fresh login successful, tokens saved")
 
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
