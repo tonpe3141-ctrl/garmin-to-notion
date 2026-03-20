@@ -26,6 +26,14 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-pip-
 
+      - name: Cache Garth tokens
+        uses: actions/cache@v3
+        with:
+          path: ~/.garth
+          key: garth-tokens-v1
+          restore-keys: |
+            garth-tokens-
+
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip setuptools wheel
@@ -35,6 +43,7 @@ jobs:
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARTH_TOKENS_B64: ${{ secrets.GARTH_TOKENS_B64 }}
           GARMIN_ACTIVITIES_FETCH_LIMIT: 5
           GOOGLE_SERVICE_ACCOUNT_JSON: ${{ secrets.GOOGLE_SERVICE_ACCOUNT_JSON }}
           GOOGLE_DRIVE_FOLDER_ID: ${{ secrets.GOOGLE_DRIVE_FOLDER_ID }}
