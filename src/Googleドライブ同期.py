@@ -301,7 +301,22 @@ def sync_to_google_doc(rows: list, folder_id: str, creds, drive_service) -> None
         headers = rows[0]
         idx = {h: i for i, h in enumerate(headers)}
         
+        # 過去2ヶ月以内のデータのみに絞り込む
+        cutoff_date = datetime.now(jst) - timedelta(days=62)
+        
+        filtered_rows = []
         for row in rows[1:]:
+            try:
+                date_val = row[idx.get("Date", 0)] if "Date" in idx else row[0]
+                dt = datetime.strptime(date_val[:16], '%Y-%m-%d %H:%M').replace(tzinfo=jst)
+                if dt >= cutoff_date:
+                    filtered_rows.append(row)
+            except Exception:
+                filtered_rows.append(row)  # パース失敗は除外しない
+        
+        print(f"  Filtered to {len(filtered_rows)} records within the last 2 months (cutoff: {cutoff_date.strftime('%Y-%m-%d')}).")
+        
+        for row in filtered_rows:
             try:
                 date_str = row[idx.get("Date", 0)] if "Date" in idx else row[0]
                 distance = row[idx.get("Distance (km)", 4)] if "Distance (km)" in idx else row[4]
@@ -380,8 +395,8 @@ def sync_to_google_doc(rows: list, folder_id: str, creds, drive_service) -> None
                 body={'requests': requests}
             ).execute()
         
-        data_count = len(rows) - 1  # ヘッダーを除く
-        print(f"Google Doc updated successfully! ({data_count} running records)")
+        data_count = len(filtered_rows)
+        print(f"Google Doc updated successfully! ({data_count} running records within last 2 months)")
         print(f"  Document URL: https://docs.google.com/document/d/{document_id}/edit")
         
     except Exception as e:
