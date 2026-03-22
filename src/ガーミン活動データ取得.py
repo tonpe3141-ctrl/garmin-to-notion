@@ -219,13 +219,19 @@ def fetch_and_format_laps(garmin_client: GarminClient, activity_id: str) -> str:
 def garmin_enhance_activity(garmin_client: GarminClient, activity: dict) -> dict:
     """Fetch additional details for an activity using its activity_id."""
     activity_id = activity.get('activityId')
-    
+
     try:
-        # 1. Fetch Full Details if possible 
+        # 1. Fetch Full Details if possible
         try:
             full_activity = garmin_client.get_activity_details(activity_id)
             if full_activity:
-                activity.update(full_activity) 
+                # Preserve key classification fields from the summary before overwriting.
+                # The details API may return activityType in a different format (null, int, etc.)
+                # which would break downstream filtering.
+                _saved_type = activity.get('activityType')
+                activity.update(full_activity)
+                if _saved_type is not None:
+                    activity['activityType'] = _saved_type
         except Exception as e:
             print(f"Warning: Could not fetch details for {activity_id}: {e}")
             
@@ -301,7 +307,7 @@ def sync_to_google_sheet(activities: List[dict], folder_id: str, service_account
             activity_date_raw = activity.get('startTimeGMT')
             date_str = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
             activity_name = activity.get('activityName', '無題')
-            activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
+            activity_type, activity_subtype = format_activity_type((activity.get('activityType') or {}).get('typeKey', 'Unknown'), activity_name)
             
             distance_km = round(activity.get('distance', 0) / 1000, 2)
             duration_min = round(activity.get('duration', 0) / 60, 2)
@@ -503,7 +509,7 @@ def sync_doc_from_garmin(enriched_activities: List[dict], folder_id: str, servic
     running_acts = [
         a for a in enriched_activities
         if format_activity_type(
-            a.get('activityType', {}).get('typeKey', ''), a.get('activityName', '')
+            (a.get('activityType') or {}).get('typeKey', ''), a.get('activityName', '')
         )[0] == 'ランニング'
     ]
     running_acts.sort(key=lambda a: a.get('startTimeGMT', ''), reverse=True)
