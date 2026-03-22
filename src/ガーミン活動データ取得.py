@@ -496,18 +496,18 @@ def sync_to_google_doc(activities: List[dict], folder_id: str, service_account_j
 
 
 def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_account_json: str) -> None:
-    """Garminから過去90日のランニングデータを独立取得し、Google ドキュメントに書き込む。
+    """Garminから過去62日（約2ヶ月）のランニングデータを独立取得し、Google ドキュメントに書き込む。
     GARMIN_ACTIVITIES_FETCH_LIMIT に関係なく常に全期間のランニング履歴を反映する。
     """
     print("\n--- Starting Google Doc Sync (Running Only, independent full fetch) ---")
 
-    # --- 1. Garminから独立して90日分を全量取得 ---
-    target_history_days = 90
-    cutoff_date = datetime.now(local_tz) - timedelta(days=target_history_days)
+    # --- 1. Garminから独立して62日分を全量取得 ---
+    target_history_days = 62  # 約2ヶ月
+    doc_cutoff_date = datetime.now(local_tz) - timedelta(days=target_history_days)
     all_activities = []
     batch_size = 50
     start_index = 0
-    print(f"  Fetching all activities for last {target_history_days} days from Garmin...")
+    print(f"  Fetching all activities for last {target_history_days} days from Garmin (since {doc_cutoff_date.strftime('%Y-%m-%d')})...")
     while True:
         try:
             batch = garmin_client.get_activities(start_index, batch_size)
@@ -517,7 +517,7 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
             last_date_str = batch[-1].get('startTimeGMT', '')
             if last_date_str:
                 last_date = datetime.strptime(last_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz)
-                if last_date < cutoff_date:
+                if last_date < doc_cutoff_date:
                     break
             if len(all_activities) >= 2000:
                 break
@@ -527,14 +527,25 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
             break
     print(f"  Fetched {len(all_activities)} total activities.")
 
-    # ランニングのみ抽出（新しい順）
-    running_acts = [
-        a for a in all_activities
-        if format_activity_type(
+    # ランニングのみ抽出 & 62日以内のみに限定（新しい順）
+    running_acts = []
+    for a in all_activities:
+        act_type = format_activity_type(
             a.get('activityType', {}).get('typeKey', ''), a.get('activityName', '')
-        )[0] == 'ランニング'
-    ]
+        )[0]
+        if act_type != 'ランニング':
+            continue
+        date_raw = a.get('startTimeGMT', '')
+        if date_raw:
+            try:
+                act_date = datetime.strptime(date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz)
+                if act_date < doc_cutoff_date:
+                    continue  # 2ヶ月より古いものはスキップ
+            except Exception:
+                pass  # パース失敗は除外しない
+        running_acts.append(a)
     running_acts.sort(key=lambda a: a.get('startTimeGMT', ''), reverse=True)
+    print(f"  Kept {len(running_acts)} running activities within last {target_history_days} days.")
     print(f"  {len(running_acts)} running activities found. Fetching details & laps...")
 
     # ランニングのみ詳細取得（ラップ・心拍・動的指標）
@@ -562,18 +573,23 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
             f"and name = '{doc_name}'"
         )
         results = drive_service.files().list(
-            q=list_query, spaces='drive', fields='files(id, name)',
-            supportsAllDrives=True, includeItemsFromAllDrives=True
+            q=list_query,
+            spaces='drive',
+            fields='files(id, name)',
+            supportsAllDrives=True,
+            includeItemsFromAllDrives=True
         ).execute()
         files = results.get('files', [])
+        print(f"  Drive search returned {len(files)} file(s) for '{doc_name}'.")
 
         if not files:
-            print(f"\nError: Google Document '{doc_name}' not found in the folder.")
+            print(f"\nError: Google Document '{doc_name}' not found in the folder (ID: {folder_id}).")
             print("Action Required:")
             print("1. Open Google Drive and go to your Garmin data folder.")
             print("2. Click 'New' > 'Google Docs'.")
-            print(f"3. Name it: '{doc_name}'")
-            print("4. Re-run this script.")
+            print(f"3. Name it exactly: '{doc_name}'")
+            print("4. Share the document with the service account email.")
+            print("5. Re-run this script.")
             return
 
         document_id = files[0]['id']
