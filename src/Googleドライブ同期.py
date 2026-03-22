@@ -301,37 +301,7 @@ def sync_to_google_doc(rows: list, folder_id: str, creds, drive_service) -> None
         headers = rows[0]
         idx = {h: i for i, h in enumerate(headers)}
         
-        # 過去2ヶ月以内のデータのみに絞り込む
-        cutoff_date = datetime.now(jst) - timedelta(days=62)
-        print(f"  Cutoff date: {cutoff_date.strftime('%Y-%m-%d')} (keeping records on/after this date)")
-        
-        def parse_date(date_val: str):
-            """複数フォーマットの日付文字列をdatetimeにパースする"""
-            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
-                try:
-                    return datetime.strptime(date_val[:len(fmt)], fmt).replace(tzinfo=jst)
-                except ValueError:
-                    continue
-            return None
-        
-        filtered_rows = []
-        excluded_count = 0
         for row in rows[1:]:
-            date_val = row[idx.get("Date", 0)] if "Date" in idx else row[0]
-            dt = parse_date(str(date_val))
-            if dt is None:
-                # パース失敗は除外しない（安全のため保持）
-                print(f"  Warning: Could not parse date '{date_val}', keeping row.")
-                filtered_rows.append(row)
-            elif dt >= cutoff_date:
-                filtered_rows.append(row)
-            else:
-                excluded_count += 1
-        
-        print(f"  Total: {len(rows)-1} records, kept: {len(filtered_rows)}, excluded (old): {excluded_count}")
-        
-
-        for row in filtered_rows:
             try:
                 date_str = row[idx.get("Date", 0)] if "Date" in idx else row[0]
                 distance = row[idx.get("Distance (km)", 4)] if "Distance (km)" in idx else row[4]
@@ -410,8 +380,8 @@ def sync_to_google_doc(rows: list, folder_id: str, creds, drive_service) -> None
                 body={'requests': requests}
             ).execute()
         
-        data_count = len(filtered_rows)
-        print(f"Google Doc updated successfully! ({data_count} running records within last 2 months)")
+        data_count = len(rows) - 1  # ヘッダーを除く
+        print(f"Google Doc updated successfully! ({data_count} running records)")
         print(f"  Document URL: https://docs.google.com/document/d/{document_id}/edit")
         
     except Exception as e:
