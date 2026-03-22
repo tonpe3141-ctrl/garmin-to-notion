@@ -495,56 +495,23 @@ def sync_to_google_doc(activities: List[dict], folder_id: str, service_account_j
         traceback.print_exc()
 
 
-def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_account_json: str) -> None:
-    """Garminから過去90日のランニングデータを独立取得し、Google ドキュメントに書き込む。
-    GARMIN_ACTIVITIES_FETCH_LIMIT に関係なく常に全期間のランニング履歴を反映する。
-    """
-    print("\n--- Starting Google Doc Sync (Running Only, independent full fetch) ---")
-
-    # --- 1. Garminから独立して90日分を全量取得 ---
-    target_history_days = 90
-    cutoff_date = datetime.now(local_tz) - timedelta(days=target_history_days)
-    all_activities = []
-    batch_size = 50
-    start_index = 0
-    print(f"  Fetching all activities for last {target_history_days} days from Garmin...")
-    while True:
-        try:
-            batch = garmin_client.get_activities(start_index, batch_size)
-            if not batch:
-                break
-            all_activities.extend(batch)
-            last_date_str = batch[-1].get('startTimeGMT', '')
-            if last_date_str:
-                last_date = datetime.strptime(last_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz)
-                if last_date < cutoff_date:
-                    break
-            if len(all_activities) >= 2000:
-                break
-            start_index += batch_size
-        except Exception as e:
-            print(f"  Warning: fetch stopped at index {start_index}: {e}")
-            break
-    print(f"  Fetched {len(all_activities)} total activities.")
+def sync_doc_from_garmin(enriched_activities: List[dict], folder_id: str, service_account_json: str) -> None:
+    """Garminから取得済みのenrichedアクティビティをGoogle ドキュメントに書き込む（ランニングのみ）。"""
+    print("\n--- Starting Google Doc Sync (Running Only) ---")
 
     # ランニングのみ抽出（新しい順）
     running_acts = [
-        a for a in all_activities
+        a for a in enriched_activities
         if format_activity_type(
             a.get('activityType', {}).get('typeKey', ''), a.get('activityName', '')
         )[0] == 'ランニング'
     ]
     running_acts.sort(key=lambda a: a.get('startTimeGMT', ''), reverse=True)
-    print(f"  {len(running_acts)} running activities found. Fetching details & laps...")
+    print(f"  {len(running_acts)} running activities found.")
 
-    # ランニングのみ詳細取得（ラップ・心拍・動的指標）
-    enriched_runs = []
-    for i, act in enumerate(running_acts, 1):
-        print(f"  Enriching {i}/{len(running_acts)}: {act.get('startTimeGMT', '')[:10]}", end=" ", flush=True)
-        enriched = garmin_enhance_activity(garmin_client, act)
-        enriched_runs.append(enriched)
-        print("done")
-    print(f"  Enrichment complete for {len(enriched_runs)} running activities.")
+    if not running_acts:
+        print("  No running activities to write. Skipping Google Doc update.")
+        return
 
     creds = get_google_credentials(service_account_json)
     if not creds:
@@ -566,20 +533,22 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
             supportsAllDrives=True, includeItemsFromAllDrives=True
         ).execute()
         files = results.get('files', [])
+        print(f"  Drive search returned {len(files)} file(s) for '{doc_name}'.")
 
         if not files:
-            print(f"\nError: Google Document '{doc_name}' not found in the folder.")
+            print(f"\nError: Google Document '{doc_name}' not found in the folder (ID: {folder_id}).")
             print("Action Required:")
             print("1. Open Google Drive and go to your Garmin data folder.")
             print("2. Click 'New' > 'Google Docs'.")
-            print(f"3. Name it: '{doc_name}'")
-            print("4. Re-run this script.")
+            print(f"3. Name it exactly: '{doc_name}'")
+            print("4. Share the document with the service account email.")
+            print("5. Re-run this script.")
             return
 
         document_id = files[0]['id']
         print(f"  Found document. ID: {document_id}")
 
-        # --- 2. テキスト組み立て ---
+        # --- テキスト組み立て ---
         now_str = datetime.now(local_tz).strftime('%Y-%m-%d %H:%M JST')
         lines = [f"# ランニングログ (最終更新: {now_str})\n\n"]
         lines.append(
@@ -589,7 +558,8 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
         lines.append("---\n\n")
 
         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        for activity in enriched_runs:
+        written = 0
+        for activity in running_acts:
             try:
                 activity_date_raw = activity.get('startTimeGMT')
                 activity_date_jst = datetime.strptime(
@@ -636,7 +606,6 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
                 if avg_hr:
                     lines.append(f"- 平均心拍: {avg_hr} bpm / 最大: {max_hr_val} bpm\n")
                 lines.append(f"- トレーニング効果: {te_label} (有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te})\n")
-                # ランニングダイナミクス
                 dynamics_parts = []
                 if cadence: dynamics_parts.append(f"ピッチ: {cadence} spm")
                 if stride: dynamics_parts.append(f"ストライド: {stride} m")
@@ -651,13 +620,17 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
                         if lap_line.strip():
                             lines.append(f"  {lap_line.strip()}\n")
                 lines.append("\n")
+                written += 1
             except Exception as e:
                 print(f"  Warning: Skipping activity due to error: {e}")
+                import traceback
+                traceback.print_exc()
                 continue
 
         full_text = "".join(lines)
+        print(f"  Built text for {written} activities ({len(full_text)} chars).")
 
-        # --- 3. ドキュメントを全削除→再書き込み ---
+        # --- ドキュメントを全削除→再書き込み ---
         doc = docs_service.documents().get(documentId=document_id).execute()
         content = doc.get("body", {}).get("content", [])
         end_index = 1
@@ -684,7 +657,7 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
             body={"requests": update_requests}
         ).execute()
 
-        print(f"Google Doc updated successfully! ({len(running_acts)} running records)")
+        print(f"Google Doc updated successfully! ({written} running records)")
         print(f"  Document URL: https://docs.google.com/document/d/{document_id}/edit")
 
     except HttpError as err:
@@ -693,6 +666,7 @@ def sync_doc_from_garmin(garmin_client: GarminClient, folder_id: str, service_ac
         print(f"Error syncing to Google Doc: {e}")
         import traceback
         traceback.print_exc()
+
 
 def main():
     load_dotenv()
@@ -751,9 +725,9 @@ def main():
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
 
-    # 4. Sync to Google Doc (Running only, always fetches full 90-day history independently)
+    # 4. Sync to Google Doc (Running only, from already-enriched activities)
     if google_json and drive_folder_id:
-        sync_doc_from_garmin(garmin_client, drive_folder_id, google_json)
+        sync_doc_from_garmin(enriched_activities, drive_folder_id, google_json)
 
 
 if __name__ == "__main__":
