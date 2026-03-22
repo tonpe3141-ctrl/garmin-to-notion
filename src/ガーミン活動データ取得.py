@@ -718,22 +718,33 @@ def main():
 
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
-    print(f"Fetched {len(activities)} activities. Starting enrichment (fetching details/laps)...")
+    print(f"Fetched {len(activities)} activities.")
 
-    # 2. Enrich Data (Fetch Details & Laps)
+    if not activities:
+        print("WARNING: No activities fetched from Garmin. Check GARTH_TOKENS_B64 / Garmin rate limits.")
+        import sys
+        sys.exit(1)
+
+    # 2. Sync to Google Doc FIRST using summaries (before enrichment).
+    # This guarantees the doc is always updated even if enrichment later hits Garmin rate limits.
+    # Summary data already contains: distance, pace, HR, training effect, and running dynamics.
+    # Laps (laps_text) will be absent here — they are filled in after enrichment below.
+    if google_json and drive_folder_id:
+        sync_doc_from_garmin(activities, drive_folder_id, google_json)
+
+    # 3. Enrich Data (Fetch Details & Laps) — used for Google Sheets columns.
+    # Enrichment makes multiple API calls per activity and may hit Garmin rate limits.
+    # Failures are caught per-activity; unenriched activities fall back to summary data.
+    print("\nStarting enrichment (details/laps for Sheets)...")
     enriched_activities = []
     for act in activities:
         enriched = garmin_enhance_activity(garmin_client, act)
         enriched_activities.append(enriched)
-    print("\nEnrichment complete.")
+    print("Enrichment complete.")
 
-    # 3. Sync to Google Sheets
+    # 4. Sync to Google Sheets (enriched data, includes laps where available)
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
-
-    # 4. Sync to Google Doc (Running only, from already-enriched activities)
-    if google_json and drive_folder_id:
-        sync_doc_from_garmin(enriched_activities, drive_folder_id, google_json)
 
 
 if __name__ == "__main__":
