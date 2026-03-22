@@ -725,14 +725,28 @@ def main():
         import sys
         sys.exit(1)
 
-    # 2. Sync to Google Doc FIRST using summaries (before enrichment).
-    # This guarantees the doc is always updated even if enrichment later hits Garmin rate limits.
-    # Summary data already contains: distance, pace, HR, training effect, and running dynamics.
-    # Laps (laps_text) will be absent here — they are filled in after enrichment below.
+    # 2. Fetch laps for running activities only (targeted, low API call count).
+    # This runs before full enrichment so the Doc always gets lap data even if
+    # the later bulk enrichment hits Garmin rate limits.
+    running_count = 0
+    for act in activities:
+        act_type = format_activity_type(
+            (act.get('activityType') or {}).get('typeKey', ''), act.get('activityName', '')
+        )[0]
+        if act_type == 'ランニング':
+            running_count += 1
+            try:
+                act['laps_text'] = fetch_and_format_laps(garmin_client, act.get('activityId'))
+            except Exception as e:
+                print(f"  Warning: Could not fetch laps for {act.get('activityId')}: {e}")
+                act['laps_text'] = ''
+    print(f"Fetched laps for {running_count} running activities.")
+
+    # 3. Sync to Google Doc (running activities with laps).
     if google_json and drive_folder_id:
         sync_doc_from_garmin(activities, drive_folder_id, google_json)
 
-    # 3. Enrich Data (Fetch Details & Laps) — used for Google Sheets columns.
+    # 4. Enrich Data (Fetch Details & Laps) — used for Google Sheets columns.
     # Enrichment makes multiple API calls per activity and may hit Garmin rate limits.
     # Failures are caught per-activity; unenriched activities fall back to summary data.
     print("\nStarting enrichment (details/laps for Sheets)...")
@@ -742,7 +756,7 @@ def main():
         enriched_activities.append(enriched)
     print("Enrichment complete.")
 
-    # 4. Sync to Google Sheets (enriched data, includes laps where available)
+    # 5. Sync to Google Sheets (enriched data, includes laps where available)
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
 
