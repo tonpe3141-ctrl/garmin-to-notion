@@ -303,19 +303,34 @@ def sync_to_google_doc(rows: list, folder_id: str, creds, drive_service) -> None
         
         # 過去2ヶ月以内のデータのみに絞り込む
         cutoff_date = datetime.now(jst) - timedelta(days=62)
+        print(f"  Cutoff date: {cutoff_date.strftime('%Y-%m-%d')} (keeping records on/after this date)")
+        
+        def parse_date(date_val: str):
+            """複数フォーマットの日付文字列をdatetimeにパースする"""
+            for fmt in ('%Y-%m-%d %H:%M', '%Y-%m-%d %H:%M:%S', '%Y-%m-%d'):
+                try:
+                    return datetime.strptime(date_val[:len(fmt)], fmt).replace(tzinfo=jst)
+                except ValueError:
+                    continue
+            return None
         
         filtered_rows = []
+        excluded_count = 0
         for row in rows[1:]:
-            try:
-                date_val = row[idx.get("Date", 0)] if "Date" in idx else row[0]
-                dt = datetime.strptime(date_val[:16], '%Y-%m-%d %H:%M').replace(tzinfo=jst)
-                if dt >= cutoff_date:
-                    filtered_rows.append(row)
-            except Exception:
-                filtered_rows.append(row)  # パース失敗は除外しない
+            date_val = row[idx.get("Date", 0)] if "Date" in idx else row[0]
+            dt = parse_date(str(date_val))
+            if dt is None:
+                # パース失敗は除外しない（安全のため保持）
+                print(f"  Warning: Could not parse date '{date_val}', keeping row.")
+                filtered_rows.append(row)
+            elif dt >= cutoff_date:
+                filtered_rows.append(row)
+            else:
+                excluded_count += 1
         
-        print(f"  Filtered to {len(filtered_rows)} records within the last 2 months (cutoff: {cutoff_date.strftime('%Y-%m-%d')}).")
+        print(f"  Total: {len(rows)-1} records, kept: {len(filtered_rows)}, excluded (old): {excluded_count}")
         
+
         for row in filtered_rows:
             try:
                 date_str = row[idx.get("Date", 0)] if "Date" in idx else row[0]
