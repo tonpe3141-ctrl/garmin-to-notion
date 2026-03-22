@@ -219,13 +219,19 @@ def fetch_and_format_laps(garmin_client: GarminClient, activity_id: str) -> str:
 def garmin_enhance_activity(garmin_client: GarminClient, activity: dict) -> dict:
     """Fetch additional details for an activity using its activity_id."""
     activity_id = activity.get('activityId')
-    
+
     try:
-        # 1. Fetch Full Details if possible 
+        # 1. Fetch Full Details if possible
         try:
             full_activity = garmin_client.get_activity_details(activity_id)
             if full_activity:
-                activity.update(full_activity) 
+                # Preserve key classification fields from the summary before overwriting.
+                # The details API may return activityType in a different format (null, int, etc.)
+                # which would break downstream filtering.
+                _saved_type = activity.get('activityType')
+                activity.update(full_activity)
+                if _saved_type is not None:
+                    activity['activityType'] = _saved_type
         except Exception as e:
             print(f"Warning: Could not fetch details for {activity_id}: {e}")
             
@@ -301,7 +307,7 @@ def sync_to_google_sheet(activities: List[dict], folder_id: str, service_account
             activity_date_raw = activity.get('startTimeGMT')
             date_str = datetime.strptime(activity_date_raw, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz).strftime('%Y-%m-%d %H:%M')
             activity_name = activity.get('activityName', '無題')
-            activity_type, activity_subtype = format_activity_type(activity.get('activityType', {}).get('typeKey', 'Unknown'), activity_name)
+            activity_type, activity_subtype = format_activity_type((activity.get('activityType') or {}).get('typeKey', 'Unknown'), activity_name)
             
             distance_km = round(activity.get('distance', 0) / 1000, 2)
             duration_min = round(activity.get('duration', 0) / 60, 2)
@@ -503,7 +509,7 @@ def sync_doc_from_garmin(enriched_activities: List[dict], folder_id: str, servic
     running_acts = [
         a for a in enriched_activities
         if format_activity_type(
-            a.get('activityType', {}).get('typeKey', ''), a.get('activityName', '')
+            (a.get('activityType') or {}).get('typeKey', ''), a.get('activityName', '')
         )[0] == 'ランニング'
     ]
     running_acts.sort(key=lambda a: a.get('startTimeGMT', ''), reverse=True)
@@ -712,22 +718,33 @@ def main():
 
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
-    print(f"Fetched {len(activities)} activities. Starting enrichment (fetching details/laps)...")
+    print(f"Fetched {len(activities)} activities.")
 
-    # 2. Enrich Data (Fetch Details & Laps)
+    if not activities:
+        print("WARNING: No activities fetched from Garmin. Check GARTH_TOKENS_B64 / Garmin rate limits.")
+        import sys
+        sys.exit(1)
+
+    # 2. Sync to Google Doc FIRST using summaries (before enrichment).
+    # This guarantees the doc is always updated even if enrichment later hits Garmin rate limits.
+    # Summary data already contains: distance, pace, HR, training effect, and running dynamics.
+    # Laps (laps_text) will be absent here — they are filled in after enrichment below.
+    if google_json and drive_folder_id:
+        sync_doc_from_garmin(activities, drive_folder_id, google_json)
+
+    # 3. Enrich Data (Fetch Details & Laps) — used for Google Sheets columns.
+    # Enrichment makes multiple API calls per activity and may hit Garmin rate limits.
+    # Failures are caught per-activity; unenriched activities fall back to summary data.
+    print("\nStarting enrichment (details/laps for Sheets)...")
     enriched_activities = []
     for act in activities:
         enriched = garmin_enhance_activity(garmin_client, act)
         enriched_activities.append(enriched)
-    print("\nEnrichment complete.")
+    print("Enrichment complete.")
 
-    # 3. Sync to Google Sheets
+    # 4. Sync to Google Sheets (enriched data, includes laps where available)
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
-
-    # 4. Sync to Google Doc (Running only, from already-enriched activities)
-    if google_json and drive_folder_id:
-        sync_doc_from_garmin(enriched_activities, drive_folder_id, google_json)
 
 
 if __name__ == "__main__":
