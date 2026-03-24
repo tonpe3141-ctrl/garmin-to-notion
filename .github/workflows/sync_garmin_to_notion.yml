@@ -33,7 +33,9 @@ jobs:
         uses: actions/cache@v3
         with:
           path: ~/.garth
-          key: garth-tokens-v1
+          # ローリングキー: 毎回新しいエントリを保存し、最新キャッシュを復元する。
+          # 固定キーだと古い期限切れトークンが永遠にキャッシュされ続ける問題を防ぐ。
+          key: garth-tokens-${{ github.run_id }}
           restore-keys: |
             garth-tokens-
 
@@ -56,27 +58,20 @@ jobs:
           python src/ガーミン活動データ取得.py
 
       - name: Refresh GARTH_TOKENS_B64 secret
-        # 実行成功後に ~/.garth の新鮮なトークンをシークレットに書き戻す。
-        # これにより次回起動時は有効な OAuth2 トークンから始まるため
-        # exchange エンドポイントへのアクセスが不要になり、429 を防ぐ。
-        if: steps.run-script.outcome == 'success'
+        # Garmin 認証に成功した場合、スクリプトが /tmp/garth_fresh_tokens.txt に
+        # 最新トークンを書き出す。このステップはスクリプトの成否に関わらず常に実行し、
+        # そのファイルを読んで GARTH_TOKENS_B64 シークレットを更新する。
+        # → 次回起動時に OAuth2 トークンが有効なため exchange エンドポイントを叩かず
+        #   429 レート制限を回避できる。
+        if: always()
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if [ -d "$HOME/.garth" ] && [ "$(ls -A "$HOME/.garth" 2>/dev/null)" ]; then
-            FRESH=$(python3 -c "
-from garminconnect import Garmin
-import os, sys
-client = Garmin()
-client.garth.load(os.path.expanduser('~/.garth'))
-print(client.garth.dumps())
-" 2>/dev/null)
-            if [ -n "$FRESH" ]; then
-              gh secret set GARTH_TOKENS_B64 --body "$FRESH" --repo "$GITHUB_REPOSITORY"
-              echo "✓ GARTH_TOKENS_B64 を新鮮なトークンで更新しました。"
-            else
-              echo "⚠ トークンのダンプに失敗しました。シークレットは更新されていません。"
-            fi
+          if [ -f /tmp/garth_fresh_tokens.txt ]; then
+            gh secret set GARTH_TOKENS_B64 \
+              --body "$(cat /tmp/garth_fresh_tokens.txt)" \
+              --repo "$GITHUB_REPOSITORY"
+            echo "✓ GARTH_TOKENS_B64 を最新トークンで更新しました。"
           else
-            echo "⚠ ~/.garth が空です。シークレットは更新されていません。"
+            echo "⚠ Garmin 認証が失敗したためトークンファイルが存在しません。GARTH_TOKENS_B64 は更新されていません。"
           fi

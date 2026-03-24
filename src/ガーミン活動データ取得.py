@@ -754,6 +754,17 @@ def main():
             print("    scripts/generate_garth_token.py で GARTH_TOKENS_B64 を再生成してください。")
             import sys; sys.exit(1)
 
+    # Garmin 認証成功直後にトークンをファイルへ保存。
+    # ワークフローの "Refresh GARTH_TOKENS_B64 secret" ステップが
+    # スクリプトの成否に関わらずこのファイルを読んでシークレットを更新する。
+    try:
+        fresh = garmin_client.garth.dumps()
+        with open("/tmp/garth_fresh_tokens.txt", "w") as _f:
+            _f.write(fresh)
+        print("✓ 新鮮なトークンを /tmp/garth_fresh_tokens.txt に保存（シークレット自動更新用）")
+    except Exception as _e:
+        print(f"⚠ トークン保存失敗（シークレット自動更新はスキップ）: {_e}")
+
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
     print(f"Fetched {len(activities)} activities.")
