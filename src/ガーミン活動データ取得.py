@@ -674,6 +674,21 @@ def sync_doc_from_garmin(enriched_activities: List[dict], folder_id: str, servic
         traceback.print_exc()
 
 
+def _load_from_b64(tokens_b64, token_dir):
+    """GARTH_TOKENS_B64 シークレットからクライアントを生成して返す。"""
+    client = GarminClient()
+    client.garth.loads(tokens_b64)
+    client.garth.dump(token_dir)
+    return client
+
+
+def _load_from_cache(token_dir):
+    """~/.garth キャッシュからクライアントを生成して返す。"""
+    client = GarminClient()
+    client.login(tokenstore=token_dir)
+    return client
+
+
 def main():
     load_dotenv()
     garmin_email = os.getenv("GARMIN_EMAIL")
@@ -686,35 +701,58 @@ def main():
     token_dir = os.path.expanduser("~/.garth")
     tokens_b64 = os.getenv("GARTH_TOKENS_B64")
 
-    # Priority 1: GitHub Secret (GARTH_TOKENS_B64) - load directly without SSO login call
-    # Priority 2: Actions cache (~/.garth) - most recently refreshed tokens
-    # Priority 3: Fresh login - last resort (may hit Garmin rate limit)
+    # ── Garmin 認証フロー ──────────────────────────────────────────────────
+    # 優先度1: GARTH_TOKENS_B64 シークレット（前回成功時に自動更新される）
+    # 優先度2: Actions cache (~/.garth)
+    # 優先度3: メール+パスワードで再ログイン（上記が全滅した場合の最終手段）
+    #
+    # 各ステップで実際にAPIテスト呼び出しを行い、トークンが本当に機能するかを
+    # 確認してからクライアントを確定する。429 / 401 の場合は次の手段に進む。
+    # ──────────────────────────────────────────────────────────────────────
+    def _try_auth(client_fn, label):
+        """クライアントを作成してAPIテスト呼び出しを行う。失敗したら None を返す。"""
+        try:
+            client = client_fn()
+            client.get_full_name()   # OAuth2 が期限切れなら garth がここで exchange を試みる
+            print(f"✓ Garmin 認証成功: {label}")
+            return client
+        except Exception as e:
+            print(f"✗ Garmin 認証失敗 ({label}): {e}")
+            return None
+
     garmin_client = None
+
+    # 優先度1: シークレット
     if tokens_b64:
-        try:
-            garmin_client = GarminClient()
-            garmin_client.garth.loads(tokens_b64)  # load directly, skip SSO login
-            garmin_client.garth.dump(token_dir)
-            print("Loaded Garmin session from GARTH_TOKENS_B64 secret")
-        except Exception as e:
-            print(f"GARTH_TOKENS_B64 load failed: {e}")
-            garmin_client = None
+        garmin_client = _try_auth(
+            lambda: _load_from_b64(tokens_b64, token_dir),
+            "GARTH_TOKENS_B64 secret"
+        )
 
-    if garmin_client is None:
-        try:
-            garmin_client = GarminClient()
-            garmin_client.login(tokenstore=token_dir)
-            print("Logged in using cached Garmin tokens (~/.garth)")
-        except Exception as e:
-            print(f"Cache load failed: {e}")
-            garmin_client = None
+    # 優先度2: Actions cache
+    if garmin_client is None and os.path.isdir(token_dir) and os.listdir(token_dir):
+        garmin_client = _try_auth(
+            lambda: _load_from_cache(token_dir),
+            "~/.garth cache"
+        )
 
+    # 優先度3: パスワードログイン（exchange エンドポイント不使用の新規ログイン）
     if garmin_client is None:
-        print("Falling back to fresh login (password)...")
-        garmin_client = GarminClient(garmin_email, garmin_password)
-        garmin_client.login()
-        garmin_client.garth.dump(token_dir)
-        print("Fresh login successful, tokens saved")
+        if garmin_email and garmin_password:
+            print("パスワードで再ログインします（exchange エンドポイントを使わない新規認証）...")
+            try:
+                tmp = GarminClient(garmin_email, garmin_password)
+                tmp.login()
+                tmp.garth.dump(token_dir)
+                garmin_client = tmp
+                print("✓ パスワードログイン成功。新しいトークンを保存しました。")
+            except Exception as e:
+                print(f"✗ パスワードログイン失敗: {e}")
+        if garmin_client is None:
+            print("Error: すべての Garmin 認証方法が失敗しました。")
+            print("  → GARMIN_EMAIL と GARMIN_PASSWORD を GitHub Secrets に設定するか、")
+            print("    scripts/generate_garth_token.py で GARTH_TOKENS_B64 を再生成してください。")
+            import sys; sys.exit(1)
 
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)

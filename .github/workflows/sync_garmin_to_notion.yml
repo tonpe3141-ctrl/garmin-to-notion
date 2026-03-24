@@ -10,6 +10,9 @@ env:
 jobs:
   sync:
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      secrets: write  # GARTH_TOKENS_B64 自動更新に必要
     steps:
       - uses: actions/checkout@v2
 
@@ -40,6 +43,7 @@ jobs:
           pip install -r requirements.txt
 
       - name: Run script
+        id: run-script
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
@@ -50,3 +54,29 @@ jobs:
           TZ: 'America/Montreal'
         run: |
           python src/ガーミン活動データ取得.py
+
+      - name: Refresh GARTH_TOKENS_B64 secret
+        # 実行成功後に ~/.garth の新鮮なトークンをシークレットに書き戻す。
+        # これにより次回起動時は有効な OAuth2 トークンから始まるため
+        # exchange エンドポイントへのアクセスが不要になり、429 を防ぐ。
+        if: steps.run-script.outcome == 'success'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if [ -d "$HOME/.garth" ] && [ "$(ls -A "$HOME/.garth" 2>/dev/null)" ]; then
+            FRESH=$(python3 -c "
+from garminconnect import Garmin
+import os, sys
+client = Garmin()
+client.garth.load(os.path.expanduser('~/.garth'))
+print(client.garth.dumps())
+" 2>/dev/null)
+            if [ -n "$FRESH" ]; then
+              gh secret set GARTH_TOKENS_B64 --body "$FRESH" --repo "$GITHUB_REPOSITORY"
+              echo "✓ GARTH_TOKENS_B64 を新鮮なトークンで更新しました。"
+            else
+              echo "⚠ トークンのダンプに失敗しました。シークレットは更新されていません。"
+            fi
+          else
+            echo "⚠ ~/.garth が空です。シークレットは更新されていません。"
+          fi
