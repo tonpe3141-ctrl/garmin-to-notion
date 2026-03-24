@@ -1,8 +1,10 @@
 name: Running Log
 
 on:
-  schedule:
-    - cron: '30 23 * * *' # Daily at 8:30 AM JST (23:30 UTC)
+  # レート制限解除まで自動実行を一時停止中。
+  # トークン再生成後に下のコメントを外して再有効化する。
+  # schedule:
+  #   - cron: '30 23 * * *' # Daily at 8:30 AM JST (23:30 UTC)
   workflow_dispatch:
 env:
   TZ: 'America/Montreal'
