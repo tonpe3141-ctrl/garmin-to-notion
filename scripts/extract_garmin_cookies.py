@@ -1,109 +1,58 @@
 """
-Chrome の「Copy as cURL」からGarmin Cookieを抽出するスクリプト。
-
-【手順】
-1. Chrome で connect.garmin.com を開く（ログイン済み）
-2. DevTools → Network タブ → Cmd+R でリロード
-3. 一覧に出たリクエストを何でもいいので右クリック
-4. 「Copy」→「Copy as cURL (bash)」
-5. このスクリプトを実行して貼り付ける
+Chrome から Garmin Connect の Cookie を自動取得するスクリプト。
+手動操作不要。Chrome が開いていても動作する。
 
 使い方:
-  python3 scripts/extract_garmin_cookies.py
+  cd ~/Projects/garmin-to-notion
+  .venv/bin/python3 scripts/extract_garmin_cookies.py
 """
-import re
 import sys
 
+try:
+    import browser_cookie3
+except ImportError:
+    print("❌ browser-cookie3 が必要です: pip install browser-cookie3")
+    sys.exit(1)
 
-def extract_cookie_from_curl(curl_cmd: str) -> str:
-    # -H 'cookie: ...' 形式
-    m = re.search(r"-H\s+'[Cc]ookie:\s*([^']+)'", curl_cmd)
-    if m:
-        return m.group(1).strip()
-    # -H "cookie: ..." 形式
-    m = re.search(r'-H\s+"[Cc]ookie:\s*([^"]+)"', curl_cmd)
-    if m:
-        return m.group(1).strip()
-    # -b '...' 形式（Chrome が使う形式）
-    m = re.search(r"\s-b\s+'([^']+)'", curl_cmd)
-    if m:
-        return m.group(1).strip()
-    m = re.search(r'\s-b\s+"([^"]+)"', curl_cmd)
-    if m:
-        return m.group(1).strip()
-    # --cookie 形式
-    m = re.search(r"--cookie\s+'([^']+)'", curl_cmd)
-    if m:
-        return m.group(1).strip()
-    return ""
+
+TARGET_KEYS = {
+    "session", "SESSIONID", "JWT_WEB",
+    "GARMIN-SSO", "GARMIN-SSO-CUST-GUID", "GMN_TRACKABLE",
+}
+
+GARMIN_DOMAINS = ("garmin.com", "connect.garmin.com", "connectapi.garmin.com")
 
 
 def main():
-    print("=" * 60)
-    print("Garmin Cookie 抽出ツール")
-    print("=" * 60)
-    print()
-    print("手順:")
-    print("  1. Chrome で connect.garmin.com を開く（ログイン済み）")
-    print("  2. DevTools（Cmd+Option+I）→ Network タブ")
-    print("  3. Cmd+R でリロード")
-    print("  4. 一覧の最初のリクエストを右クリック")
-    print("     → Copy → Copy as cURL (bash)")
-    print("  5. 下に貼り付けて Enter → 空行で Enter")
-    print()
-    print("cURL コマンドを貼り付けてください（空行2回で完了）:")
+    print("Chrome から Garmin Cookie を読み取り中...")
+    print("（Keychain へのアクセス許可ダイアログが出たら「許可」を押してください）")
     print()
 
-    lines = []
-    empty_count = 0
-    while True:
-        try:
-            line = input()
-            if line == "":
-                empty_count += 1
-                if empty_count >= 1 and lines:
-                    break
-            else:
-                empty_count = 0
-                lines.append(line)
-        except EOFError:
-            break
-
-    curl_cmd = " ".join(lines)
-
-    if not curl_cmd.strip():
-        print("❌ 入力がありませんでした。")
+    try:
+        jar = browser_cookie3.chrome(domain_name=".garmin.com")
+    except Exception as e:
+        print(f"❌ Cookie の読み取りに失敗しました: {e}")
+        print("   Chrome を一度再起動してから再試行してください。")
         sys.exit(1)
 
-    cookie_str = extract_cookie_from_curl(curl_cmd)
-
-    if not cookie_str:
-        print("❌ Cookie ヘッダーが見つかりませんでした。")
-        print("   cURL コマンド全体を貼り付けてください。")
-        sys.exit(1)
-
-    # garmin.com 関連のCookieだけ抽出（不要なものを省く）
-    garmin_keys = {
-        "session", "SESSIONID", "JWT_WEB", "GARMIN-SSO",
-        "GARMIN-SSO-CUST-GUID", "GMN_TRACKABLE",
-    }
     cookies = {}
-    for part in cookie_str.split(";"):
-        part = part.strip()
-        if "=" in part:
-            k, v = part.split("=", 1)
-            k = k.strip()
-            if k in garmin_keys:
-                cookies[k] = v.strip()
+    for c in jar:
+        if any(d in c.domain for d in ("garmin.com",)):
+            if c.name in TARGET_KEYS:
+                cookies[c.name] = c.value
 
     if not cookies:
-        # Garmin系が見つからなければ全部使う
-        result = cookie_str
-    else:
-        result = "; ".join(f"{k}={v}" for k, v in cookies.items())
+        print("⚠ 対象 Cookie が見つかりませんでした。全 Cookie を使います。")
+        cookies = {c.name: c.value for c in jar if "garmin.com" in c.domain}
 
-    print()
-    print(f"✓ Cookie 取得成功（{len(result)} 文字、{len(cookies)} 項目）")
+    if not cookies:
+        print("❌ Garmin の Cookie が取得できませんでした。")
+        print("   Chrome で connect.garmin.com にログインしてから再実行してください。")
+        sys.exit(1)
+
+    result = "; ".join(f"{k}={v}" for k, v in cookies.items())
+
+    print(f"✓ {len(cookies)} 個の Cookie を取得しました")
     print()
     print("=" * 60)
     print("GARMIN_SESSION_COOKIES（GitHub Secrets に設定してください）:")
@@ -113,11 +62,11 @@ def main():
     print()
     print("設定方法:")
     print("  GitHub > Settings > Secrets and variables > Actions")
-    print("  「New repository secret」→ Name: GARMIN_SESSION_COOKIES")
-    print("  Value: 上記の文字列をそのまま貼り付け")
+    print("  「New repository secret」で以下を作成:")
+    print("  Name : GARMIN_SESSION_COOKIES")
+    print("  Value: 上の === で囲まれた文字列をそのまま貼り付け")
     print()
     print("設定後、GitHub Actions を手動実行してください。")
-    print("（GARTH_TOKENS_B64 は不要になります）")
 
 
 if __name__ == "__main__":
