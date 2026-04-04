@@ -46,6 +46,7 @@ jobs:
       - name: Run script
         id: run-script
         env:
+          GARMIN_SESSION_COOKIES: ${{ secrets.GARMIN_SESSION_COOKIES }}
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
           GARTH_TOKENS_B64: ${{ secrets.GARTH_TOKENS_B64 }}

@@ -1,5 +1,6 @@
 import os
 import json
+import time
 from datetime import datetime, timedelta
 from typing import List
 
@@ -78,6 +79,8 @@ def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> Li
                 break
             
             start_index += batch_size
+            # レートリミット回避: バッチ間に短い待機
+            time.sleep(0.5)
             
         except Exception as e:
             print(f"Error in pagination at index {start_index}: {e}")
@@ -689,6 +692,11 @@ def _load_from_cache(token_dir):
     return client
 
 
+# リトライ設定
+AUTH_MAX_RETRIES = 3
+AUTH_INITIAL_BACKOFF = 30  # 30s → 60s → 120s
+
+
 def main():
     load_dotenv()
     garmin_email = os.getenv("GARMIN_EMAIL")
@@ -704,7 +712,7 @@ def main():
     # ── Garmin 認証フロー ──────────────────────────────────────────────────
     # 優先度1: GARTH_TOKENS_B64 シークレット（前回成功時に自動更新される）
     # 優先度2: Actions cache (~/.garth)
-    # 優先度3: メール+パスワードで再ログイン（上記が全滅した場合の最終手段）
+    # 優先度3: メール+パスワードで再ログイン（指数バックオフ付きリトライ）
     #
     # 各ステップで実際にAPIテスト呼び出しを行い、トークンが本当に機能するかを
     # 確認してからクライアントを確定する。429 / 401 の場合は次の手段に進む。
@@ -720,10 +728,36 @@ def main():
             print(f"✗ Garmin 認証失敗 ({label}): {e}")
             return None
 
+    def _try_auth_with_retry(client_fn, label):
+        """429 エラー時に指数バックオフ付きリトライで認証を試みる。"""
+        for attempt in range(1, AUTH_MAX_RETRIES + 1):
+            result = _try_auth(client_fn, f"{label} (試行 {attempt}/{AUTH_MAX_RETRIES})")
+            if result is not None:
+                return result
+            # 次の試行前にバックオフ待機
+            if attempt < AUTH_MAX_RETRIES:
+                wait = AUTH_INITIAL_BACKOFF * (2 ** (attempt - 1))
+                print(f"  ⏳ {wait}秒待機して再試行します...")
+                time.sleep(wait)
+        return None
+
     garmin_client = None
 
+    # 優先度0: GARMIN_SESSION_COOKIES（Cookieベース・OAuth不要）
+    session_cookies_str = os.getenv("GARMIN_SESSION_COOKIES")
+    if session_cookies_str:
+        try:
+            from garmin_cookie_client import GarminCookieClient, parse_cookie_string
+            cookies = parse_cookie_string(session_cookies_str)
+            cookie_client = GarminCookieClient(cookies)
+            cookie_client.get_full_name()
+            garmin_client = cookie_client
+            print("✓ Garmin 認証成功: GARMIN_SESSION_COOKIES (cookie-based)")
+        except Exception as e:
+            print(f"✗ Cookie認証失敗: {e}")
+
     # 優先度1: シークレット
-    if tokens_b64:
+    if garmin_client is None and tokens_b64:
         garmin_client = _try_auth(
             lambda: _load_from_b64(tokens_b64, token_dir),
             "GARTH_TOKENS_B64 secret"
@@ -736,22 +770,40 @@ def main():
             "~/.garth cache"
         )
 
-    # 優先度3: パスワードログイン（exchange エンドポイント不使用の新規ログイン）
+    # 優先度3: パスワードログイン（指数バックオフ付きリトライ）
     if garmin_client is None:
         if garmin_email and garmin_password:
-            print("パスワードで再ログインします（exchange エンドポイントを使わない新規認証）...")
-            try:
+            print("パスワードで再ログインします（指数バックオフ付きリトライ）...")
+
+            def _password_login():
                 tmp = GarminClient(garmin_email, garmin_password)
                 tmp.login()
+                os.makedirs(token_dir, exist_ok=True)
                 tmp.garth.dump(token_dir)
-                garmin_client = tmp
+                return tmp
+
+            garmin_client = _try_auth_with_retry(
+                _password_login,
+                "パスワードログイン"
+            )
+            if garmin_client:
                 print("✓ パスワードログイン成功。新しいトークンを保存しました。")
-            except Exception as e:
-                print(f"✗ パスワードログイン失敗: {e}")
+
         if garmin_client is None:
-            print("Error: すべての Garmin 認証方法が失敗しました。")
-            print("  → GARMIN_EMAIL と GARMIN_PASSWORD を GitHub Secrets に設定するか、")
-            print("    scripts/generate_garth_token.py で GARTH_TOKENS_B64 を再生成してください。")
+            print("\n" + "=" * 60)
+            print("❌ すべての Garmin 認証方法が失敗しました。")
+            print()
+            print("対処法:")
+            print("  1. ブラウザ版でトークンを取得してください（最も確実）:")
+            print("     pip3 install playwright")
+            print("     python3 -m playwright install chromium")
+            print("     python3 scripts/generate_garth_token_browser.py")
+            print()
+            print("  2. または手動でChromeからJWTを取得:")
+            print("     python3 scripts/generate_garth_token_from_jwt.py")
+            print()
+            print("  3. 上記でトークン生成後、このスクリプトを再実行してください。")
+            print("=" * 60)
             import sys; sys.exit(1)
 
     # Garmin 認証成功直後にトークンをファイルへ保存。
@@ -800,9 +852,12 @@ def main():
     # Failures are caught per-activity; unenriched activities fall back to summary data.
     print("\nStarting enrichment (details/laps for Sheets)...")
     enriched_activities = []
-    for act in activities:
+    for i, act in enumerate(activities):
         enriched = garmin_enhance_activity(garmin_client, act)
         enriched_activities.append(enriched)
+        # レートリミット回避: API呼び出し間に短い待機
+        if i < len(activities) - 1:
+            time.sleep(0.3)
     print("Enrichment complete.")
 
     # 5. Sync to Google Sheets (enriched data, includes laps where available)
