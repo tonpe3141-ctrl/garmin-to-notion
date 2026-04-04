@@ -57,20 +57,22 @@ jobs:
           python src/ガーミン活動データ取得.py
 
       - name: Refresh GARTH_TOKENS_B64 secret
-        # Garmin 認証に成功した場合、スクリプトが /tmp/garth_fresh_tokens.txt に
-        # 最新トークンを書き出す。このステップはスクリプトの成否に関わらず常に実行し、
-        # そのファイルを読んで GARTH_TOKENS_B64 シークレットを更新する。
-        # → 次回起動時に OAuth2 トークンが有効なため exchange エンドポイントを叩かず
-        #   429 レート制限を回避できる。
+        # GH_PAT_SECRETS (repo secrets write 権限付き PAT) が設定されている場合のみ更新。
+        # 未設定でも continue-on-error でワークフロー全体は成功する。
         if: always()
+        continue-on-error: true
         env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GH_PAT_SECRETS }}
         run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "⚠ GH_PAT_SECRETS が未設定のため自動更新をスキップします。"
+            exit 0
+          fi
           if [ -f /tmp/garth_fresh_tokens.txt ]; then
             gh secret set GARTH_TOKENS_B64 \
               --body "$(cat /tmp/garth_fresh_tokens.txt)" \
               --repo "$GITHUB_REPOSITORY"
             echo "✓ GARTH_TOKENS_B64 を最新トークンで更新しました。"
           else
-            echo "⚠ Garmin 認証が失敗したためトークンファイルが存在しません。GARTH_TOKENS_B64 は更新されていません。"
+            echo "⚠ トークンファイルが存在しません。GARTH_TOKENS_B64 は更新されていません。"
           fi

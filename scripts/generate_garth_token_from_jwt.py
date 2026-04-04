@@ -1,12 +1,20 @@
 """
-Chrome の DevTools からコピーした JWT を GARTH_TOKENS_B64 形式に変換するスクリプト。
+Chrome の DevTools の Network タブからコピーした Bearer トークンを
+GARTH_TOKENS_B64 形式に変換するスクリプト。
 
 【手順】
 1. Chrome で https://connect.garmin.com を開く（ログイン済みの状態）
 2. DevTools を開く (Cmd + Option + I)
-3. 「Application」タブ → Cookies → https://connect.garmin.com
-4. 「JWT_WEB」の Value 欄の文字列を全選択してコピー
-5. このスクリプトを実行して貼り付ける
+3. 「Network」タブを選択
+4. ページをリロード (Cmd + R)
+5. 検索欄に「connectapi」と入力してフィルタ
+6. 一覧に出たリクエストをどれか1つクリック
+7. 右ペインの「Headers」→「Request Headers」→
+   「authorization: Bearer eyJh...」の "Bearer " 以降をコピー
+8. このスクリプトを実行して貼り付ける
+
+※ Application タブの JWT_WEB Cookie ではなく、
+   必ず Network タブの Bearer トークンを使ってください。
 
 使い方:
   python3 scripts/generate_garth_token_from_jwt.py
@@ -34,8 +42,9 @@ def decode_jwt_payload(token: str) -> dict:
 
 def main():
     print("=" * 60)
-    print("ChromeのDevToolsからコピーしたJWTを貼り付けてください。")
-    print("（Application → Cookies → JWT_WEB の Value）")
+    print("Chrome DevTools の Network タブから Bearer トークンをコピーして貼り付けてください。")
+    print("（Network タブ → connectapi へのリクエスト → Headers → authorization: Bearer eyJh...）")
+    print("※ Application タブの JWT_WEB Cookie ではありません")
     print("=" * 60)
 
     jwt_token = input("JWT > ").strip()
