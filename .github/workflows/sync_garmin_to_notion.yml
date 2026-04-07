@@ -43,6 +43,15 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
+      - name: Refresh Garmin tokens
+        # アクセストークンは約24時間で失効し garth の自動更新も429でブロックされるため、
+        # 毎回 cloudscraper で新規ログインしてから本体を実行する。
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+        run: |
+          python scripts/refresh_garth_tokens.py
+
       - name: Run script
         id: run-script
         env:
