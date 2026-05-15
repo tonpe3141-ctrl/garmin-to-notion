@@ -39,54 +39,67 @@ ACTIVITY_ICONS = {
     "ヨガ/ピラティス": "https://img.icons8.com/?size=100&id=9783&format=png&color=000000",
 }
 
+_RATE_LIMIT_MAX_RETRIES = 4
+_RATE_LIMIT_BASE_WAIT = 60  # 60s → 120s → 240s → 480s
+
+
 def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> List[dict]:
     # 日付指定が不安定なため、確実な「インデックス指定（ページネーション）」で過去データを総ざらいする
     all_activities = []
     batch_size = 50 # 安全のため少し小さめに
     start_index = 0
-    
+    rate_limit_retries = 0
+
     # どこまで遡るか（例: 90日前）
     target_history_days = 90
     cutoff_date = datetime.now(local_tz) - timedelta(days=target_history_days)
-    
+
     print(f"Fetching activities via Pagination (Target: Last {target_history_days} days)...")
-    
+
     while True:
         try:
             print(f"  Fetching index {start_index} to {start_index + batch_size}...", end=" ", flush=True)
             activities = garmin_client.get_activities(start_index, batch_size)
-            
+            rate_limit_retries = 0  # 成功したらリセット
+
             if not activities:
                 print("No more activities found.")
                 break
-                
+
             all_activities.extend(activities)
             print(f"Fetched {len(activities)} items.")
-            
+
             # 日付チェック：一番古いデータがカットオフより古ければ終了
             last_activity = activities[-1]
             last_date_str = last_activity.get('startTimeGMT')
             last_date = datetime.strptime(last_date_str, '%Y-%m-%d %H:%M:%S').replace(tzinfo=pytz.UTC).astimezone(local_tz)
-            
+
             print(f"    Oldest in batch: {last_date.strftime('%Y-%m-%d')}")
-            
+
             if last_date < cutoff_date:
                 print(f"    Reached cutoff date ({cutoff_date.strftime('%Y-%m-%d')}). stopping.")
                 break
-                
+
             if len(all_activities) >= max_limit:
                 print(f"    Reached max limit ({max_limit}). stopping.")
                 break
-            
+
             start_index += batch_size
             # レートリミット回避: バッチ間に短い待機
             time.sleep(0.5)
-            
+
         except Exception as e:
-            print(f"Error in pagination at index {start_index}: {e}")
-            # エラーが出ても、そこまで取れた分は返す
-            break
-            
+            if '429' in str(e) and rate_limit_retries < _RATE_LIMIT_MAX_RETRIES:
+                rate_limit_retries += 1
+                wait = _RATE_LIMIT_BASE_WAIT * (2 ** (rate_limit_retries - 1))
+                print(f"\n    Rate limited (429). Waiting {wait}s before retry {rate_limit_retries}/{_RATE_LIMIT_MAX_RETRIES}...")
+                time.sleep(wait)
+                # start_index はそのまま（同じバッチをリトライ）
+            else:
+                print(f"Error in pagination at index {start_index}: {e}")
+                # エラーが出ても、そこまで取れた分は返す
+                break
+
     print(f"Total fetched: {len(all_activities)}")
     return all_activities
 
@@ -694,7 +707,7 @@ def _load_from_cache(token_dir):
 
 # リトライ設定
 AUTH_MAX_RETRIES = 3
-AUTH_INITIAL_BACKOFF = 30  # 30s → 60s → 120s
+AUTH_INITIAL_BACKOFF = 60  # 60s → 120s → 240s
 
 
 def main():
@@ -756,18 +769,20 @@ def main():
         except Exception as e:
             print(f"✗ Cookie認証失敗: {e}")
 
-    # 優先度1: シークレット
-    if garmin_client is None and tokens_b64:
-        garmin_client = _try_auth(
-            lambda: _load_from_b64(tokens_b64, token_dir),
-            "GARTH_TOKENS_B64 secret"
-        )
-
-    # 優先度2: Actions cache
+    # 優先度1: ~/.garth（CIの "Refresh Garmin tokens" ステップで事前取得したフレッシュトークン優先）
+    # 毎回同じ OAuth1 トークンで /exchange/user/2.0 を呼ぶとレート制限されるため、
+    # ワークフローが SSO で取得したフレッシュトークンをここで使う。
     if garmin_client is None and os.path.isdir(token_dir) and os.listdir(token_dir):
         garmin_client = _try_auth(
             lambda: _load_from_cache(token_dir),
-            "~/.garth cache"
+            "~/.garth (事前refreshトークン)"
+        )
+
+    # 優先度2: GARTH_TOKENS_B64 シークレット（フォールバック・429時はリトライ）
+    if garmin_client is None and tokens_b64:
+        garmin_client = _try_auth_with_retry(
+            lambda: _load_from_b64(tokens_b64, token_dir),
+            "GARTH_TOKENS_B64 secret"
         )
 
     # 優先度3: パスワードログイン（指数バックオフ付きリトライ）

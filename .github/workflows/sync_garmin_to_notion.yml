@@ -43,6 +43,17 @@ jobs:
           python -m pip install --upgrade pip setuptools wheel
           pip install -r requirements.txt
 
+      - name: Refresh Garmin tokens
+        # SSO経由でフレッシュなOAuth1+OAuth2トークンを取得し ~/.garth に保存する。
+        # 同じOAuth1トークンを毎日使い続けると /exchange/user/2.0 がレート制限されるため、
+        # 毎回フレッシュなトークンで回避する。失敗しても次ステップで GARTH_TOKENS_B64 にフォールバック。
+        continue-on-error: true
+        env:
+          GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
+          GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+        run: |
+          python scripts/refresh_garth_tokens.py
+
       - name: Run script
         id: run-script
         env:
