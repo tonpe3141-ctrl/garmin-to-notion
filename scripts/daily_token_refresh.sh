@@ -3,7 +3,8 @@
 # launchd (macOS cron) から実行される。
 # 実行タイミング: 毎日 7:00 AM JST（GitHub Actions 実行の1.5時間前）
 
-set -e
+# set -e を使わない: トークン生成が失敗しても、過去のトークンが残っていれば
+# GitHub Secret 更新をスキップして完了できるようにする。
 
 PROJECT_DIR="$HOME/Projects/garmin-to-notion"
 PYTHON="$PROJECT_DIR/.venv/bin/python3"
@@ -18,7 +19,10 @@ log "=== Garmin トークン自動更新開始 ==="
 
 # .env から認証情報を読み込む
 if [ -f "$PROJECT_DIR/.env" ]; then
-    export $(grep -v '^#' "$PROJECT_DIR/.env" | grep -E '^GARMIN_(EMAIL|PASSWORD)=' | xargs)
+    set -a
+    # shellcheck disable=SC2046
+    export $(grep -v '^#' "$PROJECT_DIR/.env" | grep -E '^GARMIN_(EMAIL|PASSWORD)=')
+    set +a
 fi
 
 if [ -z "$GARMIN_EMAIL" ] || [ -z "$GARMIN_PASSWORD" ]; then
@@ -26,11 +30,20 @@ if [ -z "$GARMIN_EMAIL" ] || [ -z "$GARMIN_PASSWORD" ]; then
     exit 1
 fi
 
-# 1. トークン生成
+# 1. トークン生成（失敗しても続行して GitHub Secret 更新を試みる）
 log "Garmin にログインしてトークンを生成中..."
 cd "$PROJECT_DIR"
-if ! "$PYTHON" scripts/refresh_garth_tokens.py >> "$LOG_FILE" 2>&1; then
-    log "ERROR: トークン生成に失敗しました"
+TOKEN_GENERATED=false
+if "$PYTHON" scripts/refresh_garth_tokens.py >> "$LOG_FILE" 2>&1; then
+    TOKEN_GENERATED=true
+    log "トークン生成成功"
+else
+    log "WARNING: トークン生成に失敗しました。前回のトークンが /tmp/garth_fresh_tokens.txt に残っていれば更新を試みます。"
+fi
+
+# /tmp/garth_fresh_tokens.txt がなければ終了（更新するものがない）
+if [ ! -f /tmp/garth_fresh_tokens.txt ]; then
+    log "ERROR: /tmp/garth_fresh_tokens.txt が見つかりません。トークン更新をスキップします。"
     exit 1
 fi
 

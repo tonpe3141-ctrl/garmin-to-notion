@@ -167,8 +167,12 @@ def get_sso_ticket() -> tuple:
 
 def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
     """
-    Playwright でチケット URL に移動し、connect.garmin.com の JS に
+    Playwright でチケット URL または /app/home に移動し、connect.garmin.com の JS に
     JWT_WEB をセットさせて回収する。
+
+    戦略:
+      1. /modern?ticket=... に移動（従来の方法）
+      2. JWT_WEB が現れなければ /app/home に移動（新アプリ経由で SSO 再認証）
     """
     try:
         from playwright.sync_api import sync_playwright
@@ -189,9 +193,10 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
             locale="en-US",
         )
 
-        # SSO クッキーをコンテキストに注入
+        # SSO クッキーをコンテキストに注入（全 Garmin ドメイン）
         for name, value in sso_cookies.items():
-            for domain in [".garmin.com", ".sso.garmin.com", "sso.garmin.com"]:
+            for domain in [".garmin.com", ".sso.garmin.com", "sso.garmin.com",
+                           ".connect.garmin.com", "connect.garmin.com"]:
                 try:
                     context.add_cookies([{
                         "name": name,
@@ -211,21 +216,41 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
 
         print(f"      URL after nav: {page.url}")
 
-        # JWT_WEB が現れるまで最大 30 秒待機
-        print("[PW-2] Waiting for JWT_WEB...")
+        # Phase 1: /modern?ticket=... で JWT_WEB を待機（最大15秒）
+        print("[PW-2] Phase 1: Waiting for JWT_WEB at ticket URL (15s)...")
         jwt_found = False
-        for i in range(30):
+        for i in range(15):
             cookies_now = context.cookies(["https://connect.garmin.com"])
             if any(c["name"] == "JWT_WEB" for c in cookies_now):
-                print(f"      ✓ JWT_WEB 取得成功 ({i}s)")
+                print(f"      ✓ JWT_WEB 取得成功 (Phase 1, {i}s)")
                 jwt_found = True
                 break
-            if i % 5 == 0:
-                print(f"      waiting {i}s | URL: {page.url[:70]}")
             time.sleep(1)
 
+        # Phase 2: JWT_WEB がなければ /app/home に移動（新 Garmin Connect アプリ）
+        # CASTGC などの SSO クッキーがあれば、/app/home へのアクセスで
+        # SSO が自動的にチケットを発行して JWT_WEB がセットされる。
         if not jwt_found:
-            print(f"      ⚠ JWT_WEB が 30 秒以内に現れませんでした | URL: {page.url}")
+            app_home_url = f"{CONNECT_BASE}/app/home"
+            print(f"[PW-3] Phase 2: Navigating to new app ({app_home_url})...")
+            try:
+                page.goto(app_home_url, wait_until="networkidle", timeout=45000)
+            except Exception as e:
+                print(f"      goto warning (continuing): {e}")
+            print(f"      URL after nav: {page.url}")
+
+            for i in range(30):
+                cookies_now = context.cookies(["https://connect.garmin.com"])
+                if any(c["name"] == "JWT_WEB" for c in cookies_now):
+                    print(f"      ✓ JWT_WEB 取得成功 (Phase 2, {i}s)")
+                    jwt_found = True
+                    break
+                if i % 5 == 0:
+                    print(f"      waiting {i}s | URL: {page.url[:70]}")
+                time.sleep(1)
+
+        if not jwt_found:
+            print(f"      ⚠ JWT_WEB が取得できませんでした | URL: {page.url}")
             # スクリーンショット保存（デバッグ用）
             try:
                 page.screenshot(path="/tmp/garmin_pw_debug.png")

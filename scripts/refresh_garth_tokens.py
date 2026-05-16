@@ -122,18 +122,14 @@ def get_service_ticket(scraper):
     return ticket
 
 
-def exchange_ticket_for_oauth1(ticket, scraper):
-    """チケットを OAuth1 トークンに交換する。"""
-    print("[4] OAuth コンシューマー資格情報を取得 ...")
-    oauth_consumer = scraper.get(OAUTH_CONSUMER_URL, timeout=10).json()
+_OAUTH_TIMEOUT = 60  # connectapi.garmin.com が詰まることがあるため余裕を持たせる
+_OAUTH_MAX_RETRIES = 3
 
-    print("[5] チケット → OAuth1 トークン ...")
-    oauth1_sess = OAuth1Session(
-        oauth_consumer["consumer_key"], oauth_consumer["consumer_secret"]
-    )
-    for c in scraper.cookies:
-        oauth1_sess.cookies.set(c.name, c.value, domain=c.domain or "garmin.com")
-    oauth1_sess.headers["User-Agent"] = UA
+
+def exchange_ticket_for_oauth1(ticket, scraper):
+    """チケットを OAuth1 トークンに交換する。タイムアウト時はリトライ。"""
+    print("[4] OAuth コンシューマー資格情報を取得 ...")
+    oauth_consumer = scraper.get(OAUTH_CONSUMER_URL, timeout=15).json()
 
     preauth_url = (
         f"https://connectapi.garmin.com/oauth-service/oauth/preauthorized"
@@ -141,38 +137,71 @@ def exchange_ticket_for_oauth1(ticket, scraper):
         f"&login-url=https://sso.garmin.com/sso/embed"
         f"&accepts-mfa-tokens=true"
     )
-    resp = oauth1_sess.get(preauth_url, timeout=20)
-    resp.raise_for_status()
 
-    parsed = parse_qs(resp.text)
-    oauth_token = parsed.get("oauth_token", [""])[0]
-    oauth_secret = parsed.get("oauth_token_secret", [""])[0]
+    for attempt in range(1, _OAUTH_MAX_RETRIES + 1):
+        print(f"[5] チケット → OAuth1 トークン (試行 {attempt}/{_OAUTH_MAX_RETRIES}) ...")
+        oauth1_sess = OAuth1Session(
+            oauth_consumer["consumer_key"], oauth_consumer["consumer_secret"]
+        )
+        for c in scraper.cookies:
+            oauth1_sess.cookies.set(c.name, c.value, domain=c.domain or "garmin.com")
+        oauth1_sess.headers["User-Agent"] = UA
 
-    if not oauth_token:
-        raise RuntimeError(f"OAuth1 トークン取得失敗: {resp.text[:200]}")
+        try:
+            resp = oauth1_sess.get(preauth_url, timeout=_OAUTH_TIMEOUT)
+            resp.raise_for_status()
+        except Exception as e:
+            if attempt < _OAUTH_MAX_RETRIES:
+                wait = 30 * attempt
+                print(f"    ⚠ 失敗: {e}")
+                print(f"    {wait}秒待機して再試行します...")
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"OAuth1 preauthorized 失敗（{_OAUTH_MAX_RETRIES}回試行）: {e}")
 
-    print(f"    oauth_token: 取得成功")
-    return oauth_token, oauth_secret, oauth_consumer
+        parsed = parse_qs(resp.text)
+        oauth_token = parsed.get("oauth_token", [""])[0]
+        oauth_secret = parsed.get("oauth_token_secret", [""])[0]
+
+        if not oauth_token:
+            raise RuntimeError(f"OAuth1 トークン取得失敗: {resp.text[:200]}")
+
+        print(f"    oauth_token: 取得成功")
+        return oauth_token, oauth_secret, oauth_consumer
+
+    raise RuntimeError("OAuth1 exchange: すべての試行が失敗しました")
 
 
 def exchange_oauth1_for_oauth2(oauth_token, oauth_secret, oauth_consumer):
-    """OAuth1 トークンを OAuth2 アクセストークンに交換する。"""
-    print("[6] OAuth1 → OAuth2 ...")
-    oauth2_sess = OAuth1Session(
-        oauth_consumer["consumer_key"],
-        oauth_consumer["consumer_secret"],
-        resource_owner_key=oauth_token,
-        resource_owner_secret=oauth_secret,
-    )
-    oauth2_sess.headers["User-Agent"] = UA
+    """OAuth1 トークンを OAuth2 アクセストークンに交換する。タイムアウト時はリトライ。"""
+    exchange_url = "https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0"
 
-    resp = oauth2_sess.post(
-        "https://connectapi.garmin.com/oauth-service/oauth/exchange/user/2.0",
-        headers={"Content-Type": "application/x-www-form-urlencoded"},
-        timeout=20,
-    )
-    resp.raise_for_status()
-    return resp.json()
+    for attempt in range(1, _OAUTH_MAX_RETRIES + 1):
+        print(f"[6] OAuth1 → OAuth2 (試行 {attempt}/{_OAUTH_MAX_RETRIES}) ...")
+        oauth2_sess = OAuth1Session(
+            oauth_consumer["consumer_key"],
+            oauth_consumer["consumer_secret"],
+            resource_owner_key=oauth_token,
+            resource_owner_secret=oauth_secret,
+        )
+        oauth2_sess.headers["User-Agent"] = UA
+
+        try:
+            resp = oauth2_sess.post(
+                exchange_url,
+                headers={"Content-Type": "application/x-www-form-urlencoded"},
+                timeout=_OAUTH_TIMEOUT,
+            )
+            resp.raise_for_status()
+            return resp.json()
+        except Exception as e:
+            if attempt < _OAUTH_MAX_RETRIES:
+                wait = 30 * attempt
+                print(f"    ⚠ 失敗: {e}")
+                print(f"    {wait}秒待機して再試行します...")
+                time.sleep(wait)
+                continue
+            raise RuntimeError(f"OAuth2 exchange 失敗（{_OAUTH_MAX_RETRIES}回試行）: {e}")
 
 
 def build_garth_dump(oauth_token, oauth_secret, token_data):

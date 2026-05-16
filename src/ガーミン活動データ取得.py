@@ -742,13 +742,19 @@ def main():
                 client.get_full_name()
             elif garth_obj and hasattr(garth_obj, 'oauth2_token') and garth_obj.oauth2_token:
                 if garth_obj.oauth2_token.expired:
-                    # oauth2_token 期限切れ → exchange が必要だがレート制限中のためスキップ
-                    raise Exception(
-                        "oauth2_token は期限切れです。"
-                        "exchange がレート制限されているため認証不可。Cookie認証が必要です。"
-                    )
-                # 有効なトークンで connectapi を直接テスト（exchange 不要）
-                garth_obj.connectapi("/userprofile-service/socialProfile")
+                    # アクセストークン期限切れ → リフレッシュトークン（30日有効）で更新を試みる
+                    # garth がリフレッシュエンドポイントを自動的に呼び出す
+                    print(f"  ℹ oauth2_token 期限切れ。リフレッシュトークンで更新を試みます...")
+                    try:
+                        garth_obj.connectapi("/userprofile-service/socialProfile")
+                        print(f"  ✓ トークン更新成功")
+                    except Exception as refresh_err:
+                        raise Exception(
+                            f"oauth2_token 期限切れ、リフレッシュ失敗: {refresh_err}"
+                        )
+                else:
+                    # 有効なトークンで connectapi を直接テスト（exchange 不要）
+                    garth_obj.connectapi("/userprofile-service/socialProfile")
             else:
                 # garth_obj なし or oauth2_token なし → login 経由のため connectapi が必要
                 client.get_full_name()
