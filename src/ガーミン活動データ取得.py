@@ -756,8 +756,21 @@ def main():
 
     garmin_client = None
 
-    # 優先度0: GARMIN_SESSION_COOKIES（Cookieベース・OAuth不要）
-    session_cookies_str = os.getenv("GARMIN_SESSION_COOKIES")
+    # 優先度0: Cookie認証（OAuth exchange 不使用 → レート制限を完全回避）
+    # ソース優先度: /tmp/garmin_session_cookies.txt（CI refresh step） > GARMIN_SESSION_COOKIES シークレット
+    _cookie_file = "/tmp/garmin_session_cookies.txt"
+    session_cookies_str = None
+    if os.path.exists(_cookie_file):
+        with open(_cookie_file) as _f:
+            _content = _f.read().strip()
+        if _content:
+            session_cookies_str = _content
+            print("ℹ Cookie ソース: /tmp/garmin_session_cookies.txt (CI refresh step)")
+    if not session_cookies_str:
+        session_cookies_str = os.getenv("GARMIN_SESSION_COOKIES")
+        if session_cookies_str:
+            print("ℹ Cookie ソース: GARMIN_SESSION_COOKIES シークレット")
+
     if session_cookies_str:
         try:
             from garmin_cookie_client import GarminCookieClient, parse_cookie_string
@@ -765,7 +778,7 @@ def main():
             cookie_client = GarminCookieClient(cookies)
             cookie_client.get_full_name()
             garmin_client = cookie_client
-            print("✓ Garmin 認証成功: GARMIN_SESSION_COOKIES (cookie-based)")
+            print("✓ Garmin 認証成功: Cookie-based (OAuth exchange なし)")
         except Exception as e:
             print(f"✗ Cookie認証失敗: {e}")
 

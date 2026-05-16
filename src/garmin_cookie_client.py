@@ -2,7 +2,10 @@
 Cookie ベースの Garmin Connect クライアント。
 
 garth / OAuth を使わず、ブラウザセッションのCookieで直接APIを叩く。
-GarminClient (garminconnect) と同じインターフェースを実装。
+/oauth/exchange/user/2.0 を一切呼ばないため GitHub Actions のレート制限を回避できる。
+
+APIアクセスは connect.garmin.com/modern/proxy/... (Proxy経由) を優先し、
+失敗した場合のみ connectapi.garmin.com 直接呼び出しにフォールバックする。
 """
 import requests
 
@@ -49,6 +52,25 @@ class GarminCookieClient:
         self.garth = _DummyGarth()
         self.display_name = self._fetch_display_name()
 
+    def _get(self, path: str, params: dict = None, timeout: int = 30):
+        """Proxy経由を試し、失敗したら connectapi 直接呼び出しにフォールバック。"""
+        proxy_url = f"{CONNECT}/modern/proxy{path}"
+        direct_url = f"{CONNECTAPI}{path}"
+
+        # Proxy経由（セッションクッキーで認証できる）
+        try:
+            r = self.session.get(proxy_url, params=params, timeout=timeout)
+            if r.status_code == 200:
+                return r
+            # 401/403はfallthrough
+        except Exception:
+            pass
+
+        # connectapi直接（旧動作との互換性）
+        r = self.session.get(direct_url, params=params, timeout=timeout)
+        r.raise_for_status()
+        return r
+
     def _fetch_display_name(self) -> str:
         try:
             r = self.session.get(
@@ -72,35 +94,23 @@ class GarminCookieClient:
         return data.get("fullName") or data.get("displayName") or data.get("userName", "")
 
     def get_activities(self, start: int, limit: int):
-        r = self.session.get(
-            f"{CONNECTAPI}/activitylist-service/activities/search/activities",
+        r = self._get(
+            "/activitylist-service/activities/search/activities",
             params={"start": str(start), "limit": str(limit)},
-            timeout=30,
         )
-        r.raise_for_status()
         return r.json()
 
     def get_activity_splits(self, activity_id):
-        r = self.session.get(
-            f"{CONNECTAPI}/activity-service/activity/{activity_id}/splits",
-            timeout=30,
-        )
-        r.raise_for_status()
+        r = self._get(f"/activity-service/activity/{activity_id}/splits")
         return r.json()
 
     def get_activity_details(self, activity_id, maxchart=2000, maxpoly=4000):
-        r = self.session.get(
-            f"{CONNECTAPI}/activity-service/activity/{activity_id}/details",
+        r = self._get(
+            f"/activity-service/activity/{activity_id}/details",
             params={"maxChartSize": str(maxchart), "maxPolylineSize": str(maxpoly)},
-            timeout=30,
         )
-        r.raise_for_status()
         return r.json()
 
     def get_activity_weather(self, activity_id):
-        r = self.session.get(
-            f"{CONNECTAPI}/activity-service/activity/{activity_id}/weather",
-            timeout=30,
-        )
-        r.raise_for_status()
+        r = self._get(f"/activity-service/activity/{activity_id}/weather")
         return r.json()
