@@ -251,7 +251,7 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
 
 
 def test_cookies(cookies: dict) -> bool:
-    """取得クッキーで JSON API をテスト。"""
+    """取得クッキーで JSON API をテスト（複数エンドポイント）。"""
     session = requests.Session()
     session.cookies.update(cookies)
     session.headers.update({
@@ -259,34 +259,32 @@ def test_cookies(cookies: dict) -> bool:
         "NK": "NT",
         "X-Requested-With": "XMLHttpRequest",
         "Accept": "application/json, text/javascript, */*; q=0.01",
+        "Origin": "https://connect.garmin.com",
+        "Referer": "https://connect.garmin.com/app/home",
     })
 
+    # 新アプリ直接パス → 旧プロキシパス の順に試す
     endpoints = [
-        (
-            "personal-information",
-            f"{CONNECT_BASE}/modern/proxy/userprofile-service/userprofile/personal-information",
-            {},
-        ),
-        (
-            "activities",
-            f"{CONNECT_BASE}/modern/proxy/activitylist-service/activities/search/activities",
-            {"start": "0", "limit": "1"},
-        ),
+        ("userinfo (direct)",      f"{CONNECT_BASE}/userprofile-service/userprofile/personal-information", {}),
+        ("activities (direct)",    f"{CONNECT_BASE}/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}),
+        ("userinfo (proxy)",       f"{CONNECT_BASE}/modern/proxy/userprofile-service/userprofile/personal-information", {}),
+        ("activities (proxy)",     f"{CONNECT_BASE}/modern/proxy/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}),
     ]
 
     for label, url, params in endpoints:
         try:
             r = session.get(url, params=params, timeout=15)
-            if r.status_code == 200:
+            ct = r.headers.get("Content-Type", "")
+            if r.status_code == 200 and "text/html" not in ct:
                 try:
                     data = r.json()
                     keys = list(data.keys())[:3] if isinstance(data, dict) else type(data).__name__
                     print(f"  ✓ {label}: JSON OK {keys}")
                     return True
                 except Exception:
-                    print(f"  ✗ {label}: 200 だが JSON ではない (HTML リダイレクト?)")
+                    print(f"  ✗ {label}: 200 だが JSON パース失敗")
             else:
-                print(f"  ✗ {label}: status {r.status_code}")
+                print(f"  ✗ {label}: status={r.status_code} ct={ct[:40]}")
         except Exception as e:
             print(f"  ✗ {label}: {e}")
 
@@ -337,9 +335,13 @@ def main():
     print(f"\n✓ {len(merged)}個のクッキーを {SESSION_COOKIE_FILE} に保存")
     print(f"  JWT_WEB: {'あり' if 'JWT_WEB' in merged else 'なし'}")
 
-    if not valid or "JWT_WEB" not in merged:
-        print("⚠ API テスト失敗または JWT_WEB なし")
+    if "JWT_WEB" not in merged:
+        print("❌ JWT_WEB が取得できませんでした")
         sys.exit(1)
+
+    if not valid:
+        print("⚠ API テスト失敗（JWT_WEB はあり。メインスクリプトで再テスト）")
+        # JWT_WEB があればメインスクリプトに任せる（exit 0）
 
     print("✓ 完了")
 
