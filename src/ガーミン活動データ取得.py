@@ -731,10 +731,28 @@ def main():
     # 確認してからクライアントを確定する。429 / 401 の場合は次の手段に進む。
     # ──────────────────────────────────────────────────────────────────────
     def _try_auth(client_fn, label):
-        """クライアントを作成してAPIテスト呼び出しを行う。失敗したら None を返す。"""
+        """クライアントを作成して実際のAPI呼び出しでテストする。失敗したら None を返す。"""
         try:
             client = client_fn()
-            client.get_full_name()   # OAuth2 が期限切れなら garth がここで exchange を試みる
+
+            garth_obj = getattr(client, 'garth', None)
+            from garmin_cookie_client import GarminCookieClient
+            if isinstance(client, GarminCookieClient):
+                # Cookie クライアント: get_full_name() は実際の HTTP 呼び出しを行う
+                client.get_full_name()
+            elif garth_obj and hasattr(garth_obj, 'oauth2_token') and garth_obj.oauth2_token:
+                if garth_obj.oauth2_token.expired:
+                    # oauth2_token 期限切れ → exchange が必要だがレート制限中のためスキップ
+                    raise Exception(
+                        "oauth2_token は期限切れです。"
+                        "exchange がレート制限されているため認証不可。Cookie認証が必要です。"
+                    )
+                # 有効なトークンで connectapi を直接テスト（exchange 不要）
+                garth_obj.connectapi("/userprofile-service/socialProfile")
+            else:
+                # garth_obj なし or oauth2_token なし → login 経由のため connectapi が必要
+                client.get_full_name()
+
             print(f"✓ Garmin 認証成功: {label}")
             return client
         except Exception as e:
