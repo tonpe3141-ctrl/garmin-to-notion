@@ -54,8 +54,8 @@ jobs:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
         run: |
-          pip install playwright --quiet
-          playwright install chromium --with-deps --quiet
+          pip install playwright -q
+          playwright install chromium --with-deps 2>&1 | tail -5
           python scripts/refresh_garmin_cookies_playwright.py
 
       - name: Run script
