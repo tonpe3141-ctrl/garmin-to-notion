@@ -35,11 +35,11 @@ UA = (
 )
 
 SIGNIN_PARAMS = {
-    "service": f"{CONNECT_BASE}/modern",
+    "service": f"{CONNECT_BASE}/app",
     "webhost": CONNECT_BASE,
-    "source": f"{CONNECT_BASE}/modern",
-    "redirectAfterAccountLoginUrl": f"{CONNECT_BASE}/modern",
-    "redirectAfterAccountCreationUrl": f"{CONNECT_BASE}/modern",
+    "source": f"{CONNECT_BASE}/app",
+    "redirectAfterAccountLoginUrl": f"{CONNECT_BASE}/app",
+    "redirectAfterAccountCreationUrl": f"{CONNECT_BASE}/app",
     "gauthHost": SSO_BASE,
     "locale": "en_US",
     "id": "gauth-widget",
@@ -60,6 +60,17 @@ SIGNIN_PARAMS = {
     "connectLegalTerms": "true",
 }
 
+# garth 互換のエンベッドウィジェット SSO（/app が失敗した場合のフォールバック用）
+SIGNIN_PARAMS_EMBED = {
+    "id": "gauth-widget",
+    "embedWidget": "true",
+    "gauthHost": f"{SSO_BASE}/embed",
+    "service": f"{SSO_BASE}/embed",
+    "source": f"{SSO_BASE}/embed",
+    "redirectAfterAccountLoginUrl": f"{SSO_BASE}/embed",
+    "redirectAfterAccountCreationUrl": f"{SSO_BASE}/embed",
+}
+
 
 def _make_session():
     """cloudscraper があれば使い、なければ requests で代替。"""
@@ -75,17 +86,13 @@ def _make_session():
     return s
 
 
-def get_sso_ticket() -> tuple:
+def _do_sso_login(s, params: dict) -> tuple:
     """
-    旧 SSO エンドポイント (sso.garmin.com/sso/signin) でログインし、
-    (sso_cookies, ticket_url) を返す。
-
-    ticket_url は connect.garmin.com/modern?ticket=ST-xxx 形式。
+    SSO ログインを実行し (sso_cookies, ticket_url) を返す。
+    失敗時は (sso_cookies, None) を返す。
     """
-    s = _make_session()
-
     print("[SSO-1] GET signin page...")
-    r = s.get(f"{SSO_BASE}/signin", params=SIGNIN_PARAMS, timeout=20)
+    r = s.get(f"{SSO_BASE}/signin", params=params, timeout=20)
     r.raise_for_status()
 
     csrf = None
@@ -103,12 +110,15 @@ def get_sso_ticket() -> tuple:
     print("      CSRF: OK")
     time.sleep(1)
 
+    is_embed = params.get("embedWidget") == "true"
+    embed_val = "true" if is_embed else "false"
+
     print("[SSO-2] POST credentials (allow_redirects=False)...")
     r = s.post(
         f"{SSO_BASE}/signin",
-        params=SIGNIN_PARAMS,
+        params=params,
         headers={"Referer": f"{SSO_BASE}/signin", "Origin": "https://sso.garmin.com"},
-        data={"username": EMAIL, "password": PASSWORD, "embed": "false", "_csrf": csrf},
+        data={"username": EMAIL, "password": PASSWORD, "embed": embed_val, "_csrf": csrf},
         timeout=30,
         allow_redirects=False,
     )
@@ -119,42 +129,44 @@ def get_sso_ticket() -> tuple:
     if r.status_code in (301, 302):
         loc = r.headers.get("Location", "")
         print(f"      Location: {loc[:100]}")
-        if "ticket=" in loc or "connect.garmin.com" in loc:
+        if "ticket=" in loc or "connect.garmin.com" in loc or "sso.garmin.com" in loc:
             ticket_url = loc
         else:
-            # ロケーションが別のSSOページならもう一段追う
             print("      → SSO 中間リダイレクト。再追跡...")
             r2 = s.get(loc, allow_redirects=False, timeout=15)
             loc2 = r2.headers.get("Location", "")
             if "ticket=" in loc2:
                 ticket_url = loc2
-            elif "connect.garmin.com" in loc2:
+            elif "garmin.com" in loc2:
                 ticket_url = loc2
 
     elif r.status_code == 200:
+        # チケットを body から探す（embed フローなど）
         m = re.search(r'ticket=(ST-[A-Za-z0-9\-_]+)', r.text)
         if m:
-            ticket_url = f"{CONNECT_BASE}/modern?ticket={m.group(1)}"
-            print(f"      Ticket from body: {m.group(1)[:40]}")
+            ticket = m.group(1)
+            # embed フローなら SSO ドメインのまま；それ以外は /app へ
+            if is_embed:
+                ticket_url = f"{SSO_BASE}/embed?ticket={ticket}"
+            else:
+                ticket_url = f"{CONNECT_BASE}/app?ticket={ticket}"
+            print(f"      Ticket from body: {ticket[:40]}")
         else:
             print("      ⚠ 200 応答にチケットが見つかりません。allow_redirects=True で再試行...")
             r2 = s.post(
                 f"{SSO_BASE}/signin",
-                params=SIGNIN_PARAMS,
+                params=params,
                 headers={"Referer": f"{SSO_BASE}/signin", "Origin": "https://sso.garmin.com"},
-                data={"username": EMAIL, "password": PASSWORD, "embed": "false", "_csrf": csrf},
+                data={"username": EMAIL, "password": PASSWORD, "embed": embed_val, "_csrf": csrf},
                 timeout=30,
                 allow_redirects=True,
             )
             print(f"      Final URL: {r2.url}")
             m2 = re.search(r'ticket=(ST-[A-Za-z0-9\-_]+)', r2.url + " " + r2.text)
             if m2:
-                ticket_url = f"{CONNECT_BASE}/modern?ticket={m2.group(1)}"
+                ticket_url = f"{CONNECT_BASE}/app?ticket={m2.group(1)}"
             elif "connect.garmin.com" in r2.url:
                 ticket_url = r2.url
-
-    if not ticket_url:
-        raise RuntimeError(f"チケット URL が取得できませんでした (status={r.status_code})")
 
     sso_cookies = {}
     for c in s.cookies:
@@ -165,13 +177,40 @@ def get_sso_ticket() -> tuple:
     return sso_cookies, ticket_url
 
 
+def get_sso_ticket() -> tuple:
+    """
+    SSO エンドポイントでログインし (sso_cookies, ticket_url) を返す。
+
+    戦略:
+      1. SIGNIN_PARAMS (/app サービス) で試行
+      2. 失敗なら SIGNIN_PARAMS_EMBED (garth 互換 embed) で再試行
+    """
+    s = _make_session()
+
+    sso_cookies, ticket_url = _do_sso_login(s, SIGNIN_PARAMS)
+
+    if not ticket_url:
+        print("      → /app SSO 失敗。embed フローで再試行...")
+        s2 = _make_session()
+        sso_cookies, ticket_url = _do_sso_login(s2, SIGNIN_PARAMS_EMBED)
+
+    # レガシーフォールバック: /app への手動補完
+    if ticket_url and "/modern?ticket=" in ticket_url:
+        ticket_url = ticket_url.replace("/modern?ticket=", "/app?ticket=")
+
+    if not ticket_url:
+        raise RuntimeError("チケット URL が取得できませんでした")
+
+    return sso_cookies, ticket_url
+
+
 def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
     """
     Playwright でチケット URL または /app/home に移動し、connect.garmin.com の JS に
     JWT_WEB をセットさせて回収する。
 
     戦略:
-      1. /modern?ticket=... に移動（従来の方法）
+      1. チケット URL (/app?ticket=... など) に移動
       2. JWT_WEB が現れなければ /app/home に移動（新アプリ経由で SSO 再認証）
     """
     try:

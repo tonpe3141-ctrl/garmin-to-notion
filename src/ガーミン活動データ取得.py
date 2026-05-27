@@ -723,40 +723,96 @@ def main():
     tokens_b64 = os.getenv("GARTH_TOKENS_B64")
 
     # ── Garmin 認証フロー ──────────────────────────────────────────────────
+    # 優先度0: Cookie認証（JWT_WEB / GARMIN_SESSION_COOKIES）
     # 優先度1: GARTH_TOKENS_B64 シークレット（前回成功時に自動更新される）
     # 優先度2: Actions cache (~/.garth)
     # 優先度3: メール+パスワードで再ログイン（指数バックオフ付きリトライ）
     #
-    # 各ステップで実際にAPIテスト呼び出しを行い、トークンが本当に機能するかを
-    # 確認してからクライアントを確定する。429 / 401 の場合は次の手段に進む。
+    # NOTE: connectapi.garmin.com の OAuth exchange エンドポイントが
+    #       GitHub Actions IP からレート制限される問題があるため、
+    #       garth ベースの認証テストでは connectapi を呼ばない方針に変更。
+    #       トークンが有効期限内であれば信頼してそのまま使用する。
     # ──────────────────────────────────────────────────────────────────────
+
+    def _try_refresh_oauth2_direct(garth_obj) -> bool:
+        """
+        connectapi.garmin.com/exchange を使わず sso.garmin.com で
+        OAuth2 refresh token grant を試みる。
+        成功したら garth_obj.oauth2_token を更新して True を返す。
+        """
+        import requests as _req
+        try:
+            oauth2 = garth_obj.oauth2_token
+            if not oauth2 or not oauth2.refresh_token or oauth2.refresh_expired:
+                return False
+
+            consumer = _req.get(
+                "https://thegarth.s3.amazonaws.com/oauth_consumer.json",
+                timeout=10,
+            ).json()
+
+            resp = _req.post(
+                "https://sso.garmin.com/oauth2/token",
+                data={
+                    "grant_type": "refresh_token",
+                    "refresh_token": oauth2.refresh_token,
+                },
+                auth=(consumer["consumer_key"], consumer["consumer_secret"]),
+                timeout=15,
+            )
+            if not resp.ok:
+                print(f"    OAuth2 refresh HTTP {resp.status_code}: {resp.text[:200]}")
+                return False
+
+            token_data = resp.json()
+            if "access_token" not in token_data:
+                print(f"    OAuth2 refresh: access_token が応答にありません: {token_data}")
+                return False
+
+            from garth.sso import set_expirations
+            from garth.auth_tokens import OAuth2Token
+            token_data = set_expirations(token_data)
+            # refresh_token が応答にない場合は既存のものを引き継ぐ
+            if "refresh_token" not in token_data:
+                token_data["refresh_token"] = oauth2.refresh_token
+                token_data["refresh_token_expires_in"] = oauth2.refresh_token_expires_in
+                token_data["refresh_token_expires_at"] = oauth2.refresh_token_expires_at
+            # 必須フィールドがなければデフォルト値で補完
+            for field in ("scope", "jti", "token_type"):
+                if field not in token_data:
+                    token_data[field] = getattr(oauth2, field, "")
+            garth_obj.configure(oauth2_token=OAuth2Token(**token_data))
+            return True
+        except Exception as e:
+            print(f"    OAuth2 direct refresh 失敗: {e}")
+            return False
+
     def _try_auth(client_fn, label):
-        """クライアントを作成して実際のAPI呼び出しでテストする。失敗したら None を返す。"""
+        """クライアントを作成して認証テストを行う。失敗したら None を返す。"""
         try:
             client = client_fn()
 
             garth_obj = getattr(client, 'garth', None)
             from garmin_cookie_client import GarminCookieClient
             if isinstance(client, GarminCookieClient):
-                # Cookie クライアント: get_full_name() は実際の HTTP 呼び出しを行う
+                # Cookie クライアント: get_full_name() は connect.garmin.com を呼ぶ
                 client.get_full_name()
             elif garth_obj and hasattr(garth_obj, 'oauth2_token') and garth_obj.oauth2_token:
                 if garth_obj.oauth2_token.expired:
-                    # アクセストークン期限切れ → リフレッシュトークン（30日有効）で更新を試みる
-                    # garth がリフレッシュエンドポイントを自動的に呼び出す
-                    print(f"  ℹ oauth2_token 期限切れ。リフレッシュトークンで更新を試みます...")
-                    try:
-                        garth_obj.connectapi("/userprofile-service/socialProfile")
-                        print(f"  ✓ トークン更新成功")
-                    except Exception as refresh_err:
+                    # アクセストークン期限切れ → connectapi exchange を使わず直接 refresh を試みる
+                    print(f"  ℹ oauth2_token 期限切れ。OAuth2 refresh token で更新を試みます...")
+                    refreshed = _try_refresh_oauth2_direct(garth_obj)
+                    if not refreshed:
                         raise Exception(
-                            f"oauth2_token 期限切れ、リフレッシュ失敗: {refresh_err}"
+                            "oauth2_token 期限切れ。refresh_token による更新も失敗。"
+                            "Playwright で JWT_WEB を取得するか GARMIN_SESSION_COOKIES を更新してください。"
                         )
-                else:
-                    # 有効なトークンで connectapi を直接テスト（exchange 不要）
-                    garth_obj.connectapi("/userprofile-service/socialProfile")
+                    print(f"  ✓ OAuth2 トークン更新成功")
+                # else: 有効なトークン → connectapi テスト不要、そのまま信頼して使用する
+                # （connectapi.garmin.com が GitHub Actions からブロックされている場合に備えて
+                #   テスト呼び出しを省略。実際の API 呼び出し時に認証エラーがあれば判明する）
             else:
-                # garth_obj なし or oauth2_token なし → login 経由のため connectapi が必要
+                # garth_obj なし or oauth2_token なし → login 経由のため get_full_name() で確認
                 client.get_full_name()
 
             print(f"✓ Garmin 認証成功: {label}")
@@ -861,11 +917,15 @@ def main():
     # Garmin 認証成功直後にトークンをファイルへ保存。
     # ワークフローの "Refresh GARTH_TOKENS_B64 secret" ステップが
     # スクリプトの成否に関わらずこのファイルを読んでシークレットを更新する。
+    # Cookie クライアント (_DummyGarth) は空文字を返すため、空の場合は保存しない。
     try:
         fresh = garmin_client.garth.dumps()
-        with open("/tmp/garth_fresh_tokens.txt", "w") as _f:
-            _f.write(fresh)
-        print("✓ 新鮮なトークンを /tmp/garth_fresh_tokens.txt に保存（シークレット自動更新用）")
+        if fresh:
+            with open("/tmp/garth_fresh_tokens.txt", "w") as _f:
+                _f.write(fresh)
+            print("✓ 新鮮なトークンを /tmp/garth_fresh_tokens.txt に保存（シークレット自動更新用）")
+        else:
+            print("ℹ Cookie クライアント使用中のためトークンファイルは保存しません（GARTH_TOKENS_B64 は維持）")
     except Exception as _e:
         print(f"⚠ トークン保存失敗（シークレット自動更新はスキップ）: {_e}")
 
