@@ -1,8 +1,10 @@
 """
-Hybrid: cloudscraper で SSO チケット取得 → Playwright で JWT_WEB を取得。
+Playwright で Garmin Connect に直接ログインして JWT_WEB を取得する。
 
-cloudscraper は SSO フォームログインを担当（ボット検知を回避）。
-Playwright はチケット URL に移動して connect.garmin.com の JS に JWT_WEB を発行させる。
+戦略（優先度順）:
+  1. Playwright 直接ブラウザログイン（connect.garmin.com/app → SSO フォーム入力）
+  2. cloudscraper で SSO チケット取得 → Playwright でチケット URL を処理（フォールバック）
+
 OAuth /exchange/user/2.0 も /preauthorized も一切呼ばない。
 
 使い方:
@@ -204,6 +206,168 @@ def get_sso_ticket() -> tuple:
     return sso_cookies, ticket_url
 
 
+def get_jwt_via_browser_login() -> dict:
+    """
+    Playwright で connect.garmin.com/app に直接アクセスし、
+    SSO ログインフォームにメール/パスワードを入力して JWT_WEB を取得する。
+
+    SSO チケット取得 → チケット URL 移動というフローを経由せず、
+    実際のブラウザ操作でログインするため最も確実。
+    """
+    try:
+        from playwright.sync_api import sync_playwright
+    except ImportError:
+        print("  ❌ Playwright 未インストール")
+        return {}
+
+    print("[PW-Direct] Starting direct browser login...")
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(
+            headless=True,
+            args=["--no-sandbox", "--disable-dev-shm-usage", "--disable-setuid-sandbox"],
+        )
+        context = browser.new_context(
+            user_agent=UA,
+            viewport={"width": 1280, "height": 720},
+            locale="en-US",
+        )
+        page = context.new_page()
+        jwt_found = False
+
+        try:
+            # Step 1: connect.garmin.com/app に移動 → SSO ログインページにリダイレクト
+            print(f"[PW-D1] Navigate to {CONNECT_BASE}/app ...")
+            try:
+                page.goto(f"{CONNECT_BASE}/app", wait_until="domcontentloaded", timeout=30000)
+            except Exception as e:
+                print(f"      goto warning: {e}")
+            print(f"      URL after nav: {page.url}")
+
+            # SSO ページに着いていなければ直接 SSO ログイン URL へ
+            if "sso.garmin.com" not in page.url and "signin" not in page.url:
+                sso_url = (
+                    f"{SSO_BASE}/signin"
+                    f"?service={CONNECT_BASE}/app"
+                    f"&clientId=GarminConnect"
+                    f"&gauthHost={SSO_BASE}"
+                    f"&generateExtraServiceTicket=true"
+                    f"&embedWidget=false"
+                )
+                print(f"[PW-D2] Not on SSO page. Navigate to SSO signin directly...")
+                try:
+                    page.goto(sso_url, wait_until="domcontentloaded", timeout=20000)
+                except Exception as e:
+                    print(f"      goto warning: {e}")
+                print(f"      URL: {page.url}")
+
+            # Step 2: ログインフォームへの入力
+            print("[PW-D3] Filling login form...")
+            email_selectors = [
+                'input[name="username"]', 'input[id="username"]',
+                'input[type="email"]', '#email',
+            ]
+            password_selectors = [
+                'input[name="password"]', 'input[id="password"]',
+                'input[type="password"]',
+            ]
+            submit_selectors = [
+                'button[type="submit"]', 'input[type="submit"]',
+                'button#login-btn-signin', '#login-btn-signin',
+                'a[id="login-btn-signin"]',
+            ]
+
+            email_filled = False
+            for sel in email_selectors:
+                try:
+                    el = page.query_selector(sel)
+                    if el and el.is_visible():
+                        el.fill(EMAIL)
+                        email_filled = True
+                        print(f"      email filled ({sel})")
+                        break
+                except Exception:
+                    pass
+
+            if not email_filled:
+                print("      ⚠ email field not found; taking screenshot")
+                try:
+                    page.screenshot(path="/tmp/garmin_pw_debug.png")
+                    print("      スクリーンショット: /tmp/garmin_pw_debug.png")
+                except Exception:
+                    pass
+
+            pw_filled = False
+            for sel in password_selectors:
+                try:
+                    el = page.query_selector(sel)
+                    if el and el.is_visible():
+                        el.fill(PASSWORD)
+                        pw_filled = True
+                        print(f"      password filled ({sel})")
+                        break
+                except Exception:
+                    pass
+
+            if email_filled and pw_filled:
+                time.sleep(0.5)  # フォーム入力後の短い待機
+                submitted = False
+                for sel in submit_selectors:
+                    try:
+                        el = page.query_selector(sel)
+                        if el and el.is_visible():
+                            el.click()
+                            submitted = True
+                            print(f"      submit clicked ({sel})")
+                            break
+                    except Exception:
+                        pass
+                if not submitted:
+                    page.keyboard.press("Enter")
+                    print("      submit: pressed Enter")
+            else:
+                print("      ⚠ フォーム入力失敗。ログインをスキップします。")
+
+            # Step 3: JWT_WEB が設定されるまで最大 60 秒待機
+            print("[PW-D4] Waiting for JWT_WEB (up to 60s)...")
+            for i in range(60):
+                cookies_now = context.cookies(["https://connect.garmin.com"])
+                if any(c["name"] == "JWT_WEB" for c in cookies_now):
+                    print(f"      ✓ JWT_WEB 取得成功 ({i}s) | URL: {page.url[:60]}")
+                    jwt_found = True
+                    break
+                if i % 10 == 0:
+                    print(f"      waiting {i}s | URL: {page.url[:70]}")
+                time.sleep(1)
+
+            if not jwt_found:
+                print(f"      ⚠ JWT_WEB が取得できませんでした | URL: {page.url}")
+                try:
+                    page.screenshot(path="/tmp/garmin_pw_debug.png")
+                    print("      スクリーンショット: /tmp/garmin_pw_debug.png")
+                except Exception:
+                    pass
+
+        except Exception as e:
+            print(f"      ⚠ Direct login error: {e}")
+
+        # 全 Garmin クッキーを収集
+        all_raw = context.cookies([
+            "https://connect.garmin.com",
+            "https://connectapi.garmin.com",
+            "https://sso.garmin.com",
+            "https://garmin.com",
+        ])
+        result = {
+            c["name"]: c["value"]
+            for c in all_raw
+            if "garmin.com" in c.get("domain", "")
+        }
+
+        browser.close()
+        return result
+
+
 def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
     """
     Playwright でチケット URL または /app/home に移動し、connect.garmin.com の JS に
@@ -357,35 +521,37 @@ def test_cookies(cookies: dict) -> bool:
 
 def main():
     print("=" * 60)
-    print("  Garmin Cookie 取得 (cloudscraper SSO + Playwright JWT)")
+    print("  Garmin Cookie 取得 (Direct Playwright Login + SSO fallback)")
     print("=" * 60)
 
-    # SSO チケット取得（最大 3 回）
-    sso_cookies, ticket_url = {}, None
-    for attempt in range(3):
-        try:
-            sso_cookies, ticket_url = get_sso_ticket()
-            if ticket_url:
-                break
-        except Exception as e:
-            print(f"  SSO 試行 {attempt+1} 失敗: {e}")
-            if attempt < 2:
-                wait = 30 * (attempt + 1)
-                print(f"  {wait}s 待機して再試行...")
-                time.sleep(wait)
+    # 戦略1: Playwright で直接ブラウザログイン（最も確実）
+    print("\n[Strategy 1] Direct browser login via Playwright...")
+    merged = get_jwt_via_browser_login()
+    print(f"  取得クッキー: {list(merged.keys())}")
 
-    if not ticket_url:
-        print("❌ SSO チケット取得に失敗しました")
-        sys.exit(1)
+    if "JWT_WEB" not in merged:
+        # 戦略2: cloudscraper で SSO チケット取得 → Playwright でチケット処理（フォールバック）
+        print("\n[Strategy 2] SSO ticket + Playwright (fallback)...")
+        sso_cookies, ticket_url = {}, None
+        for attempt in range(3):
+            try:
+                sso_cookies, ticket_url = get_sso_ticket()
+                if ticket_url:
+                    break
+            except Exception as e:
+                print(f"  SSO 試行 {attempt+1} 失敗: {e}")
+                if attempt < 2:
+                    wait = 30 * (attempt + 1)
+                    print(f"  {wait}s 待機して再試行...")
+                    time.sleep(wait)
 
-    print(f"\nTicket URL: {ticket_url[:100]}")
-
-    # Playwright で JWT_WEB 取得
-    pw_cookies = get_jwt_via_playwright(ticket_url, sso_cookies)
-
-    # SSO + Playwright クッキーをマージ（Playwright 優先）
-    merged = {**sso_cookies, **pw_cookies}
-    print(f"\n取得クッキー: {list(merged.keys())}")
+        if ticket_url:
+            print(f"\nTicket URL: {ticket_url[:100]}")
+            pw_cookies = get_jwt_via_playwright(ticket_url, sso_cookies)
+            merged = {**sso_cookies, **pw_cookies}
+            print(f"  取得クッキー: {list(merged.keys())}")
+        else:
+            print("  ⚠ SSO チケット取得に失敗しました（戦略2 スキップ）")
 
     # API テスト
     print("\n[API テスト]")

@@ -43,6 +43,11 @@ _RATE_LIMIT_MAX_RETRIES = 4
 _RATE_LIMIT_BASE_WAIT = 60  # 60s → 120s → 240s → 480s
 
 
+class _NonRetriableError(BaseException):
+    """リトライしても解決しないエラー（期限切れトークン等）。_try_auth_with_retry で即時終了するために使用。"""
+    pass
+
+
 def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> List[dict]:
     # 日付指定が不安定なため、確実な「インデックス指定（ページネーション）」で過去データを総ざらいする
     all_activities = []
@@ -788,7 +793,8 @@ def main():
             return False
 
     def _try_auth(client_fn, label):
-        """クライアントを作成して認証テストを行う。失敗したら None を返す。"""
+        """クライアントを作成して認証テストを行う。失敗したら None を返す。
+        リトライしても解決しないエラーは _NonRetriableError として再 raise する。"""
         try:
             client = client_fn()
 
@@ -803,7 +809,7 @@ def main():
                     print(f"  ℹ oauth2_token 期限切れ。OAuth2 refresh token で更新を試みます...")
                     refreshed = _try_refresh_oauth2_direct(garth_obj)
                     if not refreshed:
-                        raise Exception(
+                        raise _NonRetriableError(
                             "oauth2_token 期限切れ。refresh_token による更新も失敗。"
                             "Playwright で JWT_WEB を取得するか GARMIN_SESSION_COOKIES を更新してください。"
                         )
@@ -817,14 +823,21 @@ def main():
 
             print(f"✓ Garmin 認証成功: {label}")
             return client
+        except _NonRetriableError:
+            raise  # _try_auth_with_retry で即時終了させる
         except Exception as e:
             print(f"✗ Garmin 認証失敗 ({label}): {e}")
             return None
 
     def _try_auth_with_retry(client_fn, label):
-        """429 エラー時に指数バックオフ付きリトライで認証を試みる。"""
+        """429 エラー時に指数バックオフ付きリトライで認証を試みる。
+        _NonRetriableError（期限切れトークン等）は即時 None を返す。"""
         for attempt in range(1, AUTH_MAX_RETRIES + 1):
-            result = _try_auth(client_fn, f"{label} (試行 {attempt}/{AUTH_MAX_RETRIES})")
+            try:
+                result = _try_auth(client_fn, f"{label} (試行 {attempt}/{AUTH_MAX_RETRIES})")
+            except _NonRetriableError as e:
+                print(f"✗ 非リトライエラー ({label}): {e}")
+                return None
             if result is not None:
                 return result
             # 次の試行前にバックオフ待機
