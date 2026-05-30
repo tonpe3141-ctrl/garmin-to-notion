@@ -12,6 +12,7 @@ OAuth /exchange/user/2.0 も /preauthorized も一切呼ばない。
   playwright install chromium --with-deps
   GARMIN_EMAIL=xxx GARMIN_PASSWORD=yyy python scripts/refresh_garmin_cookies_playwright.py
 """
+import json
 import os
 import re
 import sys
@@ -347,6 +348,12 @@ def get_jwt_via_browser_login() -> dict:
                     print("      スクリーンショット: /tmp/garmin_pw_debug.png")
                 except Exception:
                     pass
+            else:
+                # JWT_WEB 取得後にデータプリフェッチ
+                try:
+                    prefetch_garmin_data(page)
+                except Exception as _pe:
+                    print(f"  ⚠ プリフェッチ失敗（続行）: {_pe}")
 
         except Exception as e:
             print(f"      ⚠ Direct login error: {e}")
@@ -478,6 +485,13 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
             except Exception:
                 pass
 
+        # JWT_WEB 取得後にアクティビティデータを事前取得（Python から /gc-api/ が 403 になるため）
+        if jwt_found:
+            try:
+                prefetch_garmin_data(page)
+            except Exception as _pe:
+                print(f"  ⚠ プリフェッチ失敗（続行）: {_pe}")
+
         # JWT_WEB 取得後、SPA の API コールが発生するまで少し待つ（パス発見用）
         if jwt_found and discovered_api_paths:
             time.sleep(3)  # SPA が追加の API コールをするのを待つ
@@ -510,6 +524,97 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
 
         browser.close()
         return result
+
+
+def prefetch_garmin_data(page, activities_limit: int = 200) -> bool:
+    """
+    Playwright のブラウザコンテキストから活動データを事前取得して
+    /tmp/garmin_prefetch.json に保存する。
+
+    Python から /gc-api/ が 403 になる環境（DPoP / TLS フィンガープリント保護）でも
+    ブラウザ経由なら正常にアクセスできるため、この関数で解決する。
+    """
+    print("\n[データ事前取得] ブラウザ経由でアクティビティを取得...")
+
+    # ── Step 1: アクティビティリスト ─────────────────────────────────
+    JS_FETCH_ACTIVITIES = """
+    async (opts) => {
+        const {limit, cutoffDays} = opts;
+        const activities = [];
+        let start = 0;
+        const batchSize = 50;
+        const cutoff = new Date();
+        cutoff.setDate(cutoff.getDate() - cutoffDays);
+
+        while (activities.length < limit) {
+            const r = await fetch(
+                `/gc-api/activitylist-service/activities/search/activities?start=${start}&limit=${batchSize}`,
+                {credentials:'include', headers:{'NK':'NT','Accept':'application/json'}}
+            );
+            if (!r.ok) return {error: `HTTP ${r.status}`};
+            const batch = await r.json();
+            if (!Array.isArray(batch) || batch.length === 0) break;
+            activities.push(...batch);
+            const lastDate = new Date(batch[batch.length-1].startTimeGMT);
+            if (lastDate < cutoff) break;
+            if (batch.length < batchSize) break;
+            start += batchSize;
+        }
+        return {activities};
+    }
+    """
+    try:
+        result = page.evaluate(JS_FETCH_ACTIVITIES, {"limit": activities_limit, "cutoffDays": 90})
+        if not result or "error" in result:
+            print(f"  ✗ アクティビティ取得失敗: {result}")
+            return False
+        activities = result.get("activities", [])
+        print(f"  ✓ {len(activities)} アクティビティ取得")
+    except Exception as e:
+        print(f"  ✗ アクティビティ取得エラー: {e}")
+        return False
+
+    # ── Step 2: ランニング活動のスプリット ───────────────────────────
+    splits_data = {}
+    running_ids = [
+        str(a.get("activityId"))
+        for a in activities
+        if isinstance(a.get("activityType"), dict) and
+        "run" in (a["activityType"].get("typeKey") or "").lower()
+        and a.get("activityId")
+    ][:60]  # 最大60件
+    print(f"  → ランニング {len(running_ids)} 件のスプリットを取得中...")
+
+    JS_FETCH_SPLITS = """
+    async (activityId) => {
+        const r = await fetch(
+            `/gc-api/activity-service/activity/${activityId}/splits`,
+            {credentials:'include', headers:{'NK':'NT','Accept':'application/json'}}
+        );
+        if (!r.ok) return null;
+        return await r.json();
+    }
+    """
+    for aid in running_ids:
+        try:
+            splits = page.evaluate(JS_FETCH_SPLITS, aid)
+            if splits:
+                splits_data[aid] = splits
+        except Exception:
+            pass
+    print(f"  ✓ {len(splits_data)} 件のスプリットデータ取得")
+
+    # ── 保存 ─────────────────────────────────────────────────────────
+    prefetch = {"activities": activities, "splits": splits_data, "details": {}}
+    prefetch_file = "/tmp/garmin_prefetch.json"
+    try:
+        with open(prefetch_file, "w") as pf:
+            json.dump(prefetch, pf)
+        print(f"  ✓ {prefetch_file} に保存 ({len(activities)} activities)")
+        return True
+    except Exception as e:
+        print(f"  ✗ 保存失敗: {e}")
+        return False
 
 
 def test_cookies(cookies: dict) -> bool:

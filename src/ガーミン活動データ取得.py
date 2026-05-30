@@ -816,6 +816,19 @@ def main():
 
     garmin_client = None
 
+    # 優先度-1: Playwright プリロードデータ（/gc-api/ が Python から 403 になる環境で確実）
+    # Playwright ステップが /tmp/garmin_prefetch.json に事前取得したデータを使う。
+    # connectapi.garmin.com への OAuth アクセス不要。
+    _prefetch_file = "/tmp/garmin_prefetch.json"
+    if os.path.exists(_prefetch_file):
+        try:
+            from garmin_preloaded_client import GarminPreloadedClient
+            _preloaded = GarminPreloadedClient()
+            garmin_client = _preloaded
+            print("✓ Garmin 認証成功: Playwright プリロードデータ (OAuth 不要)")
+        except Exception as _pre_e:
+            print(f"✗ プリロードクライアント失敗: {_pre_e}")
+
     # 優先度0: Cookie認証（OAuth exchange 不使用 → レート制限を完全回避）
     # ソース優先度: /tmp/garmin_session_cookies.txt（CI refresh step） > GARMIN_SESSION_COOKIES シークレット
     _cookie_file = "/tmp/garmin_session_cookies.txt"
