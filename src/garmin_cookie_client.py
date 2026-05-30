@@ -86,19 +86,24 @@ class GarminCookieClient:
         self.display_name = self._fetch_display_name()
 
     def _request(self, url: str, params: dict = None, extra_headers: dict = None,
-                 timeout: int = 30):
+                 timeout: int = 30, debug: bool = False):
         """単一 URL にリクエストを送り、200 + JSON なら Response を返す。失敗は None。"""
         try:
             r = self.session.get(
                 url, params=params, timeout=timeout,
                 headers=extra_headers if extra_headers else None,
+                allow_redirects=True,
             )
+            ct = r.headers.get("Content-Type", "")
+            if debug:
+                print(f"    [{r.status_code}] {url[:80]} ct={ct[:30]} final={r.url[:60]}")
             if r.status_code in (401, 403):
                 return None
             if r.status_code == 200 and _is_json_response(r):
                 return r
-        except Exception:
-            pass
+        except Exception as e:
+            if debug:
+                print(f"    [ERR] {url[:80]}: {e}")
         return None
 
     def _build_candidates(self, path: str) -> list:
@@ -179,7 +184,7 @@ class GarminCookieClient:
         all_candidates = gc_api_candidates + legacy_candidates + connectapi_candidates
 
         for url, extra_headers in all_candidates:
-            r = self._request(url, extra_headers=extra_headers)
+            r = self._request(url, extra_headers=extra_headers, debug=True)
             if r is not None:
                 return r
 
