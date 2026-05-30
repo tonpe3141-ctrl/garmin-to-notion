@@ -412,6 +412,23 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
 
         page = context.new_page()
 
+        # connect.garmin.com から返される JSON API レスポンスを収集
+        discovered_api_paths: dict = {}
+
+        def _on_response(response):
+            try:
+                url = response.url
+                if "connect.garmin.com" in url and response.status == 200:
+                    ct = response.headers.get("content-type", "")
+                    if "application/json" in ct:
+                        # パスのみを抽出（クエリを除く）
+                        path = url.replace("https://connect.garmin.com", "").split("?")[0]
+                        discovered_api_paths[path] = url
+            except Exception:
+                pass
+
+        page.on("response", _on_response)
+
         try:
             page.goto(ticket_url, wait_until="networkidle", timeout=45000)
         except Exception as e:
@@ -461,6 +478,23 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
             except Exception:
                 pass
 
+        # JWT_WEB 取得後、SPA の API コールが発生するまで少し待つ（パス発見用）
+        if jwt_found and discovered_api_paths:
+            time.sleep(3)  # SPA が追加の API コールをするのを待つ
+
+        # 発見した API パスを保存
+        if discovered_api_paths:
+            import json as _json
+            print(f"\n[API パス発見] {len(discovered_api_paths)} 件:")
+            for p in list(discovered_api_paths.keys())[:10]:
+                print(f"    {p}")
+            try:
+                with open("/tmp/garmin_api_paths.json", "w") as _f:
+                    _json.dump(discovered_api_paths, _f)
+                print("  ✓ /tmp/garmin_api_paths.json に保存しました")
+            except Exception as _e:
+                print(f"  ⚠ API パス保存失敗: {_e}")
+
         # 全 Garmin クッキーを収集
         all_raw = context.cookies([
             "https://connect.garmin.com",
@@ -479,7 +513,7 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
 
 
 def test_cookies(cookies: dict) -> bool:
-    """取得クッキーで JSON API をテスト（複数エンドポイント）。"""
+    """取得クッキーで JSON API をテスト（複数エンドポイント + JWT_WEB Bearer）。"""
     session = requests.Session()
     session.cookies.update(cookies)
     session.headers.update({
@@ -491,17 +525,28 @@ def test_cookies(cookies: dict) -> bool:
         "Referer": "https://connect.garmin.com/app/home",
     })
 
-    # 新アプリ直接パス → 旧プロキシパス の順に試す
-    endpoints = [
-        ("userinfo (direct)",      f"{CONNECT_BASE}/userprofile-service/userprofile/personal-information", {}),
-        ("activities (direct)",    f"{CONNECT_BASE}/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}),
-        ("userinfo (proxy)",       f"{CONNECT_BASE}/modern/proxy/userprofile-service/userprofile/personal-information", {}),
-        ("activities (proxy)",     f"{CONNECT_BASE}/modern/proxy/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}),
-    ]
+    jwt_web = cookies.get("JWT_WEB", "")
 
-    for label, url, params in endpoints:
+    endpoints = [
+        ("userinfo (direct)",         f"{CONNECT_BASE}/userprofile-service/userprofile/personal-information", {}, {}),
+        ("activities (direct)",       f"{CONNECT_BASE}/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}, {}),
+        ("userinfo (proxy)",          f"{CONNECT_BASE}/modern/proxy/userprofile-service/userprofile/personal-information", {}, {}),
+        ("activities (proxy)",        f"{CONNECT_BASE}/modern/proxy/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}, {}),
+    ]
+    # JWT_WEB を Bearer として connectapi を試す（新認証方式での直接アクセス）
+    if jwt_web:
+        endpoints += [
+            ("userinfo (connectapi+JWT)",
+             "https://connectapi.garmin.com/userprofile-service/userprofile/personal-information",
+             {}, {"Authorization": f"Bearer {jwt_web}"}),
+            ("activities (connectapi+JWT)",
+             "https://connectapi.garmin.com/activitylist-service/activities/search/activities",
+             {"start": "0", "limit": "1"}, {"Authorization": f"Bearer {jwt_web}"}),
+        ]
+
+    for label, url, params, extra_headers in endpoints:
         try:
-            r = session.get(url, params=params, timeout=15)
+            r = session.get(url, params=params, timeout=15, headers=extra_headers if extra_headers else None)
             ct = r.headers.get("Content-Type", "")
             if r.status_code == 200 and "text/html" not in ct:
                 try:

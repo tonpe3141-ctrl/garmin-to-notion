@@ -704,9 +704,9 @@ def _load_from_b64(tokens_b64, token_dir):
 
 
 def _load_from_cache(token_dir):
-    """~/.garth キャッシュからクライアントを生成して返す。"""
+    """~/.garth キャッシュからクライアントを生成して返す。connectapi を呼ばない。"""
     client = GarminClient()
-    client.login(tokenstore=token_dir)
+    client.garth.load(token_dir)
     return client
 
 
@@ -741,55 +741,22 @@ def main():
 
     def _try_refresh_oauth2_direct(garth_obj) -> bool:
         """
-        connectapi.garmin.com/exchange を使わず sso.garmin.com で
-        OAuth2 refresh token grant を試みる。
-        成功したら garth_obj.oauth2_token を更新して True を返す。
+        garth の oauth1_token を使って connectapi/exchange で oauth2 を更新する。
+        429 は呼び出し元へ伝播して _try_auth_with_retry のリトライ対象にする。
+        oauth1_token が存在しない場合のみ False を返す（NonRetriable扱い）。
         """
-        import requests as _req
+        if not garth_obj.oauth1_token:
+            print("    oauth1_token がないため token refresh 不可")
+            return False
         try:
-            oauth2 = garth_obj.oauth2_token
-            if not oauth2 or not oauth2.refresh_token or oauth2.refresh_expired:
-                return False
-
-            consumer = _req.get(
-                "https://thegarth.s3.amazonaws.com/oauth_consumer.json",
-                timeout=10,
-            ).json()
-
-            resp = _req.post(
-                "https://sso.garmin.com/oauth2/token",
-                data={
-                    "grant_type": "refresh_token",
-                    "refresh_token": oauth2.refresh_token,
-                },
-                auth=(consumer["consumer_key"], consumer["consumer_secret"]),
-                timeout=15,
-            )
-            if not resp.ok:
-                print(f"    OAuth2 refresh HTTP {resp.status_code}: {resp.text[:200]}")
-                return False
-
-            token_data = resp.json()
-            if "access_token" not in token_data:
-                print(f"    OAuth2 refresh: access_token が応答にありません: {token_data}")
-                return False
-
-            from garth.sso import set_expirations
-            from garth.auth_tokens import OAuth2Token
-            token_data = set_expirations(token_data)
-            # refresh_token が応答にない場合は既存のものを引き継ぐ
-            if "refresh_token" not in token_data:
-                token_data["refresh_token"] = oauth2.refresh_token
-                token_data["refresh_token_expires_in"] = oauth2.refresh_token_expires_in
-                token_data["refresh_token_expires_at"] = oauth2.refresh_token_expires_at
-            # 必須フィールドがなければデフォルト値で補完
-            for field in ("scope", "jti", "token_type"):
-                if field not in token_data:
-                    token_data[field] = getattr(oauth2, field, "")
-            garth_obj.configure(oauth2_token=OAuth2Token(**token_data))
+            garth_obj.refresh_oauth2()  # connectapi/exchange を使う（oauth1必須）
             return True
         except Exception as e:
-            print(f"    OAuth2 direct refresh 失敗: {e}")
+            msg = str(e)
+            if "429" in msg:
+                # レート制限 → 上位へ伝播してリトライさせる
+                raise
+            print(f"    OAuth2 refresh 失敗: {e}")
             return False
 
     def _try_auth(client_fn, label):
