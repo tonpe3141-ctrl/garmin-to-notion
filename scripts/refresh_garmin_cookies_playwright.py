@@ -329,13 +329,19 @@ def get_jwt_via_browser_login() -> dict:
             else:
                 print("      ⚠ フォーム入力失敗。ログインをスキップします。")
 
-            # Step 3: JWT_WEB が設定されるまで最大 60 秒待機
-            print("[PW-D4] Waiting for JWT_WEB (up to 60s)...")
-            for i in range(60):
+            # Step 3: JWT_WEB が設定されるまで最大 25 秒待機
+            # URLがSSO sign-inページのまま変化しない場合は早期終了（ログイン失敗）
+            print("[PW-D4] Waiting for JWT_WEB (up to 25s)...")
+            signin_url_prefix = "sso.garmin.com"
+            for i in range(25):
                 cookies_now = context.cookies(["https://connect.garmin.com"])
                 if any(c["name"] == "JWT_WEB" for c in cookies_now):
                     print(f"      ✓ JWT_WEB 取得成功 ({i}s) | URL: {page.url[:60]}")
                     jwt_found = True
+                    break
+                # SSO ページに留まっている場合は 15 秒後に早期終了
+                if i == 15 and signin_url_prefix in page.url:
+                    print(f"      ⚠ SSO ページのまま変化なし → Strategy 1 早期終了")
                     break
                 if i % 10 == 0:
                     print(f"      waiting {i}s | URL: {page.url[:70]}")
@@ -526,7 +532,9 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
         return result
 
 
-def prefetch_garmin_data(page, activities_limit: int = 200) -> bool:
+def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
+    if activities_limit is None:
+        activities_limit = int(os.environ.get("GARMIN_ACTIVITIES_FETCH_LIMIT", "200"))
     """
     Playwright のブラウザコンテキストから活動データを事前取得して
     /tmp/garmin_prefetch.json に保存する。

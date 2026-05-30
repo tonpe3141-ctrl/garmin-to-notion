@@ -46,18 +46,20 @@ jobs:
 
       - name: Refresh Garmin session cookies (Playwright)
         # Playwright ヘッドレスブラウザで Garmin Connect に実際にログインし、
-        # JWT_WEB 等の本物のセッションクッキーを /tmp/garmin_session_cookies.txt に保存する。
+        # JWT_WEB 等の本物のセッションクッキーと活動データを事前取得する。
         # 戦略:
-        #   1. SSO チケットで /modern?ticket=... に移動
-        #   2. JWT_WEB がなければ /app/home に移動（新アプリで SSO 再認証）
-        # OAuth /exchange/user/2.0 を一切呼ばないため GitHub Actions のレート制限を完全回避。
+        #   1. SSO 直接ログイン（新ポータル対応）
+        #   2. SSO チケット + Playwright でチケット処理（フォールバック）
+        # さらに /app/activities を閲覧し SPA の API コールをインターセプトして
+        # /tmp/garmin_prefetch.json に活動データを保存する（Python からの 403 を回避）。
         # 失敗しても次ステップで GARTH_TOKENS_B64 にフォールバック（continue-on-error）。
         id: refresh-cookies
         continue-on-error: true
-        timeout-minutes: 10
+        timeout-minutes: 15
         env:
           GARMIN_EMAIL: ${{ secrets.GARMIN_EMAIL }}
           GARMIN_PASSWORD: ${{ secrets.GARMIN_PASSWORD }}
+          GARMIN_ACTIVITIES_FETCH_LIMIT: 200
         run: |
           pip install playwright cloudscraper -q
           playwright install chromium --with-deps 2>&1 | tail -5

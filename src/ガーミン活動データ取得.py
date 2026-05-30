@@ -844,7 +844,7 @@ def main():
         if session_cookies_str:
             print("ℹ Cookie ソース: GARMIN_SESSION_COOKIES シークレット")
 
-    if session_cookies_str:
+    if garmin_client is None and session_cookies_str:
         try:
             from garmin_cookie_client import GarminCookieClient, parse_cookie_string
             cookies = parse_cookie_string(session_cookies_str)

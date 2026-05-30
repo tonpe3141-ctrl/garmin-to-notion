@@ -201,7 +201,7 @@ class GarminCookieClient:
         all_candidates = gc_api_candidates + legacy_candidates + connectapi_candidates
 
         for url, extra_headers in all_candidates:
-            r = self._request(url, extra_headers=extra_headers, debug=True)
+            r = self._request(url, extra_headers=extra_headers)
             if r is not None:
                 return r
 
