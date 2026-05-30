@@ -638,6 +638,59 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
             except Exception:
                 break
 
+    # ── ランニング活動のスプリット（ラップ）を取得 ───────────────────────────────
+    # GarminPreloadedClient はラップが必須。ブラウザの SPA ヘッダーで直接 fetch する。
+    if spa_request_headers and intercepted_activities:
+        running_ids = [
+            str(a.get("activityId"))
+            for a in intercepted_activities
+            if a.get("activityId") and isinstance(a.get("activityType"), dict) and
+            "run" in (a["activityType"].get("typeKey") or "").lower()
+        ]
+        print(f"  → ランニング {len(running_ids)} 件のスプリット(ラップ)を取得中...")
+        headers_js_splits = json.dumps(spa_request_headers)
+
+        # 20件ずつバッチ処理（サーバー負荷を抑えつつ高速化）
+        # /splits → /typedsplits の順に試す（新旧APIどちらかが返せばOK）
+        BATCH_SIZE = 20
+        for batch_start in range(0, len(running_ids), BATCH_SIZE):
+            batch_ids = running_ids[batch_start:batch_start + BATCH_SIZE]
+            ids_js = json.dumps(batch_ids)
+            try:
+                batch_results = page.evaluate(f"""
+                    async () => {{
+                        const ids = {ids_js};
+                        const headers = {headers_js_splits};
+                        const out = [];
+                        for (const id of ids) {{
+                            try {{
+                                // /splits を優先し、失敗時は /typedsplits を試す
+                                let data = null;
+                                for (const ep of ['/splits', '/typedsplits']) {{
+                                    const r = await fetch(
+                                        `/gc-api/activity-service/activity/${{id}}${{ep}}`,
+                                        {{credentials:'include', headers}}
+                                    );
+                                    if (r.ok) {{
+                                        const d = await r.json();
+                                        if (d) {{ data = d; break; }}
+                                    }}
+                                }}
+                                if (data) out.push({{id, data}});
+                            }} catch(e) {{}}
+                        }}
+                        return out;
+                    }}
+                """)
+                for item in (batch_results or []):
+                    if item.get("data"):
+                        intercepted_splits[item["id"]] = item["data"]
+            except Exception as e:
+                print(f"  ⚠ スプリットバッチ取得エラー (start={batch_start}): {e}")
+        print(f"  ✓ {len(intercepted_splits)} 件のスプリット取得完了")
+    else:
+        print("  ⚠ SPA ヘッダー未取得のためスプリットをスキップ")
+
     print(f"  → 合計: {len(intercepted_activities)} activities, {len(intercepted_splits)} splits")
 
     if not intercepted_activities:

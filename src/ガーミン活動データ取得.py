@@ -196,12 +196,15 @@ def fetch_and_format_laps(garmin_client: GarminClient, activity_id: str) -> str:
         if isinstance(detailed_splits, list):
             splits = detailed_splits
         elif isinstance(detailed_splits, dict):
+            # 各種APIレスポンス形式に対応（/splits, /typedsplits, /lapDTOs 等）
             if 'splitSummaries' in detailed_splits: splits = detailed_splits['splitSummaries']
             elif 'lapSummaries' in detailed_splits: splits = detailed_splits['lapSummaries']
             elif 'lapDTOs' in detailed_splits: splits = detailed_splits['lapDTOs']
-            else: splits = [] # Fallback
+            elif 'splits' in detailed_splits: splits = detailed_splits['splits']
+            elif 'laps' in detailed_splits: splits = detailed_splits['laps']
+            else: splits = []
         else:
-             splits = []
+            splits = []
     except Exception as e:
         print(f"Warning: Could not fetch detailed splits for {activity_id}: {e}")
         return ""
