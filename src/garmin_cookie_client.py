@@ -5,9 +5,10 @@ garth / OAuth を使わず、ブラウザセッションの Cookie で直接 API
 /oauth/exchange/user/2.0 を一切呼ばないため GitHub Actions のレート制限を回避できる。
 
 エンドポイント試行順:
-  1. connect.garmin.com/{path}             新アプリ BFF パス
-  2. connect.garmin.com/modern/proxy/{path} 旧アプリ プロキシ
-  3. connectapi.garmin.com/{path}           JWT_WEB を Bearer として使用（新認証方式）
+  1. connect.garmin.com/gc-api/{path}      新アプリ BFF（JWT_WEB + Cookie で認証）
+  2. connect.garmin.com/{path}             旧直接パス
+  3. connect.garmin.com/modern/proxy/{path} 旧プロキシ
+  4. connectapi.garmin.com/{path}           JWT_WEB を Bearer として使用（最終手段）
 """
 import json
 import os
@@ -71,7 +72,7 @@ class GarminCookieClient:
         self.session.cookies.update(cookies)
         self.session.headers.update(_HEADERS)
         self.garth = _DummyGarth()
-        # JWT_WEB を Bearer token として利用（connectapi への認証に使う）
+        # JWT_WEB を Bearer token として利用（connectapi への最終手段）
         self.jwt_web = cookies.get("JWT_WEB", "")
         # Playwright が記録した動的 API パスを読み込む
         self._dynamic_paths: dict = {}
@@ -79,27 +80,46 @@ class GarminCookieClient:
             try:
                 with open(_API_CONFIG_FILE) as f:
                     self._dynamic_paths = json.load(f)
-                print(f"  ℹ Playwright が発見した動的 API パスを読み込みました: {list(self._dynamic_paths.keys())}")
+                print(f"  ℹ Playwright 発見パス: {len(self._dynamic_paths)} 件読み込み")
             except Exception:
                 pass
         self.display_name = self._fetch_display_name()
 
+    def _request(self, url: str, params: dict = None, extra_headers: dict = None,
+                 timeout: int = 30):
+        """単一 URL にリクエストを送り、200 + JSON なら Response を返す。失敗は None。"""
+        try:
+            r = self.session.get(
+                url, params=params, timeout=timeout,
+                headers=extra_headers if extra_headers else None,
+            )
+            if r.status_code in (401, 403):
+                return None
+            if r.status_code == 200 and _is_json_response(r):
+                return r
+        except Exception:
+            pass
+        return None
+
     def _build_candidates(self, path: str) -> list:
         """
-        試行するURL候補リストを返す。各要素は (url, extra_headers) のタプル。
+        試行する (url, extra_headers) のリストを返す。
         """
         candidates = []
 
-        # Playwright が発見したパスがあればそれを最優先
+        # Playwright が発見したパスを最優先
         if path in self._dynamic_paths:
             candidates.append((self._dynamic_paths[path], {}))
 
-        # 新アプリ BFF の一般パスを試す
+        # 新アプリ BFF: /gc-api/ プレフィックス（JWT_WEB Cookie で認証）
+        candidates.append((f"{CONNECT}/gc-api{path}", {}))
+
+        # 旧直接パス
         candidates.append((f"{CONNECT}{path}", {}))
+        # 旧プロキシ
         candidates.append((f"{CONNECT}/modern/proxy{path}", {}))
 
-        # JWT_WEB を Bearer として connectapi に試みる
-        # JWT_WEB が新認証方式のアクセストークンであれば動作する
+        # JWT_WEB を Bearer として connectapi に試みる（最終手段）
         if self.jwt_web:
             candidates.append((
                 f"{CONNECTAPI}{path}",
@@ -114,28 +134,19 @@ class GarminCookieClient:
         全て失敗したら ValueError を raise する。
         """
         candidates = self._build_candidates(path)
-        last_status = None
 
         for url, extra_headers in candidates:
-            try:
-                r = self.session.get(
-                    url, params=params, timeout=timeout,
-                    headers=extra_headers if extra_headers else None,
-                )
-                last_status = r.status_code
-                if r.status_code in (401, 403):
-                    continue  # 認証エラー → 次候補へ
-                if r.status_code == 200 and _is_json_response(r):
-                    # 成功したパスを動的パスとして記録
-                    if url != candidates[0][0]:
-                        self._dynamic_paths[path] = url
-                    return r
-            except Exception:
-                pass
+            r = self._request(url, params=params, extra_headers=extra_headers,
+                              timeout=timeout)
+            if r is not None:
+                # 成功したパスを記録（次回のために動的パスへ追加）
+                normalized = url.replace("https://connect.garmin.com/gc-api", "")
+                if path != normalized:
+                    self._dynamic_paths[path] = url
+                return r
 
         raise ValueError(
-            f"Cookie クライアント: {path} の全 API 候補で JSON 取得に失敗 "
-            f"(最終ステータス={last_status})"
+            f"Cookie クライアント: '{path}' の全 API 候補で JSON 取得に失敗"
         )
 
     def _fetch_display_name(self) -> str:
@@ -147,34 +158,34 @@ class GarminCookieClient:
             return ""
 
     def _get_userinfo(self):
-        """ユーザー情報を取得。複数エンドポイントを順番に試す。"""
-        path = "/userprofile-service/userprofile/personal-information"
-        candidates = [
-            (f"{CONNECT}{path}", {}),
-            (f"{CONNECT}/modern/proxy{path}", {}),
+        """ユーザー情報を取得。新アプリ BFF パスを優先して試す。"""
+        # 新アプリは /gc-api/ プレフィックスを使う。ユーザー ID 不要なパスを優先。
+        gc_api_candidates = [
+            (f"{CONNECT}/gc-api/userprofile-service/userprofile/user-settings/", {}),
+            (f"{CONNECT}/gc-api/userprofile-service/userprofile/userProfileBase", {}),
+            (f"{CONNECT}/gc-api/userprofile-service/userprofile/personal-information/", {}),
         ]
+        legacy_candidates = [
+            (f"{CONNECT}/userprofile-service/userprofile/personal-information", {}),
+            (f"{CONNECT}/modern/proxy/userprofile-service/userprofile/personal-information", {}),
+        ]
+        connectapi_candidates = []
         if self.jwt_web:
-            candidates.append((
-                f"{CONNECTAPI}{path}",
+            connectapi_candidates.append((
+                f"{CONNECTAPI}/userprofile-service/userprofile/personal-information",
                 {"Authorization": f"Bearer {self.jwt_web}"},
             ))
 
-        for url, extra_headers in candidates:
-            try:
-                r = self.session.get(
-                    url, timeout=15,
-                    headers=extra_headers if extra_headers else None,
-                )
-                if r.status_code in (401, 403):
-                    continue
-                if r.status_code == 200 and _is_json_response(r):
-                    return r
-            except Exception:
-                pass
+        all_candidates = gc_api_candidates + legacy_candidates + connectapi_candidates
+
+        for url, extra_headers in all_candidates:
+            r = self._request(url, extra_headers=extra_headers)
+            if r is not None:
+                return r
 
         raise ValueError(
-            "userinfo エンドポイントが全て JSON を返しませんでした。"
-            "JWT_WEB が有効か確認してください。"
+            "userinfo エンドポイントが全て JSON を返しませんでした "
+            f"(jwt_web={'あり' if self.jwt_web else 'なし'})"
         )
 
     def get_full_name(self) -> str:

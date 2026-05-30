@@ -528,12 +528,16 @@ def test_cookies(cookies: dict) -> bool:
     jwt_web = cookies.get("JWT_WEB", "")
 
     endpoints = [
-        ("userinfo (direct)",         f"{CONNECT_BASE}/userprofile-service/userprofile/personal-information", {}, {}),
-        ("activities (direct)",       f"{CONNECT_BASE}/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}, {}),
-        ("userinfo (proxy)",          f"{CONNECT_BASE}/modern/proxy/userprofile-service/userprofile/personal-information", {}, {}),
-        ("activities (proxy)",        f"{CONNECT_BASE}/modern/proxy/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}, {}),
+        # 新アプリ BFF (/gc-api/ プレフィックス) を最優先
+        ("userinfo (gc-api)",        f"{CONNECT_BASE}/gc-api/userprofile-service/userprofile/user-settings/", {}, {}),
+        ("activities (gc-api)",      f"{CONNECT_BASE}/gc-api/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}, {}),
+        # 旧直接パス
+        ("userinfo (direct)",        f"{CONNECT_BASE}/userprofile-service/userprofile/personal-information", {}, {}),
+        ("activities (direct)",      f"{CONNECT_BASE}/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}, {}),
+        ("userinfo (proxy)",         f"{CONNECT_BASE}/modern/proxy/userprofile-service/userprofile/personal-information", {}, {}),
+        ("activities (proxy)",       f"{CONNECT_BASE}/modern/proxy/activitylist-service/activities/search/activities", {"start": "0", "limit": "1"}, {}),
     ]
-    # JWT_WEB を Bearer として connectapi を試す（新認証方式での直接アクセス）
+    # JWT_WEB を Bearer として connectapi を試す（最終手段）
     if jwt_web:
         endpoints += [
             ("userinfo (connectapi+JWT)",
