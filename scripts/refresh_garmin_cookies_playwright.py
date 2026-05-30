@@ -531,86 +531,78 @@ def prefetch_garmin_data(page, activities_limit: int = 200) -> bool:
     Playwright のブラウザコンテキストから活動データを事前取得して
     /tmp/garmin_prefetch.json に保存する。
 
-    Python から /gc-api/ が 403 になる環境（DPoP / TLS フィンガープリント保護）でも
-    ブラウザ経由なら正常にアクセスできるため、この関数で解決する。
+    page.evaluate(fetch(...)) は /gc-api/ で 403 になるため、
+    SPA が自然に行う API コールをレスポンスインターセプトで捕捉する。
     """
-    print("\n[データ事前取得] ブラウザ経由でアクティビティを取得...")
+    print("\n[データ事前取得] SPA API コールをインターセプト中...")
 
-    # ── Step 1: アクティビティリスト ─────────────────────────────────
-    JS_FETCH_ACTIVITIES = """
-    async (opts) => {
-        const {limit, cutoffDays} = opts;
-        const activities = [];
-        let start = 0;
-        const batchSize = 50;
-        const cutoff = new Date();
-        cutoff.setDate(cutoff.getDate() - cutoffDays);
+    intercepted_activities: list = []
+    intercepted_splits: dict = {}
 
-        while (activities.length < limit) {
-            const r = await fetch(
-                `/gc-api/activitylist-service/activities/search/activities?start=${start}&limit=${batchSize}`,
-                {credentials:'include', headers:{'NK':'NT','Accept':'application/json'}}
-            );
-            if (!r.ok) return {error: `HTTP ${r.status}`};
-            const batch = await r.json();
-            if (!Array.isArray(batch) || batch.length === 0) break;
-            activities.push(...batch);
-            const lastDate = new Date(batch[batch.length-1].startTimeGMT);
-            if (lastDate < cutoff) break;
-            if (batch.length < batchSize) break;
-            start += batchSize;
-        }
-        return {activities};
-    }
-    """
-    try:
-        result = page.evaluate(JS_FETCH_ACTIVITIES, {"limit": activities_limit, "cutoffDays": 90})
-        if not result or "error" in result:
-            print(f"  ✗ アクティビティ取得失敗: {result}")
-            return False
-        activities = result.get("activities", [])
-        print(f"  ✓ {len(activities)} アクティビティ取得")
-    except Exception as e:
-        print(f"  ✗ アクティビティ取得エラー: {e}")
-        return False
-
-    # ── Step 2: ランニング活動のスプリット ───────────────────────────
-    splits_data = {}
-    running_ids = [
-        str(a.get("activityId"))
-        for a in activities
-        if isinstance(a.get("activityType"), dict) and
-        "run" in (a["activityType"].get("typeKey") or "").lower()
-        and a.get("activityId")
-    ][:60]  # 最大60件
-    print(f"  → ランニング {len(running_ids)} 件のスプリットを取得中...")
-
-    JS_FETCH_SPLITS = """
-    async (activityId) => {
-        const r = await fetch(
-            `/gc-api/activity-service/activity/${activityId}/splits`,
-            {credentials:'include', headers:{'NK':'NT','Accept':'application/json'}}
-        );
-        if (!r.ok) return null;
-        return await r.json();
-    }
-    """
-    for aid in running_ids:
+    def _capture_response(response):
+        """JSON レスポンスのボディを非同期に捕捉する。"""
         try:
-            splits = page.evaluate(JS_FETCH_SPLITS, aid)
-            if splits:
-                splits_data[aid] = splits
+            url = response.url
+            if "connect.garmin.com" not in url or response.status != 200:
+                return
+            ct = response.headers.get("content-type", "")
+            if "application/json" not in ct:
+                return
+            path = url.replace("https://connect.garmin.com", "").split("?")[0]
+
+            # アクティビティリスト
+            if "activitylist-service/activities/search/activities" in path:
+                try:
+                    data = response.json()
+                    if isinstance(data, list):
+                        intercepted_activities.extend(data)
+                        print(f"  ✓ activities intercepted: +{len(data)} (total {len(intercepted_activities)})")
+                except Exception:
+                    pass
+
+            # スプリット（ランニング等）
+            elif "activity-service/activity/" in path and "/splits" in path:
+                try:
+                    aid = path.split("/activity/")[1].split("/")[0]
+                    data = response.json()
+                    if data:
+                        intercepted_splits[aid] = data
+                except Exception:
+                    pass
+
         except Exception:
             pass
-    print(f"  ✓ {len(splits_data)} 件のスプリットデータ取得")
+
+    page.on("response", _capture_response)
+
+    # アクティビティリストを取得するため activities ページへ移動
+    try:
+        page.goto(f"{CONNECT_BASE}/app/activities", wait_until="networkidle", timeout=60000)
+        # SPA がデータを読み込むまで待機
+        page.wait_for_timeout(5000)
+    except Exception as e:
+        print(f"  ⚠ activities ページ移動エラー: {e}")
+
+    # ページのさらなる API コール（スクロール等）を待機
+    page.wait_for_timeout(3000)
+
+    print(f"  → インターセプト結果: {len(intercepted_activities)} activities, {len(intercepted_splits)} splits")
+
+    if not intercepted_activities:
+        print("  ✗ アクティビティデータが取得できませんでした (SPA が /gc-api/ を呼ばなかった可能性)")
+        return False
 
     # ── 保存 ─────────────────────────────────────────────────────────
-    prefetch = {"activities": activities, "splits": splits_data, "details": {}}
+    prefetch = {
+        "activities": intercepted_activities[:activities_limit],
+        "splits": intercepted_splits,
+        "details": {},
+    }
     prefetch_file = "/tmp/garmin_prefetch.json"
     try:
         with open(prefetch_file, "w") as pf:
             json.dump(prefetch, pf)
-        print(f"  ✓ {prefetch_file} に保存 ({len(activities)} activities)")
+        print(f"  ✓ {prefetch_file} に保存 ({len(prefetch['activities'])} activities)")
         return True
     except Exception as e:
         print(f"  ✗ 保存失敗: {e}")
