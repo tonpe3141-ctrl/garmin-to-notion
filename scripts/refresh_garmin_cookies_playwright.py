@@ -531,16 +531,16 @@ def prefetch_garmin_data(page, activities_limit: int = 200) -> bool:
     Playwright のブラウザコンテキストから活動データを事前取得して
     /tmp/garmin_prefetch.json に保存する。
 
-    page.evaluate(fetch(...)) は /gc-api/ で 403 になるため、
-    SPA が自然に行う API コールをレスポンスインターセプトで捕捉する。
+    SPA が自然に行う最初の API コールをインターセプトし、
+    そのリクエストヘッダーをキャプチャして後続のページネーションに使用する。
     """
     print("\n[データ事前取得] SPA API コールをインターセプト中...")
 
     intercepted_activities: list = []
     intercepted_splits: dict = {}
+    spa_request_headers: dict = {}  # SPA が使うリクエストヘッダー（後続 fetch に再利用）
 
     def _capture_response(response):
-        """JSON レスポンスのボディを非同期に捕捉する。"""
         try:
             url = response.url
             if "connect.garmin.com" not in url or response.status != 200:
@@ -549,18 +549,14 @@ def prefetch_garmin_data(page, activities_limit: int = 200) -> bool:
             if "application/json" not in ct:
                 return
             path = url.replace("https://connect.garmin.com", "").split("?")[0]
-
-            # アクティビティリスト
             if "activitylist-service/activities/search/activities" in path:
                 try:
                     data = response.json()
                     if isinstance(data, list):
                         intercepted_activities.extend(data)
-                        print(f"  ✓ activities intercepted: +{len(data)} (total {len(intercepted_activities)})")
+                        print(f"  ✓ intercepted: +{len(data)} (total {len(intercepted_activities)})")
                 except Exception:
                     pass
-
-            # スプリット（ランニング等）
             elif "activity-service/activity/" in path and "/splits" in path:
                 try:
                     aid = path.split("/activity/")[1].split("/")[0]
@@ -569,56 +565,86 @@ def prefetch_garmin_data(page, activities_limit: int = 200) -> bool:
                         intercepted_splits[aid] = data
                 except Exception:
                     pass
-
         except Exception:
             pass
 
-    page.on("response", _capture_response)
+    def _capture_request(request):
+        if "activitylist-service/activities/search/activities" in request.url:
+            if not spa_request_headers:
+                spa_request_headers.update({
+                    k: v for k, v in dict(request.headers).items()
+                    if k.lower() not in ("cookie", "content-length")
+                })
+                print(f"  ℹ SPA request headers: {list(spa_request_headers.keys())}")
 
-    # アクティビティリストを取得するため activities ページへ移動
+    page.on("response", _capture_response)
+    page.on("request", _capture_request)
+
+    # activities ページへ移動して初期データを取得
     try:
         page.goto(f"{CONNECT_BASE}/app/activities", wait_until="networkidle", timeout=60000)
-        # SPA が初期データを読み込むまで待機
         page.wait_for_timeout(4000)
     except Exception as e:
         print(f"  ⚠ activities ページ移動エラー: {e}")
 
-    # スクロールで追加アクティビティを読み込む（無限スクロール対応）
-    cutoff = time.time() + 90  # 最大90秒
-    scroll_count = 0
-    prev_count = -1
-    while len(intercepted_activities) < activities_limit and time.time() < cutoff:
-        if len(intercepted_activities) == prev_count:
-            # 新しいデータが来ていない → スクロールしてトリガー
+    # SPA のヘッダーを使ってページネーション（追加の活動を取得）
+    if spa_request_headers and len(intercepted_activities) > 0:
+        print(f"  → SPA ヘッダーで追加ページネーション中 (現在 {len(intercepted_activities)} 件)...")
+        headers_js = json.dumps(spa_request_headers)
+        while len(intercepted_activities) < activities_limit:
+            start = len(intercepted_activities)
             try:
-                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                result = page.evaluate(f"""
+                    async () => {{
+                        const r = await fetch(
+                            '/gc-api/activitylist-service/activities/search/activities?start={start}&limit=50',
+                            {{credentials:'include', headers: {headers_js}}}
+                        );
+                        if (!r.ok) return {{error: r.status}};
+                        return await r.json();
+                    }}
+                """)
+                if not result or isinstance(result, dict):
+                    print(f"  ✗ ページネーション失敗: {result}")
+                    break
+                if not isinstance(result, list) or len(result) == 0:
+                    break
+                intercepted_activities.extend(result)
+                print(f"  ✓ ページネーション: +{len(result)} (total {len(intercepted_activities)})")
+                if len(result) < 50:
+                    break
+            except Exception as e:
+                print(f"  ✗ ページネーションエラー: {e}")
+                break
+    else:
+        # SPA ヘッダーが取れない場合はスクロールで試みる
+        scroll_count = 0
+        cutoff = time.time() + 60
+        while len(intercepted_activities) < activities_limit and time.time() < cutoff:
+            try:
+                page.evaluate("document.querySelector('main, [class*=\"activity\"], body').scrollTop = 999999 || window.scrollTo(0, 999999)")
                 page.wait_for_timeout(2000)
+                scroll_count += 1
+                if scroll_count > 15:
+                    break
             except Exception:
                 break
-            scroll_count += 1
-            if scroll_count > 20:
-                break
-        else:
-            prev_count = len(intercepted_activities)
-            page.wait_for_timeout(1000)
 
-    print(f"  → インターセプト結果: {len(intercepted_activities)} activities, {len(intercepted_splits)} splits")
+    print(f"  → 合計: {len(intercepted_activities)} activities, {len(intercepted_splits)} splits")
 
     if not intercepted_activities:
-        print("  ✗ アクティビティデータが取得できませんでした (SPA が /gc-api/ を呼ばなかった可能性)")
+        print("  ✗ アクティビティデータが取得できませんでした")
         return False
 
-    # ── 保存 ─────────────────────────────────────────────────────────
     prefetch = {
         "activities": intercepted_activities[:activities_limit],
         "splits": intercepted_splits,
         "details": {},
     }
-    prefetch_file = "/tmp/garmin_prefetch.json"
     try:
-        with open(prefetch_file, "w") as pf:
+        with open("/tmp/garmin_prefetch.json", "w") as pf:
             json.dump(prefetch, pf)
-        print(f"  ✓ {prefetch_file} に保存 ({len(prefetch['activities'])} activities)")
+        print(f"  ✓ /tmp/garmin_prefetch.json に保存 ({len(prefetch['activities'])} activities)")
         return True
     except Exception as e:
         print(f"  ✗ 保存失敗: {e}")
