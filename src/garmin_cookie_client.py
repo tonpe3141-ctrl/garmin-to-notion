@@ -25,10 +25,19 @@ _HEADERS = {
         "Chrome/123.0.0.0 Safari/537.36"
     ),
     "Accept": "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "en-US,en;q=0.9",
+    "Accept-Encoding": "gzip, deflate, br",
     "NK": "NT",
     "X-Requested-With": "XMLHttpRequest",
     "Origin": "https://connect.garmin.com",
     "Referer": "https://connect.garmin.com/app/home",
+    # ブラウザが自動付与するセキュリティヘッダー（サーバーがブラウザ判定に使う可能性）
+    "Sec-Fetch-Dest": "empty",
+    "Sec-Fetch-Mode": "cors",
+    "Sec-Fetch-Site": "same-origin",
+    "Sec-Ch-Ua": '"Chromium";v="123", "Not:A-Brand";v="8"',
+    "Sec-Ch-Ua-Mobile": "?0",
+    "Sec-Ch-Ua-Platform": '"macOS"',
 }
 
 # Playwright が発見した動的 API パスを保存するファイル
@@ -68,7 +77,14 @@ class GarminCookieClient:
     """Cookie ベースの Garmin Connect クライアント。"""
 
     def __init__(self, cookies: dict):
-        self.session = requests.Session()
+        # cloudscraper を使うとブラウザに近い TLS フィンガープリントになる
+        try:
+            import cloudscraper
+            self.session = cloudscraper.create_scraper(
+                browser={"browser": "chrome", "platform": "darwin", "desktop": True}
+            )
+        except ImportError:
+            self.session = requests.Session()
         self.session.cookies.update(cookies)
         self.session.headers.update(_HEADERS)
         self.garth = _DummyGarth()
@@ -96,7 +112,8 @@ class GarminCookieClient:
             )
             ct = r.headers.get("Content-Type", "")
             if debug:
-                print(f"    [{r.status_code}] {url[:80]} ct={ct[:30]} final={r.url[:60]}")
+                body_hint = r.text[:80].replace('\n', ' ') if r.status_code >= 400 else ""
+                print(f"    [{r.status_code}] {url[:80]} ct={ct[:30]} {body_hint}")
             if r.status_code in (401, 403):
                 return None
             if r.status_code == 200 and _is_json_response(r):
