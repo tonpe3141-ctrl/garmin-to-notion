@@ -578,13 +578,29 @@ def prefetch_garmin_data(page, activities_limit: int = 200) -> bool:
     # アクティビティリストを取得するため activities ページへ移動
     try:
         page.goto(f"{CONNECT_BASE}/app/activities", wait_until="networkidle", timeout=60000)
-        # SPA がデータを読み込むまで待機
-        page.wait_for_timeout(5000)
+        # SPA が初期データを読み込むまで待機
+        page.wait_for_timeout(4000)
     except Exception as e:
         print(f"  ⚠ activities ページ移動エラー: {e}")
 
-    # ページのさらなる API コール（スクロール等）を待機
-    page.wait_for_timeout(3000)
+    # スクロールで追加アクティビティを読み込む（無限スクロール対応）
+    cutoff = time.time() + 90  # 最大90秒
+    scroll_count = 0
+    prev_count = -1
+    while len(intercepted_activities) < activities_limit and time.time() < cutoff:
+        if len(intercepted_activities) == prev_count:
+            # 新しいデータが来ていない → スクロールしてトリガー
+            try:
+                page.evaluate("window.scrollTo(0, document.body.scrollHeight)")
+                page.wait_for_timeout(2000)
+            except Exception:
+                break
+            scroll_count += 1
+            if scroll_count > 20:
+                break
+        else:
+            prev_count = len(intercepted_activities)
+            page.wait_for_timeout(1000)
 
     print(f"  → インターセプト結果: {len(intercepted_activities)} activities, {len(intercepted_splits)} splits")
 
