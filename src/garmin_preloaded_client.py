@@ -77,3 +77,19 @@ class GarminPreloadedClient:
 
     def get_activity_weather(self, activity_id):
         return {}
+
+    # --- 日次健康データ API スタブ ---
+    # Playwright プリロードクライアントは /gc-api/ 経由の活動データのみ保持する。
+    # 日次健康データは garth 認証が必要なため、ここでは空を返してスキップさせる。
+    def get_hrv_data(self, date_str: str) -> dict: return {}
+    def get_rhr_day(self, date_str: str) -> dict: return {}
+    def get_sleep_data(self, date_str: str) -> dict: return {}
+    def get_daily_steps(self, start: str, end: str) -> list: return []
+    def get_body_battery(self, start: str, end: str = None) -> list: return []
+    def get_stress_data(self, date_str: str) -> dict: return {}
+    def get_training_readiness(self, date_str: str) -> dict: return {}
+    def get_max_metrics(self, date_str: str) -> dict: return {}
+    def get_training_status(self, date_str: str) -> dict: return {}
+    def get_race_predictions(self) -> dict: return {}
+    def get_spo2_data(self, date_str: str) -> dict: return {}
+    def get_respiration_data(self, date_str: str) -> dict: return {}

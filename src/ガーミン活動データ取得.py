@@ -284,6 +284,165 @@ def format_duration(seconds: float) -> str:
     return f"{m}:{s:02d}"
 
 
+def sec_to_time_str(seconds) -> str:
+    """秒数をH:MM:SSまたはMM:SS形式に変換する。"""
+    if not seconds:
+        return ""
+    h, rem = divmod(int(seconds), 3600)
+    m, s = divmod(rem, 60)
+    return f"{h}:{m:02d}:{s:02d}" if h > 0 else f"{m}:{s:02d}"
+
+
+TRAINING_STATUS_JP = {
+    "PRODUCTIVE": "向上中", "MAINTAINING": "維持", "PEAKING": "ピーキング",
+    "RECOVERY": "回復", "UNPRODUCTIVE": "非効率", "DETRAINING": "デコンディショニング",
+    "OVERREACHING": "オーバーリーチ", "NO_RECENT_ACTIVITIES": "最近の活動なし",
+}
+
+READINESS_QUALIFIER_JP = {
+    "OPTIMAL": "最高", "GOOD": "良好", "MODERATE": "普通",
+    "FAIR": "まあまあ", "LOW": "低い", "POOR": "不良",
+}
+
+
+def fetch_daily_health_data(garmin_client: GarminClient, target_date) -> dict:
+    """指定日のデイリーヘルスデータを取得する。各APIの失敗は個別にスキップ。"""
+    date_str = target_date.isoformat() if hasattr(target_date, 'isoformat') else str(target_date)
+    data = {"date": date_str}
+
+    # HRV
+    try:
+        hrv = garmin_client.get_hrv_data(date_str)
+        if hrv and 'hrvSummary' in hrv:
+            data['hrv_weekly_avg'] = hrv['hrvSummary'].get('weeklyAvg')
+            data['hrv_last_night'] = hrv['hrvSummary'].get('lastNightAvg')
+    except Exception as e:
+        print(f"    HRV取得失敗: {e}")
+
+    # Resting Heart Rate
+    try:
+        rhr = garmin_client.get_rhr_day(date_str)
+        if rhr and 'allMetrics' in rhr and 'metricsMap' in rhr.get('allMetrics', {}):
+            metrics = rhr['allMetrics']['metricsMap']
+            if 'WELLNESS_RESTING_HEART_RATE' in metrics and metrics['WELLNESS_RESTING_HEART_RATE']:
+                data['rhr'] = metrics['WELLNESS_RESTING_HEART_RATE'][0].get('value')
+    except Exception as e:
+        print(f"    RHR取得失敗: {e}")
+
+    # Sleep (詳細)
+    try:
+        sleep = garmin_client.get_sleep_data(date_str)
+        if sleep and 'dailySleepDTO' in sleep:
+            dto = sleep['dailySleepDTO']
+            data['sleep_score'] = (dto.get('sleepScores') or {}).get('overall', {}).get('value')
+            data['sleep_total_min'] = round(dto['sleepTimeSeconds'] / 60) if dto.get('sleepTimeSeconds') else None
+            data['sleep_deep_min'] = round(dto['deepSleepSeconds'] / 60) if dto.get('deepSleepSeconds') else None
+            data['sleep_rem_min'] = round(dto['remSleepSeconds'] / 60) if dto.get('remSleepSeconds') else None
+            data['sleep_light_min'] = round(dto['lightSleepSeconds'] / 60) if dto.get('lightSleepSeconds') else None
+            data['sleep_awake_min'] = round(dto['awakeSleepSeconds'] / 60) if dto.get('awakeSleepSeconds') else None
+    except Exception as e:
+        print(f"    睡眠データ取得失敗: {e}")
+
+    # Steps
+    try:
+        steps_list = garmin_client.get_daily_steps(date_str, date_str)
+        if steps_list:
+            data['steps'] = steps_list[0].get('totalSteps')
+    except Exception as e:
+        print(f"    歩数取得失敗: {e}")
+
+    # Body Battery
+    try:
+        battery_list = garmin_client.get_body_battery(date_str)
+        if battery_list and isinstance(battery_list, list):
+            day_data = battery_list[0]
+            values = [
+                v.get('bodyBatteryValue')
+                for v in day_data.get('bodyBatteryValueDescriptorDTOList', [])
+                if v.get('bodyBatteryValue') is not None
+            ]
+            if values:
+                data['body_battery_high'] = max(values)
+                data['body_battery_low'] = min(values)
+    except Exception as e:
+        print(f"    ボディバッテリー取得失敗: {e}")
+
+    # Stress
+    try:
+        stress = garmin_client.get_stress_data(date_str)
+        if stress:
+            data['stress_avg'] = stress.get('avgStressLevel')
+    except Exception as e:
+        print(f"    ストレス取得失敗: {e}")
+
+    # Training Readiness
+    try:
+        readiness = garmin_client.get_training_readiness(date_str)
+        if readiness:
+            data['training_readiness'] = readiness.get('score')
+            qualifier = readiness.get('scoreQualifier') or readiness.get('feedbackLongKey', '')
+            data['training_readiness_desc'] = READINESS_QUALIFIER_JP.get(qualifier, qualifier)
+    except Exception as e:
+        print(f"    トレーニング準備度取得失敗: {e}")
+
+    # VO2max
+    try:
+        metrics = garmin_client.get_max_metrics(date_str)
+        if metrics and 'metricsMap' in metrics:
+            mm = metrics['metricsMap']
+            for key in ['VO2_MAX_VALUE', 'MAX_MET_SPEED']:
+                if key in mm and mm[key]:
+                    vo2_val = mm[key][0].get('genericValue') or mm[key][0].get('value')
+                    if vo2_val is not None:
+                        data['vo2max'] = round(float(vo2_val), 1)
+                        break
+    except Exception as e:
+        print(f"    VO2max取得失敗: {e}")
+
+    # Training Status
+    try:
+        status = garmin_client.get_training_status(date_str)
+        if status:
+            status_key = status.get('trainingStatusLabelType') or status.get('trainingStatusPhaseLabelType', '')
+            data['training_status'] = TRAINING_STATUS_JP.get(status_key, status_key)
+    except Exception as e:
+        print(f"    トレーニングステータス取得失敗: {e}")
+
+    # SpO2
+    try:
+        spo2 = garmin_client.get_spo2_data(date_str)
+        if spo2:
+            data['spo2_avg'] = spo2.get('averageSpO2') or spo2.get('avgSpO2')
+    except Exception as e:
+        print(f"    SpO2取得失敗: {e}")
+
+    # Respiration
+    try:
+        resp = garmin_client.get_respiration_data(date_str)
+        if resp:
+            data['respiration_avg'] = resp.get('avgWakingRespirationValue') or resp.get('lowestRespirationValue')
+    except Exception as e:
+        print(f"    呼吸数取得失敗: {e}")
+
+    return data
+
+
+def fetch_race_predictions(garmin_client: GarminClient) -> dict:
+    """現在のレース予測タイムを取得する（日付非依存）。"""
+    try:
+        predictions = garmin_client.get_race_predictions()
+        if predictions and isinstance(predictions, dict):
+            return {
+                'race_5k': sec_to_time_str(predictions.get('time5K')),
+                'race_10k': sec_to_time_str(predictions.get('time10K')),
+                'race_half': sec_to_time_str(predictions.get('timeHalf')),
+                'race_full': sec_to_time_str(predictions.get('timeMarathon')),
+            }
+    except Exception as e:
+        print(f"    レース予測取得失敗: {e}")
+    return {}
+
+
 def get_google_credentials(service_account_json_str):
     try:
         info = json.loads(service_account_json_str)
@@ -298,6 +457,93 @@ def get_google_credentials(service_account_json_str):
     except Exception as e:
         print(f"Error loading Google Service Account: {e}")
         return None
+
+def sync_daily_health_to_sheet(health_data_list: List[dict], folder_id: str, service_account_json: str, race_predictions: dict = None):
+    """日次健康データを Garmin Running Log スプレッドシートの 'Daily Health' タブに書き込む。"""
+    print("\n--- Starting Daily Health Sheet Sync ---")
+    creds = get_google_credentials(service_account_json)
+    if not creds:
+        return
+
+    try:
+        drive_service = build('drive', 'v3', credentials=creds)
+        sheets_service = build('sheets', 'v4', credentials=creds)
+
+        file_name = "Garmin Running Log"
+        query = f"name = '{file_name}' and '{folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+        results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        files = results.get('files', [])
+        if not files:
+            print("  Garmin Running Log spreadsheet not found. Skipping daily health sync.")
+            return
+        spreadsheet_id = files[0]['id']
+
+        # Daily Health タブを確認・作成
+        meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        existing_titles = [s['properties']['title'] for s in meta.get('sheets', [])]
+        if 'Daily Health' not in existing_titles:
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={'requests': [{'addSheet': {'properties': {'title': 'Daily Health'}}}]}
+            ).execute()
+            print("  Created 'Daily Health' tab.")
+
+        header = [
+            "日付", "睡眠スコア", "総睡眠(分)", "深い睡眠(分)", "REM睡眠(分)", "浅い睡眠(分)", "覚醒(分)",
+            "HRV(週平均)", "HRV(昨夜)", "安静時心拍",
+            "ボディバッテリー最高", "ボディバッテリー最低", "ストレス平均",
+            "歩数", "トレーニング準備度", "準備度", "VO2max", "トレーニングステータス",
+            "SpO2(%)", "呼吸数(回/分)",
+            "5K予測", "10K予測", "ハーフ予測", "フル予測",
+        ]
+
+        rp = race_predictions or {}
+        values = [header]
+        for d in sorted(health_data_list, key=lambda x: x['date'], reverse=True):
+            row = [
+                d.get('date', ''),
+                d.get('sleep_score', ''),
+                d.get('sleep_total_min', ''),
+                d.get('sleep_deep_min', ''),
+                d.get('sleep_rem_min', ''),
+                d.get('sleep_light_min', ''),
+                d.get('sleep_awake_min', ''),
+                d.get('hrv_weekly_avg', ''),
+                d.get('hrv_last_night', ''),
+                d.get('rhr', ''),
+                d.get('body_battery_high', ''),
+                d.get('body_battery_low', ''),
+                d.get('stress_avg', ''),
+                d.get('steps', ''),
+                d.get('training_readiness', ''),
+                d.get('training_readiness_desc', ''),
+                d.get('vo2max', ''),
+                d.get('training_status', ''),
+                d.get('spo2_avg', ''),
+                d.get('respiration_avg', ''),
+                rp.get('race_5k', ''),
+                rp.get('race_10k', ''),
+                rp.get('race_half', ''),
+                rp.get('race_full', ''),
+            ]
+            values.append(row)
+
+        sheets_service.spreadsheets().values().clear(
+            spreadsheetId=spreadsheet_id, range="'Daily Health'!A1:Z200"
+        ).execute()
+        sheets_service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range="'Daily Health'!A1",
+            valueInputOption='USER_ENTERED',
+            body={'values': values}
+        ).execute()
+        print(f"  Daily Health tab updated ({len(values)-1} rows).")
+
+    except HttpError as err:
+        print(f"Google API Error (Daily Health Sheet): {err}")
+    except Exception as e:
+        print(f"Error syncing daily health to sheet: {e}")
+
 
 def sync_to_google_sheet(activities: List[dict], folder_id: str, service_account_json: str):
     print("\n--- Starting Google Sheets Sync (Direct from Garmin) ---")
@@ -525,7 +771,105 @@ def sync_to_google_doc(activities: List[dict], folder_id: str, service_account_j
         traceback.print_exc()
 
 
-def sync_doc_from_garmin(enriched_activities: List[dict], folder_id: str, service_account_json: str) -> None:
+def _build_health_summary_lines(health_data_list: List[dict], race_predictions: dict) -> List[str]:
+    """デイリーヘルスデータを Google Doc 用テキスト（行リスト）に変換する。"""
+    if not health_data_list:
+        return []
+
+    lines = ["## 健康データ概要（直近7日）\n\n"]
+
+    weekdays_jp = ["月", "火", "水", "木", "金", "土", "日"]
+    sorted_data = sorted(health_data_list, key=lambda x: x['date'], reverse=True)
+
+    for d in sorted_data:
+        try:
+            dt = datetime.strptime(d['date'], '%Y-%m-%d')
+            date_label = f"{d['date']}({weekdays_jp[dt.weekday()]})"
+        except Exception:
+            date_label = d['date']
+
+        parts = [f"**{date_label}**"]
+
+        sleep_score = d.get('sleep_score')
+        sleep_total = d.get('sleep_total_min')
+        sleep_deep = d.get('sleep_deep_min')
+        sleep_rem = d.get('sleep_rem_min')
+        if sleep_score is not None:
+            sleep_str = f"睡眠: {sleep_score}点"
+            if sleep_total:
+                h, m = divmod(sleep_total, 60)
+                sleep_str += f" {h}h{m}m"
+            if sleep_deep and sleep_rem:
+                sleep_str += f"(深:{sleep_deep}分 REM:{sleep_rem}分)"
+            parts.append(sleep_str)
+
+        hrv = d.get('hrv_last_night') or d.get('hrv_weekly_avg')
+        if hrv is not None:
+            parts.append(f"HRV: {hrv}")
+
+        rhr = d.get('rhr')
+        if rhr is not None:
+            parts.append(f"安静心拍: {rhr}bpm")
+
+        bb_high = d.get('body_battery_high')
+        bb_low = d.get('body_battery_low')
+        if bb_high is not None:
+            parts.append(f"ボディバッテリー: {bb_high}→{bb_low}")
+
+        stress = d.get('stress_avg')
+        if stress is not None:
+            parts.append(f"ストレス: {stress}")
+
+        readiness = d.get('training_readiness')
+        readiness_desc = d.get('training_readiness_desc', '')
+        if readiness is not None:
+            parts.append(f"準備度: {readiness}({readiness_desc})")
+
+        steps = d.get('steps')
+        if steps:
+            parts.append(f"歩数: {steps:,}")
+
+        spo2 = d.get('spo2_avg')
+        if spo2 is not None:
+            parts.append(f"SpO2: {spo2}%")
+
+        lines.append("- " + " / ".join(parts) + "\n")
+
+    lines.append("\n")
+
+    # フィットネス指標（最新日のデータを使用）
+    latest = sorted_data[0] if sorted_data else {}
+    fitness_parts = []
+    vo2max = latest.get('vo2max')
+    if vo2max:
+        fitness_parts.append(f"**VO2max:** {vo2max}")
+    training_status = latest.get('training_status')
+    if training_status:
+        fitness_parts.append(f"**トレーニングステータス:** {training_status}")
+    if fitness_parts:
+        lines.append(" | ".join(fitness_parts) + "\n\n")
+
+    # レース予測
+    rp = race_predictions or {}
+    rp_parts = []
+    if rp.get('race_5k'): rp_parts.append(f"5K: {rp['race_5k']}")
+    if rp.get('race_10k'): rp_parts.append(f"10K: {rp['race_10k']}")
+    if rp.get('race_half'): rp_parts.append(f"ハーフ: {rp['race_half']}")
+    if rp.get('race_full'): rp_parts.append(f"フル: {rp['race_full']}")
+    if rp_parts:
+        lines.append(f"**レース予測:** {' / '.join(rp_parts)}\n\n")
+
+    lines.append("---\n\n")
+    return lines
+
+
+def sync_doc_from_garmin(
+    enriched_activities: List[dict],
+    folder_id: str,
+    service_account_json: str,
+    health_data_list: List[dict] = None,
+    race_predictions: dict = None,
+) -> None:
     """Garminから取得済みのenrichedアクティビティをGoogle ドキュメントに書き込む（ランニングのみ）。"""
     print("\n--- Starting Google Doc Sync (Running Only) ---")
 
@@ -585,7 +929,13 @@ def sync_doc_from_garmin(enriched_activities: List[dict], folder_id: str, servic
             "このドキュメントはGarminのランニングデータを自動的に更新します。\n"
             "AIコーチング用途として最新データを参照してください。\n\n"
         )
-        lines.append("---\n\n")
+
+        # 健康データ要約（日次健康データがある場合）
+        health_lines = _build_health_summary_lines(health_data_list or [], race_predictions or {})
+        if health_lines:
+            lines.extend(health_lines)
+        else:
+            lines.append("---\n\n")
 
         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
         written = 0
@@ -951,11 +1301,35 @@ def main():
                 act['laps_text'] = ''
     print(f"Fetched laps for {running_count} running activities.")
 
-    # 3. Sync to Google Doc (running activities with laps).
-    if google_json and drive_folder_id:
-        sync_doc_from_garmin(activities, drive_folder_id, google_json)
+    # 3. Fetch daily health data (last 7 days) for AI coaching context.
+    print("\nFetching daily health data (last 7 days)...")
+    health_data_list = []
+    today_date = datetime.now(local_tz).date()
+    for days_ago in range(7):
+        target = today_date - timedelta(days=days_ago)
+        try:
+            hd = fetch_daily_health_data(garmin_client, target)
+            health_data_list.append(hd)
+            time.sleep(0.5)  # レートリミット回避
+        except Exception as e:
+            print(f"  Warning: Daily health fetch failed for {target}: {e}")
+    print(f"Fetched daily health data for {len(health_data_list)} days.")
 
-    # 4. Enrich Data (Fetch Details & Laps) — used for Google Sheets columns.
+    # 4. Fetch race predictions (once, not date-specific).
+    print("Fetching race predictions...")
+    race_predictions = fetch_race_predictions(garmin_client)
+    if race_predictions:
+        print(f"  Race predictions: {race_predictions}")
+    else:
+        print("  Race predictions not available.")
+
+    # 5. Sync to Google Doc (running activities + health summary).
+    if google_json and drive_folder_id:
+        sync_doc_from_garmin(activities, drive_folder_id, google_json,
+                             health_data_list=health_data_list,
+                             race_predictions=race_predictions)
+
+    # 6. Enrich Data (Fetch Details & Laps) — used for Google Sheets columns.
     # Enrichment makes multiple API calls per activity and may hit Garmin rate limits.
     # Failures are caught per-activity; unenriched activities fall back to summary data.
     print("\nStarting enrichment (details/laps for Sheets)...")
@@ -968,9 +1342,11 @@ def main():
             time.sleep(0.3)
     print("Enrichment complete.")
 
-    # 5. Sync to Google Sheets (enriched data, includes laps where available)
+    # 7. Sync to Google Sheets (enriched activities + daily health tab)
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
+        sync_daily_health_to_sheet(health_data_list, drive_folder_id, google_json,
+                                   race_predictions=race_predictions)
 
 
 if __name__ == "__main__":
