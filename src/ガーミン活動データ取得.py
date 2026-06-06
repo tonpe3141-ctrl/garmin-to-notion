@@ -305,6 +305,20 @@ READINESS_QUALIFIER_JP = {
 }
 
 
+def _ensure_display_name(garmin_client) -> None:
+    """display_name が未設定の場合、garth プロファイルキャッシュから取得する（RHR等のAPIに必要）。"""
+    if getattr(garmin_client, 'display_name', None) is not None:
+        return
+    try:
+        garth_obj = getattr(garmin_client, 'garth', None)
+        if garth_obj and hasattr(garth_obj, 'profile') and garth_obj.profile:
+            garmin_client.display_name = garth_obj.profile.get('displayName')
+            garmin_client.full_name = garth_obj.profile.get('fullName')
+            print(f"  ℹ display_name を garth プロファイルから取得: {garmin_client.display_name}")
+    except Exception as e:
+        print(f"  ⚠ display_name 取得失敗（RHR等の一部APIはスキップ）: {e}")
+
+
 def fetch_daily_health_data(garmin_client: GarminClient, target_date) -> dict:
     """指定日のデイリーヘルスデータを取得する。各APIの失敗は個別にスキップ。"""
     date_str = target_date.isoformat() if hasattr(target_date, 'isoformat') else str(target_date)
@@ -378,7 +392,9 @@ def fetch_daily_health_data(garmin_client: GarminClient, target_date) -> dict:
     # Training Readiness
     try:
         readiness = garmin_client.get_training_readiness(date_str)
-        if readiness:
+        if isinstance(readiness, list):
+            readiness = readiness[0] if readiness else {}
+        if readiness and isinstance(readiness, dict):
             data['training_readiness'] = readiness.get('score')
             qualifier = readiness.get('scoreQualifier') or readiness.get('feedbackLongKey', '')
             data['training_readiness_desc'] = READINESS_QUALIFIER_JP.get(qualifier, qualifier)
@@ -1463,6 +1479,8 @@ def main():
     print(f"Fetched laps for {running_count} running activities.")
 
     # 3. Fetch daily health data (last 7 days) for AI coaching context.
+    # display_name が必要な API（RHR等）のために事前に取得を試みる。
+    _ensure_display_name(garmin_client)
     print("\nFetching daily health data (last 7 days)...")
     health_data_list = []
     today_date = datetime.now(local_tz).date()
