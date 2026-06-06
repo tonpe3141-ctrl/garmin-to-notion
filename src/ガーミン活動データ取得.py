@@ -458,6 +458,133 @@ def get_google_credentials(service_account_json_str):
         print(f"Error loading Google Service Account: {e}")
         return None
 
+def sync_weekly_summary_to_sheet(
+    activities: List[dict],
+    health_data_list: List[dict],
+    folder_id: str,
+    service_account_json: str,
+) -> None:
+    """全アクティビティと健康データから週次サマリーを生成し 'Weekly Summary' タブに書き込む。"""
+    print("\n--- Starting Weekly Summary Sheet Sync ---")
+    creds = get_google_credentials(service_account_json)
+    if not creds:
+        return
+
+    try:
+        drive_service = build('drive', 'v3', credentials=creds)
+        sheets_service = build('sheets', 'v4', credentials=creds)
+
+        file_name = "Garmin Running Log"
+        query = f"name = '{file_name}' and '{folder_id}' in parents and mimeType = 'application/vnd.google-apps.spreadsheet' and trashed = false"
+        results = drive_service.files().list(q=query, spaces='drive', fields='files(id, name)').execute()
+        files = results.get('files', [])
+        if not files:
+            print("  Spreadsheet not found. Skipping weekly summary sync.")
+            return
+        spreadsheet_id = files[0]['id']
+
+        meta = sheets_service.spreadsheets().get(spreadsheetId=spreadsheet_id).execute()
+        existing_titles = [s['properties']['title'] for s in meta.get('sheets', [])]
+        if 'Weekly Summary' not in existing_titles:
+            sheets_service.spreadsheets().batchUpdate(
+                spreadsheetId=spreadsheet_id,
+                body={'requests': [{'addSheet': {'properties': {'title': 'Weekly Summary'}}}]}
+            ).execute()
+            print("  Created 'Weekly Summary' tab.")
+
+        # ランニングのみ抽出して週ごとにグループ化
+        running_acts = [
+            a for a in activities
+            if format_activity_type(
+                (a.get('activityType') or {}).get('typeKey', ''), a.get('activityName', '')
+            )[0] == 'ランニング'
+        ]
+
+        week_groups: dict = {}
+        for act in running_acts:
+            try:
+                act_dt = datetime.strptime(
+                    act.get('startTimeGMT'), '%Y-%m-%d %H:%M:%S'
+                ).replace(tzinfo=pytz.UTC).astimezone(local_tz)
+                week_start = (act_dt - timedelta(days=act_dt.weekday())).date()
+                week_groups.setdefault(week_start, []).append(act)
+            except Exception:
+                continue
+
+        # 健康データを日付でマップ化
+        health_map = {d['date']: d for d in (health_data_list or [])}
+
+        def week_health_avg(week_start, week_end):
+            vals = []
+            d = week_start
+            while d <= week_end:
+                hd = health_map.get(d.isoformat())
+                if hd:
+                    vals.append(hd)
+                d += timedelta(days=1)
+            if not vals:
+                return {}
+            def avg(key):
+                v = [h[key] for h in vals if h.get(key) is not None]
+                return round(sum(v) / len(v), 1) if v else ''
+            return {
+                'sleep_score': avg('sleep_score'),
+                'hrv': avg('hrv_last_night') if any(h.get('hrv_last_night') for h in vals) else avg('hrv_weekly_avg'),
+                'rhr': avg('rhr'),
+                'body_battery_high': avg('body_battery_high'),
+                'stress_avg': avg('stress_avg'),
+                'training_readiness': avg('training_readiness'),
+            }
+
+        header = [
+            "週", "ランニング回数", "総距離(km)", "平均ペース", "平均HR(bpm)", "総カロリー",
+            "平均有酸素TE", "平均無酸素TE",
+            "平均睡眠スコア", "平均HRV", "平均安静時心拍", "平均ボディバッテリー最高", "平均ストレス", "平均トレーニング準備度",
+        ]
+        values = [header]
+
+        for week_start in sorted(week_groups.keys(), reverse=True):
+            week_end = week_start + timedelta(days=6)
+            acts = week_groups[week_start]
+            count = len(acts)
+            total_dist = round(sum(a.get('distance', 0) for a in acts) / 1000, 1)
+            total_dist_m = sum(a.get('distance', 0) for a in acts)
+            total_time_s = sum(a.get('duration', 0) for a in acts)
+            avg_pace = format_pace(total_dist_m / total_time_s) if total_time_s and total_dist_m else ''
+            hr_list = [a.get('averageHR') for a in acts if a.get('averageHR')]
+            avg_hr = round(sum(hr_list) / len(hr_list)) if hr_list else ''
+            total_cal = round(sum(a.get('calories', 0) for a in acts))
+            aero_list = [a.get('aerobicTrainingEffect') for a in acts if a.get('aerobicTrainingEffect')]
+            avg_aero = round(sum(aero_list) / len(aero_list), 1) if aero_list else ''
+            anaero_list = [a.get('anaerobicTrainingEffect') for a in acts if a.get('anaerobicTrainingEffect')]
+            avg_anaero = round(sum(anaero_list) / len(anaero_list), 1) if anaero_list else ''
+
+            wh = week_health_avg(week_start, week_end)
+            row = [
+                f"{week_start.strftime('%Y-%m-%d')}〜{week_end.strftime('%m-%d')}",
+                count, total_dist, avg_pace, avg_hr, total_cal, avg_aero, avg_anaero,
+                wh.get('sleep_score', ''), wh.get('hrv', ''), wh.get('rhr', ''),
+                wh.get('body_battery_high', ''), wh.get('stress_avg', ''), wh.get('training_readiness', ''),
+            ]
+            values.append(row)
+
+        sheets_service.spreadsheets().values().clear(
+            spreadsheetId=spreadsheet_id, range="'Weekly Summary'!A1:Z200"
+        ).execute()
+        sheets_service.spreadsheets().values().update(
+            spreadsheetId=spreadsheet_id,
+            range="'Weekly Summary'!A1",
+            valueInputOption='USER_ENTERED',
+            body={'values': values}
+        ).execute()
+        print(f"  Weekly Summary tab updated ({len(values)-1} weeks).")
+
+    except HttpError as err:
+        print(f"Google API Error (Weekly Summary): {err}")
+    except Exception as e:
+        print(f"Error syncing weekly summary: {e}")
+
+
 def sync_daily_health_to_sheet(health_data_list: List[dict], folder_id: str, service_account_json: str, race_predictions: dict = None):
     """日次健康データを Garmin Running Log スプレッドシートの 'Daily Health' タブに書き込む。"""
     print("\n--- Starting Daily Health Sheet Sync ---")
@@ -937,16 +1064,30 @@ def sync_doc_from_garmin(
         else:
             lines.append("---\n\n")
 
+        # 直近4週 vs それ以前 に分割
+        four_weeks_ago = datetime.now(local_tz) - timedelta(weeks=4)
         weekdays = ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
-        written = 0
+
+        recent_runs = []
+        older_runs = []
         for activity in running_acts:
             try:
-                activity_date_raw = activity.get('startTimeGMT')
-                activity_date_jst = datetime.strptime(
-                    activity_date_raw, '%Y-%m-%d %H:%M:%S'
+                act_dt = datetime.strptime(
+                    activity.get('startTimeGMT'), '%Y-%m-%d %H:%M:%S'
                 ).replace(tzinfo=pytz.UTC).astimezone(local_tz)
-                date_label = f"{activity_date_jst.strftime('%Y-%m-%d')} ({weekdays[activity_date_jst.weekday()]})"
+                if act_dt >= four_weeks_ago:
+                    recent_runs.append((act_dt, activity))
+                else:
+                    older_runs.append((act_dt, activity))
+            except Exception:
+                older_runs.append((datetime.min.replace(tzinfo=local_tz), activity))
 
+        # ── セクション1: 直近4週（フル詳細 + ラップ） ──
+        lines.append(f"## 直近4週のランニング詳細 ({len(recent_runs)}件)\n\n")
+        written = 0
+        for act_dt, activity in recent_runs:
+            try:
+                date_label = f"{act_dt.strftime('%Y-%m-%d')} ({weekdays[act_dt.weekday()]})"
                 distance_km = round(activity.get('distance', 0) / 1000, 2)
                 duration_min = activity.get('duration', 0) / 60
                 m_part = int(duration_min)
@@ -963,28 +1104,25 @@ def sync_doc_from_garmin(
                 te_label = format_training_effect(activity.get('trainingEffectLabel', 'Unknown'))
                 calories = round(activity.get('calories', 0))
 
-                # ランニングダイナミクス
                 cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else None
                 stride = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else None
                 gct = round(activity.get('avgGroundContactTime')) if activity.get('avgGroundContactTime') else None
                 vo = round(activity.get('avgVerticalOscillation', 0) / 10, 1) if activity.get('avgVerticalOscillation') else None
                 balance = activity.get('avgGroundContactBalance')
+                balance_str = None
                 if balance:
                     left_b = round(balance / 100, 1)
                     balance_str = f"L {left_b}% / R {round(100 - left_b, 1)}%"
-                else:
-                    balance_str = None
 
                 laps_text = activity.get('laps_text', '')
 
-                lines.append(f"## {date_label} ランニング\n")
-                lines.append(f"- 距離: {distance_km} km\n")
-                lines.append(f"- タイム: {time_str} ({avg_pace})\n")
+                lines.append(f"### {date_label} ランニング\n")
+                lines.append(f"- 距離: {distance_km} km / タイム: {time_str} ({avg_pace})")
                 if gap_str:
-                    lines.append(f"- GAP: {gap_str}\n")
-                lines.append(f"- カロリー: {calories} kcal\n")
+                    lines.append(f" / GAP: {gap_str}")
+                lines.append(f" / カロリー: {calories} kcal\n")
                 if avg_hr:
-                    lines.append(f"- 平均心拍: {avg_hr} bpm / 最大: {max_hr_val} bpm\n")
+                    lines.append(f"- 心拍: 平均 {avg_hr} bpm / 最大 {max_hr_val} bpm\n")
                 lines.append(f"- トレーニング効果: {te_label} (有酸素TE: {aerobic_te} / 無酸素TE: {anaerobic_te})\n")
                 dynamics_parts = []
                 if cadence: dynamics_parts.append(f"ピッチ: {cadence} spm")
@@ -993,7 +1131,7 @@ def sync_doc_from_garmin(
                 if vo: dynamics_parts.append(f"上下動: {vo} cm")
                 if balance_str: dynamics_parts.append(f"左右バランス: {balance_str}")
                 if dynamics_parts:
-                    lines.append(f"- ランニングダイナミクス: {' / '.join(dynamics_parts)}\n")
+                    lines.append(f"- ダイナミクス: {' / '.join(dynamics_parts)}\n")
                 if laps_text and laps_text.strip():
                     lines.append("- ラップ:\n")
                     for lap_line in laps_text.strip().split('\n'):
@@ -1002,10 +1140,33 @@ def sync_doc_from_garmin(
                 lines.append("\n")
                 written += 1
             except Exception as e:
-                print(f"  Warning: Skipping activity due to error: {e}")
-                import traceback
-                traceback.print_exc()
+                print(f"  Warning: Skipping recent activity: {e}")
                 continue
+
+        # ── セクション2: 4週以前（週次サマリーのみ） ──
+        if older_runs:
+            lines.append("---\n\n")
+            lines.append("## 過去のランニング（週次サマリー）\n\n")
+
+            week_groups: dict = {}
+            for act_dt, activity in older_runs:
+                week_start = (act_dt - timedelta(days=act_dt.weekday())).date()
+                week_groups.setdefault(week_start, []).append(activity)
+
+            for week_start in sorted(week_groups.keys(), reverse=True):
+                week_end = week_start + timedelta(days=6)
+                acts = week_groups[week_start]
+                count = len(acts)
+                total_dist = round(sum(a.get('distance', 0) for a in acts) / 1000, 1)
+                total_dist_m = sum(a.get('distance', 0) for a in acts)
+                total_time_s = sum(a.get('duration', 0) for a in acts)
+                avg_pace_str = format_pace(total_dist_m / total_time_s) if total_time_s and total_dist_m else ""
+                hr_list = [a.get('averageHR') for a in acts if a.get('averageHR')]
+                avg_hr_w = f" / 平均HR: {round(sum(hr_list)/len(hr_list))} bpm" if hr_list else ""
+                lines.append(
+                    f"### {week_start.strftime('%Y-%m-%d')} 〜 {week_end.strftime('%m-%d')}\n"
+                    f"- {count}回 / 合計 {total_dist} km / 平均ペース: {avg_pace_str}{avg_hr_w}\n\n"
+                )
 
         full_text = "".join(lines)
         print(f"  Built text for {written} activities ({len(full_text)} chars).")
@@ -1342,11 +1503,13 @@ def main():
             time.sleep(0.3)
     print("Enrichment complete.")
 
-    # 7. Sync to Google Sheets (enriched activities + daily health tab)
+    # 7. Sync to Google Sheets (enriched activities + daily health tab + weekly summary tab)
     if google_json and drive_folder_id:
         sync_to_google_sheet(enriched_activities, drive_folder_id, google_json)
         sync_daily_health_to_sheet(health_data_list, drive_folder_id, google_json,
                                    race_predictions=race_predictions)
+        sync_weekly_summary_to_sheet(enriched_activities, health_data_list,
+                                     drive_folder_id, google_json)
 
 
 if __name__ == "__main__":
