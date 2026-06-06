@@ -300,8 +300,10 @@ TRAINING_STATUS_JP = {
 }
 
 READINESS_QUALIFIER_JP = {
-    "OPTIMAL": "最高", "GOOD": "良好", "MODERATE": "普通",
-    "FAIR": "まあまあ", "LOW": "低い", "POOR": "不良",
+    "OPTIMAL": "最高", "PRIME": "最高",
+    "HIGH": "良好", "GOOD": "良好",
+    "MODERATE": "普通", "FAIR": "まあまあ",
+    "LOW": "低い", "POOR": "不良",
 }
 
 
@@ -365,16 +367,12 @@ def fetch_daily_health_data(garmin_client: GarminClient, target_date) -> dict:
     except Exception as e:
         print(f"    歩数取得失敗: {e}")
 
-    # Body Battery
+    # Body Battery — bodyBatteryValuesArray: [[timestamp_ms, level], ...]
     try:
         battery_list = garmin_client.get_body_battery(date_str)
         if battery_list and isinstance(battery_list, list):
             day_data = battery_list[0]
-            values = [
-                v.get('bodyBatteryValue')
-                for v in day_data.get('bodyBatteryValueDescriptorDTOList', [])
-                if v.get('bodyBatteryValue') is not None
-            ]
+            values = [v[1] for v in day_data.get('bodyBatteryValuesArray', []) if len(v) > 1 and v[1] is not None]
             if values:
                 data['body_battery_high'] = max(values)
                 data['body_battery_low'] = min(values)
@@ -389,38 +387,38 @@ def fetch_daily_health_data(garmin_client: GarminClient, target_date) -> dict:
     except Exception as e:
         print(f"    ストレス取得失敗: {e}")
 
-    # Training Readiness
+    # Training Readiness — list形式、levelフィールドを使用
     try:
         readiness = garmin_client.get_training_readiness(date_str)
         if isinstance(readiness, list):
             readiness = readiness[0] if readiness else {}
         if readiness and isinstance(readiness, dict):
             data['training_readiness'] = readiness.get('score')
-            qualifier = readiness.get('scoreQualifier') or readiness.get('feedbackLongKey', '')
-            data['training_readiness_desc'] = READINESS_QUALIFIER_JP.get(qualifier, qualifier)
+            level = readiness.get('level') or readiness.get('scoreQualifier') or readiness.get('feedbackLongKey', '')
+            data['training_readiness_desc'] = READINESS_QUALIFIER_JP.get(level, level)
     except Exception as e:
         print(f"    トレーニング準備度取得失敗: {e}")
 
-    # VO2max
+    # VO2max — list形式: [{'generic': {'vo2MaxPreciseValue': X, 'vo2MaxValue': Y}}]
     try:
         metrics = garmin_client.get_max_metrics(date_str)
-        if metrics and 'metricsMap' in metrics:
-            mm = metrics['metricsMap']
-            for key in ['VO2_MAX_VALUE', 'MAX_MET_SPEED']:
-                if key in mm and mm[key]:
-                    vo2_val = mm[key][0].get('genericValue') or mm[key][0].get('value')
-                    if vo2_val is not None:
-                        data['vo2max'] = round(float(vo2_val), 1)
-                        break
+        if metrics and isinstance(metrics, list) and metrics[0].get('generic'):
+            generic = metrics[0]['generic']
+            vo2 = generic.get('vo2MaxPreciseValue') or generic.get('vo2MaxValue')
+            if vo2 is not None:
+                data['vo2max'] = round(float(vo2), 1)
     except Exception as e:
         print(f"    VO2max取得失敗: {e}")
 
-    # Training Status
+    # Training Status — mostRecentTrainingStatus.latestTrainingStatusData.<deviceId>.trainingStatusFeedbackPhrase
     try:
         status = garmin_client.get_training_status(date_str)
-        if status:
-            status_key = status.get('trainingStatusLabelType') or status.get('trainingStatusPhaseLabelType', '')
-            data['training_status'] = TRAINING_STATUS_JP.get(status_key, status_key)
+        if status and isinstance(status, dict):
+            ts_data = (status.get('mostRecentTrainingStatus') or {}).get('latestTrainingStatusData') or {}
+            if ts_data:
+                first_device = next(iter(ts_data.values()), {})
+                phrase = first_device.get('trainingStatusFeedbackPhrase', '')
+                data['training_status'] = format_training_message(phrase) if phrase else ''
     except Exception as e:
         print(f"    トレーニングステータス取得失敗: {e}")
 
