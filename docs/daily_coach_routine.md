@@ -175,6 +175,18 @@ Artifact(
 日々の記録は Artifact（固定URL・版履歴あり）と Notion に残るので、リポジトリへの
 コミットは不要である。翌日の継続性は STEP 3 の WebFetch が担保する。
 
+**Artifact の publish が成功したら、作業ツリーを必ず元に戻すこと。**
+
+```bash
+git checkout -- dashboard/index.html
+git status --porcelain   # 何も出なければOK
+```
+
+この環境には「未コミットの変更が残っていたらコミットして push しろ」と要求する
+Stop フックが仕込まれている。上のコマンドで作業ツリーを綺麗にしておけば、
+フックは発火せず、無駄なやり取りが起きない。**publish の前に実行しないこと**
+（publish はこのファイルを読むため、先に戻すと内容が失われる）。
+
 ### STEP 9 — 通知する
 
 `PushNotification` で、総合評価と明日のメニュー名を1行で送る。
