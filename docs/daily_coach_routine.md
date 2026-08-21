@@ -18,8 +18,9 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 | Garmin API への直接アクセス | **不可** | サンドボックスの egress プロキシが `*.garmin.com` を 403 で拒否 |
 | Google ドライブ読み取り | 可 | Google_Drive MCP コネクタ経由 |
 | Notion 読み書き | 可 | Notion MCP コネクタ経由 |
-| Artifact の発行・更新 | 可 | 固定URLへ上書き更新できる |
+| Artifact の発行・更新 | 可 | 固定URLへ上書き更新できる。更新前に WebFetch での既読が必須 |
 | GitHub Actions の手動起動 | **不可** | GitHub App に Actions 書き込み権限がない（403） |
+| リポジトリへの push / コミット | **不可** | 同上（403）。`git push` も GitHub MCP も通らない。読み取りは可 |
 
 **したがって Garmin からのデータ取得はこの Routine の仕事ではない。**
 取得は GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`、毎日 8:30 JST 前後）が担当し、
@@ -38,11 +39,21 @@ TZ=Asia/Tokyo date +"%Y-%m-%d (%a) %H:%M JST"
 
 以降「今日」はこの JST の日付を指す。UTC の日付と混同しないこと。
 
-### STEP 1 — コーチング指示文を読む
+### STEP 1 — 前提条件と分析手順を読む
 
-リポジトリの `docs/claude_project_running_instructions.md` を読む。
-**ここに書かれたペースゾーン定義・評価軸・練習種別の判定基準・ロードマップが、分析の唯一の基準である。**
-このファイルとの矛盾が生じた場合は常にそちらを優先する。
+**必ずこの順で2つとも読む。**
+
+1. `docs/athlete_profile.md` — **前提条件の唯一の正。**
+   目標レース・レース日・目標タイム・ペースゾーン・身体データ・ロードマップ・現状の課題・
+   コーチングの基本姿勢が書かれている。
+2. `docs/claude_project_running_instructions.md` — 分析手順。
+   練習種別の判定基準・5軸評価・Notion登録フォーマットが書かれている。
+
+**前提条件は絶対に他の場所から拾わない。** この手順書にも、トリガーのプロンプトにも、
+昨日のダッシュボードにも、レース名や日付が書かれていることがあるが、
+それらはすべて古い可能性がある。`athlete_profile.md` の内容だけを信じること。
+
+矛盾が生じた場合の優先順位は `athlete_profile.md` > `claude_project_running_instructions.md` > この手順書。
 
 ### STEP 2 — データを取得する
 
@@ -57,12 +68,28 @@ Google Drive MCP の `read_file_content` で以下を読む。
   「データが N 日前のものです。GitHub Actions の同期が失敗している可能性があります」を **level: "warn"** で追加する。
   分析自体は入手できている最新データで続行し、勝手に中止しない。
 
-### STEP 3 — 前日の状態を読む
+### STEP 3 — 前日の状態を読む（**公開済みダッシュボードから読む**）
 
-`dashboard/index.html` の `const DATA = {...}` ブロックを読む。これが**昨日の分析結果**である。
-特に `tomorrow`（昨日出した今日向けの指示）を確認し、
+WebFetch で固定URLを取得する。
+
+```
+WebFetch(
+  url: "https://claude.ai/code/artifact/eedcbce5-cbe3-45f2-8181-4fffcd8b79c4",
+  prompt: "DATA ブロックの today.date, today.verdict, today.verdictReason, tomorrow の全項目, week.totalKm を報告して"
+)
+```
+
+これが**昨日の分析結果**である。特に `tomorrow`（昨日出した今日向けの指示）を確認し、
 **その指示に対して実際の走りがどうだったかを、今日の評価に必ず織り込む。**
 これがこの仕組みの肝で、単発の講評ではなく連続したコーチングになる部分。
+
+> **リポジトリの `dashboard/index.html` を昨日の状態だと思わないこと。**
+> このRoutineはリポジトリに書き込めない（GitHub App に権限がないため 403）。
+> リポジトリのファイルは**構造のテンプレート**であり、中身のDATAは初期値のまま更新されない。
+> 最新の状態は常に公開済みArtifactの側にある。
+>
+> なおこのWebFetchは STEP 6 の publish でも必須になる（未読のまま publish しようとすると
+> 「This session hasn't viewed the latest version」で拒否される）。ここで1回読んでおけば足りる。
 
 ### STEP 4 — 分析する
 
@@ -106,7 +133,14 @@ Google Drive MCP の `read_file_content` で以下を読む。
    - `axes[].state` は `"good"` / `"warn"` / `"crit"` のいずれか
    - `week.days[].type` は `"E"` / `"M"` / `"T"` / `"R"` / `"rest"` のいずれか
    - `laps[].sec` はそのラップのペースを秒に直した整数（5:37 → 337）
-   - `race.daysLeft` / `tuneup.daysLeft` は今日から 2026-11-22 / 2026-10-25 までの日数を計算して入れる
+   - `race` / `tuneup` / `phase` は **`docs/athlete_profile.md` の値をそのまま反映する。**
+     日付をこの手順書から拾わないこと。
+     `daysLeft` は今日からプロファイルの `race.date` / `tuneup.date` までの日数を計算して入れる:
+     ```bash
+     python3 -c "import datetime;print((datetime.date(YYYY,M,D)-datetime.date.today()).days)"
+     ```
+     プロファイルの `tuneup.name` が `null` の場合は `DATA.tuneup` を `null` にする
+     （描画側は `tuneup` が `null` ならそのカウンターを出さない）。
 3. Artifact ツールで publish する。**必ず `url` を渡すこと。渡さないと別のURLが発行され、固定URLが壊れる。**
 
 ```
@@ -131,17 +165,15 @@ Artifact(
    データソースID: `2fd862c3-def7-80f2-8b7d-000b148b15e5`
    （見つからない場合は `notion-search` で「Garmin」を検索して解決する）
 
-### STEP 8 — リポジトリにコミットする
+### STEP 8 — コミットしない
 
-更新した `dashboard/index.html` を `main` に直接コミットして push する。PR は作らない。
+**このRoutineはリポジトリに書き込めない。** `git push` も GitHub MCP の
+`create_or_update_file` も `403 Resource not accessible by integration` で失敗する
+（Claude の GitHub App にこのリポジトリへの書き込み権限がないため）。
 
-```bash
-git add dashboard/index.html
-git commit -m "chore: ダッシュボードを YYYY-MM-DD 分に更新"
-git push origin main
-```
-
-これで日々の分析が履歴として残り、翌日の STEP 3 が機能する。
+**push を試みて時間を使わないこと。** サンドボックス内のファイル変更は破棄されてよい。
+日々の記録は Artifact（固定URL・版履歴あり）と Notion に残るので、リポジトリへの
+コミットは不要である。翌日の継続性は STEP 3 の WebFetch が担保する。
 
 ### STEP 9 — 通知する
 

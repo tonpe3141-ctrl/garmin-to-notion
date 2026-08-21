@@ -21,9 +21,10 @@ const DATA = {
     note: "健康データ（睡眠・HRV・ボディバッテリー・準備度）がドライブ上で空欄のため、自律神経系からの裏取りができていません。判定は走行データのみに基づきます。"
   },
 
-  race: { name: "つくばマラソン", date: "2026-11-22", goal: "2:59:59", pace: "4:15 /km", daysLeft: 93 },
-  tuneup: { name: "水戸黄門漫遊マラソン", date: "2026-10-25", daysLeft: 65 },
-  phase: { name: "Phase 3 — 夏の暑熱管理", window: "7/1 〜 8/31", policy: "心拍固定・ペースは落ちて当然", weeklyTarget: "55〜65 km" },
+  // race / tuneup / phase は docs/athlete_profile.md の値を反映すること。ここを正にしない。
+  race: { name: "水戸黄門漫遊マラソン", date: "2026-10-25", goal: "2:59:59", pace: "4:15 /km", daysLeft: 65 },
+  tuneup: null,
+  phase: { name: "Phase 3 — 夏の暑熱管理", window: "〜8/31", policy: "心拍固定・ペースは落ちて当然", weeklyTarget: "55〜65 km" },
 
   today: {
     date: "2026-08-21",
@@ -629,10 +630,10 @@ footer {
         <span class="num">${D.race.daysLeft}</span>
         <span class="lbl"><b>${esc(D.race.name)}</b>${esc(D.race.date)} ／ 目標 ${esc(D.race.goal)}（${esc(D.race.pace)}）</span>
       </div>
-      <div class="counter">
+      ${D.tuneup && D.tuneup.name ? `<div class="counter">
         <span class="num">${D.tuneup.daysLeft}</span>
         <span class="lbl"><b>${esc(D.tuneup.name)}</b>${esc(D.tuneup.date)} ／ 練習レース</span>
-      </div>
+      </div>` : ""}
       <div class="counter">
         <span class="lbl"><b>${esc(D.phase.name)}</b>${esc(D.phase.policy)} ／ 週 ${esc(D.phase.weeklyTarget)}</span>
       </div>
