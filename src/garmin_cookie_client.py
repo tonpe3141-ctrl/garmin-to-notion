@@ -237,3 +237,71 @@ class GarminCookieClient:
     def get_activity_weather(self, activity_id):
         r = self._get(f"/activity-service/activity/{activity_id}/weather")
         return r.json()
+
+    # ── 日次健康データ API ────────────────────────────────────────────────
+    # パスは garminconnect ライブラリと同一。_get() が
+    # /gc-api → 直接 → /modern/proxy → connectapi+JWT の順に試すため、
+    # 活動データが取れる Cookie であれば健康データも同じ経路で取得できる。
+
+    def _require_display_name(self) -> str:
+        """display_name を必要とする API 用。未取得なら再取得を試みる。"""
+        if not self.display_name:
+            self.display_name = self._fetch_display_name()
+        if not self.display_name:
+            raise ValueError("display_name が取得できないため呼び出せません")
+        return self.display_name
+
+    def get_hrv_data(self, date_str: str) -> dict:
+        return self._get(f"/hrv-service/hrv/{date_str}").json()
+
+    def get_rhr_day(self, date_str: str) -> dict:
+        return self._get(
+            f"/userstats-service/wellness/daily/{self._require_display_name()}",
+            params={"fromDate": date_str, "untilDate": date_str, "metricId": "60"},
+        ).json()
+
+    def get_sleep_data(self, date_str: str) -> dict:
+        return self._get(
+            f"/wellness-service/wellness/dailySleepData/{self._require_display_name()}",
+            params={"date": date_str, "nonSleepBufferMinutes": "60"},
+        ).json()
+
+    def get_daily_steps(self, start: str, end: str) -> list:
+        return self._get(f"/usersummary-service/stats/steps/daily/{start}/{end}").json()
+
+    def get_body_battery(self, start: str, end: str = None) -> list:
+        return self._get(
+            "/wellness-service/wellness/bodyBattery/reports/daily",
+            params={"startDate": start, "endDate": end or start},
+        ).json()
+
+    def get_stress_data(self, date_str: str) -> dict:
+        return self._get(f"/wellness-service/wellness/dailyStress/{date_str}").json()
+
+    def get_training_readiness(self, date_str: str):
+        return self._get(
+            f"/metrics-service/metrics/trainingreadiness/{date_str}"
+        ).json()
+
+    def get_max_metrics(self, date_str: str):
+        return self._get(
+            f"/metrics-service/metrics/maxmet/daily/{date_str}/{date_str}"
+        ).json()
+
+    def get_training_status(self, date_str: str) -> dict:
+        return self._get(
+            f"/metrics-service/metrics/trainingstatus/aggregated/{date_str}"
+        ).json()
+
+    def get_race_predictions(self) -> dict:
+        return self._get(
+            f"/metrics-service/metrics/racepredictions/latest/{self._require_display_name()}"
+        ).json()
+
+    def get_spo2_data(self, date_str: str) -> dict:
+        return self._get(f"/wellness-service/wellness/daily/spo2/{date_str}").json()
+
+    def get_respiration_data(self, date_str: str) -> dict:
+        return self._get(
+            f"/wellness-service/wellness/daily/respiration/{date_str}"
+        ).json()

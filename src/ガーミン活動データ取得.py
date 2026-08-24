@@ -147,7 +147,10 @@ def format_training_message(message: str) -> str:
     messages = {
         'NO_': '効果なし', 'MINOR_': 'わずかな効果', 'RECOVERY_': 'リカバリー',
         'MAINTAINING_': '維持', 'IMPROVING_': '向上', 'IMPACTING_': '影響あり',
-        'HIGHLY_': '高い影響', 'OVERREACHING_': 'オーバーリーチ'
+        'HIGHLY_': '高い影響', 'OVERREACHING_': 'オーバーリーチ',
+        # トレーニングステータスで返る値。未対応だと英語キーがそのまま表示される。
+        'PRODUCTIVE': '生産的', 'PEAKING': 'ピーキング', 'UNPRODUCTIVE': '非生産的',
+        'DETRAINING': 'ディトレーニング', 'STRAINED': '過負荷', 'PAUSED': '中断中',
     }
     for key, value in messages.items():
         if message.startswith(key): return value
@@ -400,6 +403,8 @@ def fetch_daily_health_data(garmin_client: GarminClient, target_date) -> dict:
         print(f"    トレーニング準備度取得失敗: {e}")
 
     # VO2max — list形式: [{'generic': {'vo2MaxPreciseValue': X, 'vo2MaxValue': Y}}]
+    # maxmet API は当日分が未計算だと [] を返すことが多いため、
+    # 取れない場合は下のトレーニングステータス（mostRecentVO2Max）で補完する。
     try:
         metrics = garmin_client.get_max_metrics(date_str)
         if metrics and isinstance(metrics, list) and metrics[0].get('generic'):
@@ -419,14 +424,21 @@ def fetch_daily_health_data(garmin_client: GarminClient, target_date) -> dict:
                 first_device = next(iter(ts_data.values()), {})
                 phrase = first_device.get('trainingStatusFeedbackPhrase', '')
                 data['training_status'] = format_training_message(phrase) if phrase else ''
+            # maxmet が空だった場合の VO2max フォールバック
+            if data.get('vo2max') is None:
+                generic = (status.get('mostRecentVO2Max') or {}).get('generic') or {}
+                vo2 = generic.get('vo2MaxPreciseValue') or generic.get('vo2MaxValue')
+                if vo2 is not None:
+                    data['vo2max'] = round(float(vo2), 1)
     except Exception as e:
         print(f"    トレーニングステータス取得失敗: {e}")
 
-    # SpO2
+    # SpO2（パルスオキシメトリ未計測なら全キー None のことがある）
     try:
         spo2 = garmin_client.get_spo2_data(date_str)
         if spo2:
-            data['spo2_avg'] = spo2.get('averageSpO2') or spo2.get('avgSpO2')
+            data['spo2_avg'] = (spo2.get('averageSpO2') or spo2.get('avgSpO2')
+                                or spo2.get('avgSleepSpO2'))
     except Exception as e:
         print(f"    SpO2取得失敗: {e}")
 
@@ -447,9 +459,11 @@ def fetch_race_predictions(garmin_client: GarminClient) -> dict:
         predictions = garmin_client.get_race_predictions()
         if predictions and isinstance(predictions, dict):
             return {
+                # API のキーは timeHalfMarathon（旧 timeHalf も一応見る）
                 'race_5k': sec_to_time_str(predictions.get('time5K')),
                 'race_10k': sec_to_time_str(predictions.get('time10K')),
-                'race_half': sec_to_time_str(predictions.get('timeHalf')),
+                'race_half': sec_to_time_str(
+                    predictions.get('timeHalfMarathon') or predictions.get('timeHalf')),
                 'race_full': sec_to_time_str(predictions.get('timeMarathon')),
             }
     except Exception as e:
@@ -920,7 +934,10 @@ def _build_health_summary_lines(health_data_list: List[dict], race_predictions: 
     lines = ["## 健康データ概要（直近7日）\n\n"]
 
     weekdays_jp = ["月", "火", "水", "木", "金", "土", "日"]
-    sorted_data = sorted(health_data_list, key=lambda x: x['date'], reverse=True)
+    all_sorted = sorted(health_data_list, key=lambda x: x['date'], reverse=True)
+    # 直近7日を表示し、その前の7日は前週平均の算出だけに使う
+    sorted_data = all_sorted[:7]
+    prev_week = all_sorted[7:14]
 
     for d in sorted_data:
         try:
@@ -935,13 +952,18 @@ def _build_health_summary_lines(health_data_list: List[dict], race_predictions: 
         sleep_total = d.get('sleep_total_min')
         sleep_deep = d.get('sleep_deep_min')
         sleep_rem = d.get('sleep_rem_min')
+        sleep_light = d.get('sleep_light_min')
         if sleep_score is not None:
             sleep_str = f"睡眠: {sleep_score}点"
             if sleep_total:
                 h, m = divmod(sleep_total, 60)
                 sleep_str += f" {h}h{m}m"
+            # ダッシュボードの積み上げグラフが内訳を必要とするので3種すべて出す
             if sleep_deep and sleep_rem:
-                sleep_str += f"(深:{sleep_deep}分 REM:{sleep_rem}分)"
+                breakdown = f"深:{sleep_deep}分 REM:{sleep_rem}分"
+                if sleep_light:
+                    breakdown += f" 浅:{sleep_light}分"
+                sleep_str += f"({breakdown})"
             parts.append(sleep_str)
 
         hrv = d.get('hrv_last_night') or d.get('hrv_weekly_avg')
@@ -977,6 +999,34 @@ def _build_health_summary_lines(health_data_list: List[dict], race_predictions: 
         lines.append("- " + " / ".join(parts) + "\n")
 
     lines.append("\n")
+
+    # 週平均と前週比（疲労判定の裏取りに使う）。前週データが無い項目は出さない。
+    def _avg(rows, key):
+        vals = [r[key] for r in rows if r.get(key) is not None]
+        return round(sum(vals) / len(vals), 1) if vals else None
+
+    cmp_specs = [
+        ("睡眠スコア", 'sleep_score', ""),
+        ("HRV", 'hrv_last_night', ""),
+        ("安静心拍", 'rhr', "bpm"),
+        ("ボディバッテリー最低", 'body_battery_low', ""),
+        ("ストレス", 'stress_avg', ""),
+        ("準備度", 'training_readiness', ""),
+    ]
+    cmp_parts = []
+    for label, key, unit in cmp_specs:
+        this_avg = _avg(sorted_data, key)
+        if this_avg is None:
+            continue
+        prev_avg = _avg(prev_week, key)
+        if prev_avg is None:
+            cmp_parts.append(f"{label} {this_avg}{unit}")
+        else:
+            pct = round((this_avg / prev_avg - 1) * 100) if prev_avg else 0
+            sign = "+" if pct > 0 else ""
+            cmp_parts.append(f"{label} {this_avg}{unit}（前週 {prev_avg}{unit} / {sign}{pct}%）")
+    if cmp_parts:
+        lines.append("**週平均と前週比:** " + " / ".join(cmp_parts) + "\n\n")
 
     # フィットネス指標（最新日のデータを使用）
     latest = sorted_data[0] if sorted_data else {}
@@ -1238,6 +1288,10 @@ def _load_from_cache(token_dir):
     return client
 
 
+# 健康データの取得日数。前週比を出すために2週間分を取る。
+# Doc の「健康データ概要」は直近7日だけを表示し、古い7日は前週平均の算出に使う。
+HEALTH_FETCH_DAYS = int(os.getenv("GARMIN_HEALTH_FETCH_DAYS", "14"))
+
 # リトライ設定
 AUTH_MAX_RETRIES = 3
 AUTH_INITIAL_BACKOFF = 60  # 60s → 120s → 240s
@@ -1372,13 +1426,18 @@ def main():
         if session_cookies_str:
             print("ℹ Cookie ソース: GARMIN_SESSION_COOKIES シークレット")
 
+    def _build_cookie_client():
+        """Cookie から認証済みクライアントを作る。失敗時は None。"""
+        if not session_cookies_str:
+            return None
+        from garmin_cookie_client import GarminCookieClient, parse_cookie_string
+        client = GarminCookieClient(parse_cookie_string(session_cookies_str))
+        client.get_full_name()
+        return client
+
     if garmin_client is None and session_cookies_str:
         try:
-            from garmin_cookie_client import GarminCookieClient, parse_cookie_string
-            cookies = parse_cookie_string(session_cookies_str)
-            cookie_client = GarminCookieClient(cookies)
-            cookie_client.get_full_name()
-            garmin_client = cookie_client
+            garmin_client = _build_cookie_client()
             print("✓ Garmin 認証成功: Cookie-based (OAuth exchange なし)")
         except Exception as e:
             print(f"✗ Cookie認証失敗: {e}")
@@ -1450,6 +1509,40 @@ def main():
     except Exception as _e:
         print(f"⚠ トークン保存失敗（シークレット自動更新はスキップ）: {_e}")
 
+    # プリロードクライアントは活動データしか持たない。健康データ（睡眠・HRV・
+    # ボディバッテリー等）が Playwright 側で取れていない場合に備え、
+    # Cookie / garth クライアントをフォールバックとして登録する。
+    try:
+        from garmin_preloaded_client import GarminPreloadedClient
+        if isinstance(garmin_client, GarminPreloadedClient):
+            if garmin_client.has_health_data():
+                print("ℹ 健康データ: Playwright プリフェッチ分を使用")
+            else:
+                print("ℹ 健康データ: プリフェッチに無いためフォールバック先を探します...")
+            fallback = None
+            for label, builder in (
+                ("Cookie", _build_cookie_client),
+                ("~/.garth", lambda: _load_from_cache(token_dir)
+                    if os.path.isdir(token_dir) and os.listdir(token_dir) else None),
+                ("GARTH_TOKENS_B64",
+                    lambda: _load_from_b64(tokens_b64, token_dir) if tokens_b64 else None),
+            ):
+                try:
+                    fallback = builder()
+                except Exception as e:
+                    print(f"  ✗ 健康データ用フォールバック({label})失敗: {e}")
+                    fallback = None
+                if fallback is not None:
+                    print(f"  ✓ 健康データ用フォールバック: {label}")
+                    break
+            if fallback is not None:
+                _ensure_display_name(fallback)
+            garmin_client.set_fallback(fallback)
+            if fallback is None and not garmin_client.has_health_data():
+                print("  ⚠ 健康データを取得できるクライアントがありません（健康データは空になります）")
+    except Exception as e:
+        print(f"⚠ 健康データフォールバック設定に失敗: {e}")
+
     # 1. Fetch Summaries
     activities = get_all_activities(garmin_client, garmin_fetch_limit)
     print(f"Fetched {len(activities)} activities.")
@@ -1479,10 +1572,10 @@ def main():
     # 3. Fetch daily health data (last 7 days) for AI coaching context.
     # display_name が必要な API（RHR等）のために事前に取得を試みる。
     _ensure_display_name(garmin_client)
-    print("\nFetching daily health data (last 7 days)...")
+    print(f"\nFetching daily health data (last {HEALTH_FETCH_DAYS} days)...")
     health_data_list = []
     today_date = datetime.now(local_tz).date()
-    for days_ago in range(7):
+    for days_ago in range(HEALTH_FETCH_DAYS):
         target = today_date - timedelta(days=days_ago)
         try:
             hd = fetch_daily_health_data(garmin_client, target)

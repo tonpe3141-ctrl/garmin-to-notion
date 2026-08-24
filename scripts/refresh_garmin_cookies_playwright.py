@@ -12,6 +12,7 @@ OAuth /exchange/user/2.0 も /preauthorized も一切呼ばない。
   playwright install chromium --with-deps
   GARMIN_EMAIL=xxx GARMIN_PASSWORD=yyy python scripts/refresh_garmin_cookies_playwright.py
 """
+import datetime
 import json
 import os
 import re
@@ -691,7 +692,16 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
     else:
         print("  ⚠ SPA ヘッダー未取得のためスプリットをスキップ")
 
-    print(f"  → 合計: {len(intercepted_activities)} activities, {len(intercepted_splits)} splits")
+    # ── 日次健康データ（睡眠・HRV・ボディバッテリー等）を取得 ──────────────
+    health_data: dict = {}
+    race_predictions: dict = {}
+    if spa_request_headers:
+        health_data, race_predictions = prefetch_health_data(page, spa_request_headers)
+    else:
+        print("  ⚠ SPA ヘッダー未取得のため健康データをスキップ")
+
+    print(f"  → 合計: {len(intercepted_activities)} activities, "
+          f"{len(intercepted_splits)} splits, {len(health_data)} 日分の健康データ")
 
     if not intercepted_activities:
         print("  ✗ アクティビティデータが取得できませんでした")
@@ -701,6 +711,8 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
         "activities": intercepted_activities[:activities_limit],
         "splits": intercepted_splits,
         "details": {},
+        "health": health_data,
+        "race_predictions": race_predictions,
     }
     try:
         with open("/tmp/garmin_prefetch.json", "w") as pf:
@@ -710,6 +722,133 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
     except Exception as e:
         print(f"  ✗ 保存失敗: {e}")
         return False
+
+
+def prefetch_health_data(page, spa_headers: dict, days: int = None) -> tuple:
+    """
+    直近 days 日分の日次健康データとレース予測をブラウザ経由で取得する。
+    日数は本体スクリプトの GARMIN_HEALTH_FETCH_DAYS と揃える（前週比の算出に2週間必要）。
+
+    Python の requests では /gc-api/ が 403 になる環境でも、
+    SPA と同じヘッダー + Cookie でブラウザ内から fetch すれば取得できる。
+
+    返り値: ({"YYYY-MM-DD": {種別: レスポンス}}, レース予測 dict)
+    """
+    if days is None:
+        days = int(os.environ.get("GARMIN_HEALTH_FETCH_DAYS", "14"))
+    print("\n[健康データ事前取得] 直近 %d 日分を取得中..." % days)
+
+    today = datetime.date.today()
+    dates = [(today - datetime.timedelta(days=i)).isoformat() for i in range(days)]
+    headers_js = json.dumps(spa_headers)
+    dates_js = json.dumps(dates)
+
+    # display_name（睡眠・RHR・レース予測に必要）をブラウザから取得
+    display_name = ""
+    try:
+        display_name = page.evaluate(f"""
+            async () => {{
+                const headers = {headers_js};
+                const paths = [
+                    '/gc-api/userprofile-service/socialProfile',
+                    '/gc-api/userprofile-service/userprofile/user-settings/',
+                    '/gc-api/userprofile-service/userprofile/personal-information/'
+                ];
+                for (const p of paths) {{
+                    try {{
+                        const r = await fetch(p, {{credentials:'include', headers}});
+                        if (!r.ok) continue;
+                        const d = await r.json();
+                        const name = d.displayName
+                            || (d.userData && d.userData.displayName)
+                            || (d.userInfo && d.userInfo.displayName);
+                        if (name) return name;
+                    }} catch(e) {{}}
+                }}
+                return '';
+            }}
+        """) or ""
+    except Exception as e:
+        print(f"  ⚠ displayName 取得エラー: {e}")
+    if display_name:
+        print(f"  ℹ displayName: {display_name}")
+    else:
+        print("  ⚠ displayName 取得失敗（睡眠・安静時心拍・レース予測はスキップされます）")
+
+    name_js = json.dumps(display_name)
+
+    try:
+        result = page.evaluate(f"""
+            async () => {{
+                const headers = {headers_js};
+                const dates = {dates_js};
+                const name = {name_js};
+                const B = '/gc-api';
+
+                const get = async (path) => {{
+                    try {{
+                        const r = await fetch(path, {{credentials:'include', headers}});
+                        if (!r.ok) return null;
+                        return await r.json();
+                    }} catch(e) {{ return null; }}
+                }};
+
+                const health = {{}};
+                for (const d of dates) {{
+                    const day = {{}};
+                    day.hrv = await get(`${{B}}/hrv-service/hrv/${{d}}`);
+                    day.steps = await get(`${{B}}/usersummary-service/stats/steps/daily/${{d}}/${{d}}`);
+                    day.body_battery = await get(
+                        `${{B}}/wellness-service/wellness/bodyBattery/reports/daily?startDate=${{d}}&endDate=${{d}}`);
+                    day.stress = await get(`${{B}}/wellness-service/wellness/dailyStress/${{d}}`);
+                    day.training_readiness = await get(
+                        `${{B}}/metrics-service/metrics/trainingreadiness/${{d}}`);
+                    day.max_metrics = await get(
+                        `${{B}}/metrics-service/metrics/maxmet/daily/${{d}}/${{d}}`);
+                    day.training_status = await get(
+                        `${{B}}/metrics-service/metrics/trainingstatus/aggregated/${{d}}`);
+                    day.spo2 = await get(`${{B}}/wellness-service/wellness/daily/spo2/${{d}}`);
+                    day.respiration = await get(
+                        `${{B}}/wellness-service/wellness/daily/respiration/${{d}}`);
+                    if (name) {{
+                        day.sleep = await get(
+                            `${{B}}/wellness-service/wellness/dailySleepData/${{name}}`
+                            + `?date=${{d}}&nonSleepBufferMinutes=60`);
+                        day.rhr = await get(
+                            `${{B}}/userstats-service/wellness/daily/${{name}}`
+                            + `?fromDate=${{d}}&untilDate=${{d}}&metricId=60`);
+                    }}
+                    // null（取得失敗）のキーは保存しない → Python 側でフォールバックさせる
+                    for (const k of Object.keys(day)) {{
+                        if (day[k] === null || day[k] === undefined) delete day[k];
+                    }}
+                    health[d] = day;
+                }}
+
+                let race = null;
+                if (name) {{
+                    race = await get(
+                        `${{B}}/metrics-service/metrics/racepredictions/latest/${{name}}`);
+                }}
+                return {{health, race: race || {{}}}};
+            }}
+        """)
+    except Exception as e:
+        print(f"  ✗ 健康データ取得エラー: {e}")
+        return {}, {}
+
+    health = (result or {}).get("health") or {}
+    race = (result or {}).get("race") or {}
+
+    for d in dates:
+        got = sorted((health.get(d) or {}).keys())
+        print(f"  {d}: {len(got)} 種別 {got if got else '（取得できず）'}")
+    if race:
+        print(f"  ✓ レース予測: {race.get('time5K')}s(5K) / {race.get('timeMarathon')}s(Full)")
+    else:
+        print("  ⚠ レース予測は取得できませんでした")
+
+    return health, race
 
 
 def test_cookies(cookies: dict) -> bool:
