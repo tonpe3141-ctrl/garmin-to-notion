@@ -40,7 +40,7 @@ const DATA = {
   // race / tuneup / phase は docs/athlete_profile.md の値を反映すること。ここを正にしない。
   race: { name: "水戸黄門漫遊マラソン", date: "2026-10-25", goal: "2:59:59", pace: "4:15 /km", daysLeft: 49 },
   tuneup: null,
-  phase: { name: "Phase 4 — ビルドアップ", window: "9/1〜9/27", policy: "Mペース走力の引き上げが最優先", weeklyTarget: "70〜85 km" },
+  phase: { name: "Phase 4 — ビルドアップ", window: "9/1〜9/27", policy: "Mペース走力の引き上げが最優先", weeklyTarget: "70〜85 km", qualityTarget: "週3本", restTarget: "週1日" },
 
   today: {
     date: "2026-09-06",
@@ -143,12 +143,17 @@ const DATA = {
     dow: "月",
     title: "完全休養（0km）",
     headline: "走らない日です。ジョグも入れません。3日で39.5km・質2本を走ったあとで、9/8 の閾値走を HR176 まで使い切れる脚で迎えるための1日です。",
+    // 練習の構成。zone は E / M / T / R / rest。描画側が距離の比率でバーにする。
+    segments: [
+      { zone: "rest", km: 0, label: "完全休養", pace: "—", hr: "—",
+        note: "ジョグ・流し・トレッドミルいずれも入れない" }
+    ],
+    // segments に入らない指示だけをここに書く
     prescription: [
-      { k: "距離",     v: "0km。ランニングはしない。ジョグ・流し・トレッドミルいずれも入れない" },
-      { k: "ペース",   v: "—。歩くのは自由ですが、歩数は1万歩前後に抑えてください。9/4 は21,443歩でボディバッテリーを19まで使い切っています" },
-      { k: "心拍",     v: "—。代わりに朝の HRV・安静時心拍・ボディバッテリー・準備度の4つを記録してください。9/8 の閾値走をやるか落とすかの判定に使います" },
-      { k: "意識",     v: "ストレッチと補強のみ。股関節まわりと腓腹筋・ヒラメ筋を丁寧に。今日のM区間で 4:27 を HR157 で走れているので、脚は使えています。使えている脚を火曜まで持たせるのが明日の仕事です" },
-      { k: "スタート", v: "—。強いて言えば、いつもの起床時刻は崩さないでください。9/8 は朝5:30〜6:00 スタートで閾値走に入ります" }
+      { k: "歩数",   v: "1万歩前後に抑える。9/4 は21,443歩でボディバッテリーを19まで使い切っている" },
+      { k: "記録",   v: "朝の HRV・安静時心拍・ボディバッテリー・準備度の4つを控える。9/8 をやるか落とすかの判定に使う" },
+      { k: "補強",   v: "ストレッチと補強のみ。股関節まわりと腓腹筋・ヒラメ筋を丁寧に" },
+      { k: "起床",   v: "いつもの時刻を崩さない。9/8 は朝5:30〜6:00 スタートで閾値走に入る" }
     ],
     why: "3日で39.49km・うち2日が質練習で、今日の有酸素TE 4.1 は今週最大。9/8 は今週1本も入らなかった閾値カテゴリを HR≤176 で走るので、中途半端な脚だとT帯に届かず、ただのきつい走りになって効果が出ない。Phase 4 の規定休養は週1日で、それをここに置く配置であって削減ではない（来週は72km・質3本で下限を満たす）。",
     // 切り替え条件は箇条書きで持つ（配列なら描画側が番号付きリストにする）
@@ -167,7 +172,7 @@ const DATA = {
   weekPlan: {
     label: "9/7(月) 〜 9/13(土)",
     totalKm: "72",
-    policy: "先に質3本（9/8 閾値・9/11 Mペース・9/13 ロング後半M）を置き、残りをEと休養1日で埋めた。閾値を週の頭にしたのは、今週このカテゴリが1本も入らなかったため。72km は前週58.95km から +22% だが、58.95 自体が下限割れなので下限に載せる調整であり、回復の週平均が落ちている以上、上限側の85kmは取らない。",
+    aim: "Mペースの天井を上げること。今週は閾値もインターバルも1本も入らなかったので、9/8 の閾値走でLTへの刺激を戻し、9/11 のMペース走と 9/13 のロング後半M混走で 4:25 を切る精度を取りにいく。",
     days: [
       { d: "9/7",  dow: "月", type: "rest", title: "完全休養",              km: "0",  note: "3日連続39.5km・質2本のあと。ジョグも入れない。歩数も1万歩前後に抑える" },
       { d: "9/8",  dow: "火", type: "T",    title: "閾値走 2km × 3",       km: "12", note: "4:10〜4:20・HR ≤176 厳守。176に触れたら即緩める。つなぎ800mジョグ" },
@@ -650,6 +655,59 @@ svg.laps { display: block; min-width: 560px; width: 100%; height: auto; }
 .meter { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
 .meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 
+/* ---------- 明日のメニューの構成 ----------
+   距離の比率をそのままバーの幅にして、練習の「かたち」を一目で分かるようにする。
+   文字はバーの中に入れない（ゾーン色の上では読みにくいため）。詳細は下の行に出す。 */
+.segbar {
+  display: flex; height: 30px; border-radius: 3px; overflow: hidden;
+  background: var(--surface-2); gap: 1px;
+}
+.seg { display: block; min-width: 3px; }
+.seg.E { background: var(--z-e); }
+.seg.M { background: var(--z-m); }
+.seg.T { background: var(--z-t); }
+.seg.R { background: var(--z-r); }
+.seg.rest { background: var(--line); }
+
+.segs { display: flex; flex-direction: column; }
+.segrow {
+  display: grid;
+  grid-template-columns: 46px 1fr 62px;
+  grid-template-areas: "type name km" "type meta meta" "type note note";
+  align-items: baseline; gap: 2px 12px;
+  padding: 10px 0; border-bottom: 1px solid var(--line-soft);
+}
+.segrow:last-child { border-bottom: none; }
+.segrow .tp { grid-area: type; align-self: start; }
+.seg-n { grid-area: name; font-size: 13.5px; font-weight: 700; }
+.seg-k {
+  grid-area: km; font-family: var(--num); font-weight: 700; font-size: 14px;
+  text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
+}
+.seg-k em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
+.seg-m { grid-area: meta; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.seg-o { grid-area: note; font-size: 12px; color: var(--ink-3); }
+
+/* 週プランの達成度タイル。フェーズ規定を満たしているかをその場で見せる。 */
+.ptiles {
+  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
+  background: var(--line-soft); border: 1px solid var(--line-soft);
+  border-radius: 3px; overflow: hidden;
+}
+.ptile { background: var(--surface); padding: 11px 13px 10px; position: relative; }
+.ptile::before {
+  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent;
+}
+.ptile.good::before { background: var(--good); }
+.ptile.warn::before { background: var(--warn); }
+.ptile .n {
+  display: block; font-family: var(--num); font-weight: 900; font-size: 21px;
+  line-height: 1.25; font-variant-numeric: tabular-nums;
+}
+.ptile .n em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.ptile .l { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; }
+.week-grid.plan .wd-km { font-size: 10.5px; }
+
 /* week plan */
 .plan { display: flex; flex-direction: column; }
 .plan-row {
@@ -885,6 +943,9 @@ footer {
 
   .axis p, .lst li { font-size: 13px; }
   .rx-title { font-size: 22px; }
+  .ptiles { grid-template-columns: 1fr; }
+  .ptile { padding: 9px 12px 8px; }
+  .ptile .n { font-size: 19px; }
   .rx-list { grid-template-columns: 1fr; gap: 1px; }
   .rx-list dt { padding-top: 6px; }
   .rx-list dd { padding-bottom: 4px; }
@@ -1262,7 +1323,78 @@ footer {
     </section>`;
   }
 
+  /* ---------- 明日のメニューの構成 ----------
+     segments[] は { zone, km, label, pace, hr, note }。
+     zone は週プランと同じ E / M / T / R / rest。 */
+  const numOf = (v) => {
+    const m = String(v == null ? "" : v).match(/\d+(\.\d+)?/);
+    return m ? Number(m[0]) : null;
+  };
+
+  function segBar(segs) {
+    if (!segs || !segs.length) return "";
+    const total = segs.reduce((a, x) => a + (numOf(x.km) || 0), 0);
+    if (!total) return "";
+    return `<div class="segbar" role="img" aria-label="練習の構成">${segs.map(x => {
+      const km = numOf(x.km) || 0;
+      if (!km) return "";
+      return `<i class="seg ${esc(x.zone || "E")}" style="flex:${km}"
+        title="${esc(x.label || x.zone || "")} ${esc(x.km)}km"></i>`;
+    }).join("")}</div>`;
+  }
+
+  function segTable(segs) {
+    if (!segs || !segs.length) return "";
+    return `<div class="segs">${segs.map(x => {
+      const meta = [x.pace ? `ペース ${x.pace}` : null, x.hr ? `HR ${x.hr}` : null]
+        .filter(Boolean).join("　／　");
+      return `<div class="segrow">
+        <span class="tp ${esc(x.zone || "E")}">${x.zone === "rest" ? "休" : esc(x.zone || "E")}</span>
+        <span class="seg-n">${esc(x.label || "")}</span>
+        <span class="seg-k">${numOf(x.km) ? `${esc(x.km)}<em>km</em>` : "—"}</span>
+        ${meta ? `<span class="seg-m">${esc(meta)}</span>` : ""}
+        ${x.note ? `<span class="seg-o">${esc(x.note)}</span>` : ""}
+      </div>`;
+    }).join("")}</div>`;
+  }
+
   /* ---------- week plan（明日から1週間・要点だけ） ---------- */
+  // 予定の7日を棒で見せる。km は "14〜16" のような幅つき文字列も来るので先頭の数を使う。
+  function planBars(days) {
+    const max = Math.max(...days.map(d => numOf(d.km) || 0), 1);
+    return days.map(d => {
+      const km = numOf(d.km) || 0;
+      const h = km > 0 ? Math.max(4, (km / max) * 74) : 4;
+      return `<div class="wd">
+        <span class="wd-km">${km > 0 ? esc(d.km) : "—"}</span>
+        <span class="wd-bar ${km > 0 ? esc(d.type) : "rest"}" style="height:${h.toFixed(0)}px"
+          title="${esc(d.d)} ${esc(d.title || "")}"></span>
+        <span class="wd-d">${esc(d.dow)}</span>
+      </div>`;
+    }).join("");
+  }
+
+  // フェーズ規定に対して足りているかを、その場で見せる。
+  // 質練習は E を数えない（プロファイルの定義どおり M / T / R のみ）。
+  function planSummary(p) {
+    const days = p.days || [];
+    const q = days.filter(d => d.type === "M" || d.type === "T" || d.type === "R").length;
+    const rest = days.filter(d => d.type === "rest").length;
+    const ph = D.phase || {};
+    const kmLo = numOf(p.totalKm), kmTgt = numOf(ph.weeklyTarget);
+    const qTgt = numOf(ph.qualityTarget), rTgt = numOf(ph.restTarget);
+    const tile = (n, unit, label, state) => `<div class="ptile ${state}">
+      <span class="n">${esc(n)}<em>${esc(unit)}</em></span><span class="l">${esc(label)}</span></div>`;
+    return `<div class="ptiles">
+      ${tile(p.totalKm || "—", " km", `予定合計${ph.weeklyTarget ? `／ 目標 ${ph.weeklyTarget}` : ""}`,
+        kmLo != null && kmTgt != null && kmLo < kmTgt ? "warn" : "good")}
+      ${tile(q, " 本", `質練習${ph.qualityTarget ? `／ 規定 ${ph.qualityTarget}` : ""}`,
+        qTgt != null && q < qTgt ? "warn" : "good")}
+      ${tile(rest, " 日", `休養${ph.restTarget ? `／ 規定 ${ph.restTarget}` : ""}`,
+        rTgt != null && rest > rTgt ? "warn" : "good")}
+    </div>`;
+  }
+
   function planCard(p) {
     if (!p || !p.days || !p.days.length) return "";
     const rows = p.days.map((d, i) => `<div class="plan-row ${d.type === "rest" ? "rest" : ""}">
@@ -1275,9 +1407,10 @@ footer {
     return `<section class="card">
       <div class="card-head"><h2>この先1週間</h2><span class="sub">${esc(p.label || "")}</span></div>
       <div class="card-body">
-        ${prose("今週の組み方", p.policy)}
+        ${p.aim || p.policy ? `<div class="blk"><b>ねらい</b><p class="lead">${esc(p.aim || p.policy)}</p></div>` : ""}
+        ${planSummary(p)}
+        <div class="week-grid plan">${planBars(p.days)}</div>
         <div class="plan">${rows}</div>
-        ${p.totalKm ? `<p class="note"><b>予定合計</b> ${esc(p.totalKm)} km（Phase 目標 ${esc(D.phase.weeklyTarget)}）</p>` : ""}
       </div>
     </section>`;
   }
@@ -1506,9 +1639,11 @@ footer {
       <div class="card-body">
         <h3 class="rx-title">${esc(D.tomorrow.title)}</h3>
         <p class="rx-headline">${esc(D.tomorrow.headline)}</p>
-        <dl class="rx-list">
+        ${segBar(D.tomorrow.segments)}
+        ${segTable(D.tomorrow.segments)}
+        ${(D.tomorrow.prescription || []).length ? `<dl class="rx-list">
           ${D.tomorrow.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}
-        </dl>
+        </dl>` : ""}
         <div class="divider"></div>
         ${prose("なぜこの内容か", D.tomorrow.why)}
         ${Array.isArray(D.tomorrow.alt)
