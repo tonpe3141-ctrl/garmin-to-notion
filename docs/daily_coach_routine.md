@@ -76,7 +76,7 @@ WebFetch で固定URLを取得する。
 ```
 WebFetch(
   url: "https://claude.ai/code/artifact/eedcbce5-cbe3-45f2-8181-4fffcd8b79c4",
-  prompt: "DATA ブロックの today.date, today.verdict, today.verdictReason, tomorrow の全項目, week.totalKm を報告して"
+  prompt: "DATA ブロックの today.date, today.verdict, today.headline, today.points, tomorrow の全項目, week.totalKm を報告して"
 )
 ```
 
@@ -86,11 +86,14 @@ WebFetch(
 
 > **リポジトリの `dashboard/index.html` を昨日の状態だと思わないこと。**
 > このRoutineはリポジトリに書き込めない（GitHub App に権限がないため 403）。
-> リポジトリのファイルは**構造のテンプレート**であり、中身のDATAは初期値のまま更新されない。
-> 最新の状態は常に公開済みArtifactの側にある。
+> したがってリポジトリのファイルは **DATA も描画レイヤーも古いまま取り残されている。**
+> 最新は常に公開済みArtifactの側にある。土台の扱いは STEP 6 を見ること。
 >
-> なおこのWebFetchは STEP 6 の publish でも必須になる（未読のまま publish しようとすると
-> 「This session hasn't viewed the latest version」で拒否される）。ここで1回読んでおけば足りる。
+> なおこのWebFetchは STEP 6 の publish の前提でもある（未読のまま publish しようとすると
+> 「This session hasn't viewed the latest version」で拒否される）。
+> **ただし WebFetch の要約だけでは足りず、保存されたソース全文を Read するまで
+> publish は通らない。** 拒否メッセージがローカルの保存先パスを教えてくれるので、
+> そのファイルを最後まで Read すること。これが STEP 6 の土台にもなる。
 
 ### STEP 4 — 分析する
 
@@ -120,7 +123,9 @@ WebFetch(
 
 **今日走っていない場合**（最新のランが今日でない）:
 `today.type` を `"休養日"`、`verdict` を `"—"`、`verdictLabel` を `"休養"`、`stats` と `laps` を空配列にし、
-`verdictReason` に休養の妥当性（連続走行日数・週間距離から見て適切か）を書く。
+`headline` に休養の妥当性（連続走行日数・週間距離から見て適切か）を1文で書く。
+`points` には休養の根拠を要点で置く（`tone` は `"note"` を基本に、
+週の未達など問題があれば `"bad"`）。
 評価軸と明日のメニューは通常どおり出す。休養日こそ翌日の設計が重要。
 
 ### STEP 5 — 明日のメニューを決める
@@ -208,19 +213,20 @@ WebFetch(
    > - ファイル内に DATA の代入文がちょうど1つだけあること
    > - `-->` と `<script id="coach-data">` と `<div class="wrap" id="app">` が残っていること
 
-   ダッシュボードは3つのタブに分かれている（描画側が自動で振り分けるので DATA 側の操作は不要）:
+   ダッシュボードは4つのタブに分かれている（描画側が自動で振り分けるので DATA 側の操作は不要）:
    - **走りの評価** — `today` / `axes` / `good` / `issues` / `week`
    - **明日以降のメニュー** — `tomorrow` / `weekPlan`
    - **コンディション** — `health`
+   - **過去の評価** — DATA ではなく db を読む（STEP 6.6 参照）
 
-   `race` カウンターだけが3タブ共通で常に上部に出る。
+   `race` カウンターだけが全タブ共通で常に上部に出る。
 
    > **⚠ `alerts` は廃止した（2026-09-06）。書かないこと。**
    > 以前はページ上部に「警戒 / 備考」の帯として出していたが、本文と内容が重複して
    > 読みづらいという指摘があり、描画をやめた。`alerts` キーを付けても表示されない。
    > **したがって、見落とさせたくない指摘は必ずタブ本文の側に書く。**
    > 行き先は次のとおり:
-   > - 走りそのものへの警告 → `today.verdictReason` と該当する `axes[].text`
+   > - 走りそのものへの警告 → `today.headline` / `today.points`（`tone: "bad"`）と該当する `axes[].summary`
    > - 過負荷・過小負荷・週の未達 → `issues`（「疲労・コンディション」軸にも書く）
    > - 週の組み方を規定から外した理由 → `weekPlan.policy`
    > - 健康データの欠測・警戒サイン → `health.read` と `issues`
