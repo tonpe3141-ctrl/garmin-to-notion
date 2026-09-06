@@ -40,7 +40,7 @@ const DATA = {
   // race / tuneup / phase は docs/athlete_profile.md の値を反映すること。ここを正にしない。
   race: { name: "水戸黄門漫遊マラソン", date: "2026-10-25", goal: "2:59:59", pace: "4:15 /km", daysLeft: 49 },
   tuneup: null,
-  phase: { name: "Phase 4 — ビルドアップ", window: "9/1〜9/27", policy: "Mペース走力の引き上げが最優先", weeklyTarget: "70〜85 km", qualityTarget: "週3本", restTarget: "週1日" },
+  phase: { name: "Phase 4 — ビルドアップ", window: "9/1〜9/27", policy: "Mペース走力の引き上げが最優先", weeklyTarget: "70〜85 km" },
 
   today: {
     date: "2026-09-06",
@@ -688,26 +688,6 @@ svg.laps { display: block; min-width: 560px; width: 100%; height: auto; }
 .seg-m { grid-area: meta; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
 .seg-o { grid-area: note; font-size: 12px; color: var(--ink-3); }
 
-/* 週プランの達成度タイル。フェーズ規定を満たしているかをその場で見せる。 */
-.ptiles {
-  display: grid; grid-template-columns: repeat(3, 1fr); gap: 1px;
-  background: var(--line-soft); border: 1px solid var(--line-soft);
-  border-radius: 3px; overflow: hidden;
-}
-.ptile { background: var(--surface); padding: 11px 13px 10px; position: relative; }
-.ptile::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent;
-}
-.ptile.good::before { background: var(--good); }
-.ptile.warn::before { background: var(--warn); }
-.ptile .n {
-  display: block; font-family: var(--num); font-weight: 900; font-size: 21px;
-  line-height: 1.25; font-variant-numeric: tabular-nums;
-}
-.ptile .n em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
-.ptile .l { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; }
-.week-grid.plan .wd-km { font-size: 10.5px; }
-
 /* week plan */
 .plan { display: flex; flex-direction: column; }
 .plan-row {
@@ -943,9 +923,6 @@ footer {
 
   .axis p, .lst li { font-size: 13px; }
   .rx-title { font-size: 22px; }
-  .ptiles { grid-template-columns: 1fr; }
-  .ptile { padding: 9px 12px 8px; }
-  .ptile .n { font-size: 19px; }
   .rx-list { grid-template-columns: 1fr; gap: 1px; }
   .rx-list dt { padding-top: 6px; }
   .rx-list dd { padding-bottom: 4px; }
@@ -1359,42 +1336,6 @@ footer {
   }
 
   /* ---------- week plan（明日から1週間・要点だけ） ---------- */
-  // 予定の7日を棒で見せる。km は "14〜16" のような幅つき文字列も来るので先頭の数を使う。
-  function planBars(days) {
-    const max = Math.max(...days.map(d => numOf(d.km) || 0), 1);
-    return days.map(d => {
-      const km = numOf(d.km) || 0;
-      const h = km > 0 ? Math.max(4, (km / max) * 74) : 4;
-      return `<div class="wd">
-        <span class="wd-km">${km > 0 ? esc(d.km) : "—"}</span>
-        <span class="wd-bar ${km > 0 ? esc(d.type) : "rest"}" style="height:${h.toFixed(0)}px"
-          title="${esc(d.d)} ${esc(d.title || "")}"></span>
-        <span class="wd-d">${esc(d.dow)}</span>
-      </div>`;
-    }).join("");
-  }
-
-  // フェーズ規定に対して足りているかを、その場で見せる。
-  // 質練習は E を数えない（プロファイルの定義どおり M / T / R のみ）。
-  function planSummary(p) {
-    const days = p.days || [];
-    const q = days.filter(d => d.type === "M" || d.type === "T" || d.type === "R").length;
-    const rest = days.filter(d => d.type === "rest").length;
-    const ph = D.phase || {};
-    const kmLo = numOf(p.totalKm), kmTgt = numOf(ph.weeklyTarget);
-    const qTgt = numOf(ph.qualityTarget), rTgt = numOf(ph.restTarget);
-    const tile = (n, unit, label, state) => `<div class="ptile ${state}">
-      <span class="n">${esc(n)}<em>${esc(unit)}</em></span><span class="l">${esc(label)}</span></div>`;
-    return `<div class="ptiles">
-      ${tile(p.totalKm || "—", " km", `予定合計${ph.weeklyTarget ? `／ 目標 ${ph.weeklyTarget}` : ""}`,
-        kmLo != null && kmTgt != null && kmLo < kmTgt ? "warn" : "good")}
-      ${tile(q, " 本", `質練習${ph.qualityTarget ? `／ 規定 ${ph.qualityTarget}` : ""}`,
-        qTgt != null && q < qTgt ? "warn" : "good")}
-      ${tile(rest, " 日", `休養${ph.restTarget ? `／ 規定 ${ph.restTarget}` : ""}`,
-        rTgt != null && rest > rTgt ? "warn" : "good")}
-    </div>`;
-  }
-
   function planCard(p) {
     if (!p || !p.days || !p.days.length) return "";
     const rows = p.days.map((d, i) => `<div class="plan-row ${d.type === "rest" ? "rest" : ""}">
@@ -1408,8 +1349,6 @@ footer {
       <div class="card-head"><h2>この先1週間</h2><span class="sub">${esc(p.label || "")}</span></div>
       <div class="card-body">
         ${p.aim || p.policy ? `<div class="blk"><b>ねらい</b><p class="lead">${esc(p.aim || p.policy)}</p></div>` : ""}
-        ${planSummary(p)}
-        <div class="week-grid plan">${planBars(p.days)}</div>
         <div class="plan">${rows}</div>
       </div>
     </section>`;
