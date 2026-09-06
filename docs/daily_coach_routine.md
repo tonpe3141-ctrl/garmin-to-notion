@@ -185,9 +185,14 @@ WebFetch(
    2026-09-06 に実際にこれが起きかけた。
 
    公開済みソースは WebFetch / Artifact read の結果としてローカルにファイル保存される。
-   そのファイルの **DATA オブジェクトの中身だけ**を差し替えて publish する。
    1行目に publish 時のラッパー（`<!doctype html>…<body>`）が付いているので、
-   それと末尾の重複した `</body></html>` は取り除いてから publish すること。
+   それと末尾の重複した `</body></html>` を取り除き、**DATA オブジェクトの中身だけ**を
+   差し替える。
+
+   **出来上がったものは `dashboard/index.html` に書き戻すこと**（リポジトリ側の
+   古い中身は上書きしてよい。どうせ push できず、STEP 8 で捨てる）。
+   以降の publish・履歴の書き出しはすべてこのパスを見るので、
+   ここを揃えておかないと **古い中身が履歴に残る。**
 
    **HTML・CSS・描画スクリプトには一切触れないこと。** 構造を変えると設計が壊れる。
 
@@ -394,7 +399,8 @@ Artifact(
 日々の記録は Artifact（固定URL・版履歴あり）と Notion に残るので、リポジトリへの
 コミットは不要である。翌日の継続性は STEP 3 の WebFetch が担保する。
 
-**Artifact の publish が成功したら、作業ツリーを必ず元に戻すこと。**
+**Artifact の publish と STEP 6.6 の履歴書き込みが両方終わったら、作業ツリーを元に戻す。**
+（STEP 6.6 より先に戻すと、履歴の書き出し元が古い中身になってしまう。）
 
 ```bash
 git checkout -- dashboard/index.html
