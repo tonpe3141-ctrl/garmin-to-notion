@@ -321,7 +321,17 @@ Artifact(
 ### STEP 6.6 — 履歴を1件書き込む
 
 publish のあと、**その日の評価を Artifact の db に1件だけ書く。**
-ダッシュボードの「過去の評価」タブはここを読んでいる。
+ダッシュボードの「過去の評価」タブはここを読んでいて、数値タイルもラップグラフも
+この1件から描いている。
+
+**中身を書き起こしてはいけない。** 必要な値はすべて publish 済みの
+`dashboard/index.html` の `DATA.today` に入っているので、スクリプトに写させる。
+
+```bash
+node scripts/export_run_history.js dashboard/index.html /tmp/run.json
+```
+
+出力された JSON を、そのままファイル渡しで書き込む:
 
 ```
 Artifact(
@@ -329,16 +339,28 @@ Artifact(
   url: "https://claude.ai/code/artifact/eedcbce5-cbe3-45f2-8181-4fffcd8b79c4",
   db_op: "set",
   collection: "runs",
-  doc_id: "YYYY-MM-DD",
-  data: { d, dow, type, verdict, verdictLabel, km, pace, hr, headline, points }
+  doc_id: "YYYY-MM-DD",     ← STEP 0 で確定した今日の日付
+  file_path: "/tmp/run.json"
 )
 ```
 
 - `doc_id` は日付そのもの。同じ日に2回実行しても上書きになるだけで重複しない。
-- 中身は `DATA.today` と同じ値を使う（`km` / `pace` / `hr` は `stats[]` の
-  「距離」「平均ペース」「平均心拍」の `value`）。**新しく書き起こさない。**
-- 休養日も書く（`type` を `"休養日"`、`verdict` を `"—"` にする）。
-  走らなかった日が履歴から抜けると、連続性が読めなくなる。
+- `file_path` を使うこと。**中身を会話に流さないのが要点で、これで履歴1件あたりの
+  生成コストがほぼゼロになる。** インラインの `data:` に貼り直すと台無しになる。
+- 休養日も書く。`DATA.today` を規定どおり（`type` は `"休養日"`、`verdict` は `"—"`、
+  `stats` と `laps` は空配列）に作ってあれば、スクリプトがそのまま写す。
+- スクリプトが `DATA ブロックが見つかりません` で失敗する場合は、STEP 6 の差し替えで
+  ファイルを壊している。publish 前の確認に戻ること。
+
+書き出される中身（すべて `DATA.today` からの機械的なコピー）:
+
+| キー | 中身 |
+|------|------|
+| `d` / `dow` / `type` / `verdict` / `verdictLabel` | 一覧行に出す |
+| `km` / `pace` / `hr` | `stats[]` の「距離」「平均ペース」「平均心拍」から自動取得 |
+| `headline` / `points` | 開いたときの結論と要点 |
+| `stats` / `effect` | 数値タイルとトレーニング効果 |
+| `laps` | `"秒:心拍,秒:心拍,…"` の1行に圧縮（ペースは秒から復元するので持たない） |
 
 > **なぜ DATA に持たせないか。**
 > 過去分を `DATA` に積むと、Routine は毎日その全部を書き直すことになり、

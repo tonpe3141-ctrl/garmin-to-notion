@@ -488,7 +488,13 @@ body {
 .hk { font-family: var(--num); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .hk em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
 .hv { font-family: var(--num); font-weight: 700; font-size: 17px; text-align: right; }
-.hbody { padding: 0 4px 16px; display: flex; flex-direction: column; gap: 11px; }
+.hbody { padding: 0 4px 18px; display: flex; flex-direction: column; gap: 12px; }
+.hbody .stats {
+  border: 1px solid var(--line-soft); border-top: 1px solid var(--line-soft);
+  border-radius: 3px; overflow: hidden; background: var(--surface);
+}
+.hbody .effect { padding: 0; }
+.hbody .chart-box { padding: 0; background: var(--surface); border-radius: 3px; }
 .hmeta {
   font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
   font-variant-numeric: tabular-nums;
@@ -954,7 +960,8 @@ footer {
     const sMin = Math.min(...secs), sMax = Math.max(...secs);
     const sLo = sMin - (sMax - sMin) * 0.25 - 6;
     const sHi = sMax + (sMax - sMin) * 0.12 + 6;
-    const hLo = Math.min(...hrs) - 12, hHi = Math.max(...hrs) + 12;
+    const hLo = hrs.length ? Math.min(...hrs) - 12 : 0;
+    const hHi = hrs.length ? Math.max(...hrs) + 12 : 1;
 
     const bw = iw / laps.length;
     const barW = Math.min(bw * 0.62, 42);
@@ -1289,6 +1296,33 @@ footer {
     }).join("");
   }
 
+  function statsGrid(stats) {
+    if (!stats || !stats.length) return "";
+    return `<div class="stats">${stats.map(s => `<div class="stat ${s.state === "ok" ? "" : esc(s.state)}">
+        <div class="stat-l">${esc(s.label)}</div>
+        <div class="stat-v">${esc(s.value)}${s.unit ? `<em>${esc(s.unit)}</em>` : ""}</div>
+        <div class="stat-n">${s.note ? esc(s.note) : "&nbsp;"}</div>
+      </div>`).join("")}</div>`;
+  }
+
+  // 履歴のラップは "sec:hr,sec:hr,…" の1行で持つ。
+  // ペースは秒から復元できるので保存しない（保存量をおよそ1/4にするため）。
+  function expandLaps(v) {
+    if (Array.isArray(v)) return v;
+    if (typeof v !== "string" || !v) return [];
+    return v.split(",").map((pair, i) => {
+      const parts = pair.split(":");
+      const sec = Number(parts[0]);
+      if (!isFinite(sec) || sec <= 0) return null;
+      const hr = parts[1] === "" || parts[1] == null ? null : Number(parts[1]);
+      return {
+        n: i + 1, sec,
+        pace: `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`,
+        hr: isFinite(hr) ? hr : null
+      };
+    }).filter(Boolean);
+  }
+
   function pointsList(pts) {
     if (!pts || !pts.length) return "";
     return `<ul class="pts">${pts.map(p => `<li class="pt ${esc(p.tone || "note")}">
@@ -1318,7 +1352,8 @@ footer {
     return {
       d: t.date, dow: t.dow, type: t.type, verdict: t.verdict, verdictLabel: t.verdictLabel,
       km: pick("距離"), pace: pick("平均ペース"), hr: pick("平均心拍"),
-      headline: t.headline, points: t.points || []
+      headline: t.headline, points: t.points || [],
+      stats: t.stats || [], effect: t.effect || "", laps: t.laps || []
     };
   }
 
@@ -1362,6 +1397,9 @@ footer {
           <span class="hv ${vClass[h.verdict] || "v-warn"}">${esc(h.verdict || "")}</span>
         </button>
         ${open ? `<div class="hbody">
+          ${statsGrid(h.stats)}
+          ${h.effect ? `<div class="effect">トレーニング効果: ${esc(h.effect)}</div>` : ""}
+          ${(() => { const lp = expandLaps(h.laps); return lp.length ? `<div class="chart-box">${lapChart(lp)}</div>` : ""; })()}
           ${h.headline ? `<p class="cmt-h">${esc(h.headline)}</p>` : ""}
           ${pointsList(h.points)}
           ${meta ? `<div class="hmeta">${esc(meta)}</div>` : ""}
@@ -1418,13 +1456,7 @@ footer {
           <span class="verdict-txt">${esc(t.verdictLabel)}<span>総合評価</span></span>
         </span>
       </div>
-      <div class="stats">
-        ${t.stats.map(s => `<div class="stat ${s.state === "ok" ? "" : esc(s.state)}">
-          <div class="stat-l">${esc(s.label)}</div>
-          <div class="stat-v">${esc(s.value)}${s.unit ? `<em>${esc(s.unit)}</em>` : ""}</div>
-          <div class="stat-n">${s.note ? esc(s.note) : "&nbsp;"}</div>
-        </div>`).join("")}
-      </div>
+      ${statsGrid(t.stats)}
       <div class="effect">トレーニング効果: ${esc(t.effect)}</div>
       <div class="chart-box">${lapChart(t.laps)}</div>
       ${commentBlock(t)}
