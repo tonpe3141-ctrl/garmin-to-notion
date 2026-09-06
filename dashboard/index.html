@@ -48,6 +48,18 @@ const DATA = {
     type: "Mペースロング 16.11km（処方は18km）",
     verdict: "△",
     verdictLabel: "要調整",
+    // 結論を1文で。ダッシュボードの最初に読まれる行なので、ここに評価の芯を置く。
+    headline: "M区間5kmは明確な前進。ただし処方は距離・E区間の心拍・Mペース帯の3点で外れ、総合は △ 要調整 です。",
+    // 要点。tone は "good"（○）/ "bad"（△）/ "note"（・）。各項目は1〜2文に収める。
+    points: [
+      { tone: "good", label: "M区間 5km",      text: "4:42 → 4:36 → 4:33 → 4:29 → 4:27。5本すべて前の本より速く、崩れたラップが1本もない。ロング走の後半にこの形が出たのは初めて。" },
+      { tone: "good", label: "HRドリフト耐性", text: "4本目 4:29 で上限167 に触れたあと、最速の 4:27 を HR157 で走った。ペースを2秒上げて心拍が10bpm 低下。10km 走ったあとにこれが出たのは課題4への前進。" },
+      { tone: "good", label: "フォーム",       text: "ピッチ185spm・接地時間238ms・上下動8.0cm が16km走って揃い、今週最良。" },
+      { tone: "bad",  label: "距離 −1.89km",   text: "処方18km に対し16.11km。「伸ばさない」と明記した18kmを下に外した。今週は下限割れなので、この不足はそのまま週の数字に効く。" },
+      { tone: "bad",  label: "E区間の心拍",    text: "処方 HR≤145 に対し 2〜6km目が 155〜159bpm と5本連続で超過。走行の6割がE指示なのにE強度ではない。8/31・9/2 に続く3回目の再発。" },
+      { tone: "bad",  label: "Mペース帯 未達", text: "平均4:33 は処方帯 4:20〜4:30 の外。帯に入ったのは4本目(4:29)と5本目(4:27)だけで、9/4 の6km連続 4:25.8 より 7.6秒/km 遅い。" },
+      { tone: "note", label: "留保",           text: "7〜10km目は同じペースのまま HR139〜148 に落ちている。序盤は光学式心拍計の高値張り付きだった可能性を残す。断定はしない。" }
+    ],
     verdictReason: "良かったところから書きます。M区間です。11〜15km目が 4:42 → 4:36 → 4:33 → 4:29 → 4:27。5本すべてで前の本より速く、崩れたラップが1本もありません。そして最も価値があるのは心拍のほうです。4本目 4:29 で167 に触れたあと、5本目はさらに速い 4:27 を HR157 で走っています。ペースを2秒上げながら心拍が10bpm 下がりました。10km を走ったあとの5km でこれが出ています。9/4 のM区間は 149 → 165 と +16bpm の一方向でしたから、今日の形は明確に違います。HRドリフト耐性はプロファイルの課題4そのもので、そこに前進が見えたのは事実です。最大心拍169 はM上限167 を2bpm 上回っていますが、これはM区間ではなく計測上の最大値で、M区間のラップ心拍は154〜167 に収まっています。フォームも良い。ピッチ185spm は9/5 の180 から +5 で良好域（180〜190）の中央、接地時間238ms は良好域（<250ms）、上下動0.8（8.0cm）。16km 走ってこの3つが揃ったのは今週で最良です。そのうえで総合は △ 要調整 です。理由は3つあります。第一に距離。処方は18kmで、しかも「伸ばさないこと」と明記した18kmでした。実走16.11km で1.9km 足りません。今週の距離が下限に届いていない状況で、下に外したのはそのまま週の不足に効いています。第二にE区間の心拍です。処方は「E区間 HR ≤145」でした。実際は2km目157、3km目159、4km目155、5km目158、6km目157。5本連続で上限を10〜14bpm 超えています。ペースも 5:18〜5:25 で、指示した 5:40〜6:00 より速い。ここは10km ぶんあるので、走行の6割がE指示なのにE強度ではなかったということです。8/31（平均147）・9/2（平均148）で2回続いた「E指示の日をテンポで走る」失敗を、9/5 に1回直したところでした。今日また出ています。ただし1点だけ留保します。7〜10km目は同じ 5:16〜5:28 のペースのまま HR139 / 148 / 143 / 145 に落ちています。同一ペースで15bpm 下がるのは生理的には説明しにくく、序盤の光学式心拍計の読み違い（装着直後の高値張り付き）の可能性があります。可能性としては書きますが、断定はしません。時計の値をそのまま受け取れば、E区間の6割は上限超過です。第三にM区間のペース帯です。処方は 4:20〜4:30 で、帯に入ったのは4本目（4:29）と5本目（4:27）の2本だけ。平均4:33 は帯の外です。9/4 の6km連続が 4:25.8 でしたから、絶対値では 7.6秒/km 遅くなっています。10km 走ったあとという条件差はあるので、これを後退とは言いません。しかし「Mペース走力が上がった」証拠にもなりません。サブ3必要ペース4:15 に対して、今日の最速1km（4:27）でもまだ12秒/km、平均では18秒/km の差があります。残り49日です。処方から外れたのは、9/4（M 2km×3 → 6km連続）、9/5（0km → 11.27km）、9/6（18km → 16.11km・E強度超過・M 3km → 5km）で3日連続です。今日は上にも下にも外れました。走りの中身が良いことと、決めたとおりに走れたかは別に採点します。週の数字を置きます。8/31〜9/6 は 58.95km・6回・質練習2本（9/4 のMペース走、9/6 のロング後半M混走）。Phase 4 の下限70km に対して84%、質は規定3本に対して2本で、閾値もインターバルも今週1本も入っていません。前週44.47km からは +32.6% で、これは +10% の目安を大きく超えています。ただし前週が谷だったための跳ね上がりで、水準そのものは依然として下限割れです。",
     stats: [
       { label: "距離", value: "16.11", unit: "km", state: "warn", note: "処方18km に対し −1.89km。「伸ばさない」と書いた18kmを下に外した" },
@@ -85,21 +97,25 @@ const DATA = {
   axes: [
     {
       name: "ペース管理",
+      summary: "M区間の形は良いが、E区間が指示より速く、距離も1.89km 足りない。",
       state: "warn",
       text: "M区間と E区間で評価が割れます。M区間は良い。11〜15km目が 4:42 / 4:36 / 4:33 / 4:29 / 4:27 で、5本すべて前の本より速く、1本も崩れていません。ロング走の後半にこの形が出せたのは初めてです。ただし処方したペース帯は 4:20〜4:30 で、帯に入ったのは4本目と5本目の2本だけ。平均4:33 は帯の外です。過大評価はしません。9/4 の6km連続は 4:25.8 でしたから、絶対値では今日のほうが 7.6秒/km 遅い。10km を先に走っているぶん条件は不利なので後退とは言いませんが、Mペース走力そのものが上がった証拠でもありません。サブ3必要ペース4:15 との差は、今日の最速1km（4:27）でも12秒/km、平均では18秒/km です。E区間は外れています。処方は 5:40〜6:00 でしたが、実際は 5:16〜5:28 が8本で、5:40 より遅いラップは1km目（5:54）だけ。10km 全体で平均 5:26 です。速すぎます。そして距離。処方は18kmで「伸ばさないこと」と書きました。今日の問題は伸ばしたことではなく、16.11km で止めたことです。下に1.89km 外れています。M区間を3km の指示に対して5km 走ったぶん、後ろが削れた形に見えます。次にロングを出すときは、まずE区間のペースを守ってください。E区間を 5:40〜6:00 で走れば脚が残り、処方どおりの距離が出せます。"
     },
     {
       name: "心拍コントロール",
+      summary: "M区間は上限内で頭打ち → 低下という良い形。一方でE区間は5本連続で上限を10〜14bpm 超過。",
       state: "warn",
       text: "M区間は良く、E区間は守れていません。まずM区間から。154 → 159 → 160 → 167 → 157。4本目で上限167 に触れ、そのあと5本目はさらに速い 4:27 を157 で走っています。ペースを2秒上げながら心拍が10bpm 下がりました。10km を走ったあとの5km でこれが出たことは、この2週間でいちばん価値のある数字です。9/4 のM区間は 149 → 157 → 158 → 161 → 160 → 165 と一方向に +16bpm でした。今日は途中で頭打ちになって下がっています。プロファイルの課題4「HRドリフト耐性」に、実データとして前進が見えました。なお昨日の切り替え条件④は「M区間で167 に触れたらその場でM終了」でした。4本目で触れたあと5本目を走っているので、条件どおりではありません。ただし心拍が下がった状態での1本なので、これを問題として扱う気はありません。条件の書き方のほうを直します。E区間は守れていません。処方は HR ≤145 でした。2km目157、3km目159、4km目155、5km目158、6km目157 と、5本連続で10〜14bpm 超えています。走行の6割がE指示だったので、これは今日いちばん大きい逸脱です。8/31（平均147）・9/2（平均148・最大171）で続いた「E指示をテンポで走る」失敗を 9/5 に1回直したところで、今日また出ました。3回目の再発です。留保も書いておきます。7〜10km目は同じ 5:16〜5:28 のペースのまま HR139 / 148 / 143 / 145 に落ちています。ペースが変わらないのに15bpm 下がるのは生理的には説明しにくく、序盤の光学式心拍計が高値に張り付いた可能性はあります。可能性としては置きますが、断定はしません。時計の値を正として読めば上限超過です。次のE走・ロングのE区間で同じ立ち上がりが出るかを見ます。"
     },
     {
       name: "フォーム指標",
+      summary: "ピッチ185spm・接地238ms・上下動8.0cm が16kmで揃い今週最良。上下動だけ3週間動いていない。",
       state: "good",
       text: "今週で最良です。ピッチ185spm は良好域（180〜190）の中央で、9/5 の180 から +5、9/4 の187 に次ぐ値。接地時間238ms は良好域（<250ms）の内側で、9/5 の250 から −12ms。上下動0.8（8.0cm）。この3つが16km 走って揃ったのは今週初めてです。意味のある点を2つ書きます。1つは、9/4 に出した検査に今日も通っていることです。「187spm が速く走ったから出た値なのか、フォームとして定着したのかを見る」と書き、9/5 に 5:43/km で180spm、今日は16km・M区間込みで185spm。9/2 の172spm のような落ち込みは2日続けて出ていません。ピッチはフォームとして固まりつつあると見てよい段階です。もう1つは接地時間で、238ms は 8/28 の236ms・8/25 の226ms に近い水準です。速い日にだけ出る値ではなく、E区間を含む16km の平均で238ms が出ています。過大評価はしません。上下動0.8cm は8/15 から3週間まったく動いていない値で、良好域（<8cm）に入っていません。ピッチが185 まで上がっても切れていないので、ここは意識では動かないところに来ています。上下動を下げるより、いまはピッチ185spm と接地時間238ms を落とさずに距離を伸ばすほうが優先です。9/13 のロング18kmで、同じ3つの値が出るかを見ます。"
     },
     {
       name: "疲労・コンディション",
+      summary: "急性の回復不良は解消し、落としてよい条件は直近3日でどれも不成立。ただし週平均は前週より悪く、週の総量が下限割れ。",
       state: "warn",
       text: "crit から warn に下げます。急性の回復不良は抜けました。9/5 の健康データを並べます。HRV 99 — 9/3 の67、9/4 の90 から戻り、バランス域97〜126 の内側に3日ぶりに復帰しました。トレーニング準備度56 — 9/4 の25 から +31 で「普通」域です。ボディバッテリー最低25 — 9/3 の11、9/4 の19 から20 台に戻りました。安静時心拍45 — 9/3 の51 から −6。睡眠90点・7時間51分（深い睡眠62分・REM118分）。ストレス20 は週内最低です。6項目すべてが同じ方向を向いています。プロファイルの「落としてよい条件」を直近3日（9/4・9/5・9/6）で当てます。準備度 < 30 は 9/4 の25 のみで、9/5 は56。3日連続 < 50 も不成立。BB最低 < 20 が2日連続も、9/4 の19 に対して 9/5 は25 で不成立。安静時心拍 +5bpm が2日連続も不成立。痛みの申告なし。HRV は「バランス域を下抜け かつ 前週比 −10%以上」の両方が必要ですが、9/5 の99 はバランス域の内側なので前段が外れます。つまり、質練習を落としてよい条件は今日どれも成立していません。プロファイルは「すでに回復している値を持ち出して落とすのは、保守ではなく単なる過小負荷」と書いています。だから来週は規定どおり質3本・72kmで組みます。それでも warn を残す理由は週平均のほうです。HRV 週平均90.3 は前週106.8 から −15%。ボディバッテリー最低の週平均19.7 は前週27.7 から −29% で、7日のうち3日（8/31 の18・9/2 の18・9/3 の11）が20未満です。週として見れば回復の総量は前週より落ちています。ここは 9/8 の閾値走の前後で必ず見ます。走行データ側の裏取りも書きます。今日のM区間で、4本目167 → 5本目157 と心拍が下がっています。蓄積疲労が乗っている脚では起きにくい反応で、健康データが指す「回復方向」と矛盾しません。走行データと健康データが同じ結論を出している状態です。最後に過小負荷側。今週は 58.95km・6回・質2本で、Phase 4 の下限70km・質3本のどちらにも届きません。閾値もインターバルも今週ゼロです。プロファイルは過小負荷も「計画の失敗」として扱うと定めています。疲労側の条件が成立していない以上、これが今日いちばん重い問題です。"
     }
@@ -132,7 +148,7 @@ const DATA = {
     date: "2026-09-07",
     dow: "月",
     title: "完全休養（0km）",
-    headline: "走らない日です。ジョグも入れません。9/4・9/5・9/6 で3日連続 39.5km、うち2日が質練習でした。明日ここを取らないと 9/8 の閾値走が閾値になりません。落とすためではなく、火曜に HR176 まで使い切れる脚を作るための休養です。",
+    headline: "走らない日です。ジョグも入れません。3日で39.5km・質2本を走ったあとで、9/8 の閾値走を HR176 まで使い切れる脚で迎えるための1日です。",
     prescription: [
       { k: "距離",     v: "0km。ランニングはしない。ジョグ・流し・トレッドミルいずれも入れない" },
       { k: "ペース",   v: "—。歩くのは自由ですが、歩数は1万歩前後に抑えてください。9/4 は21,443歩でボディバッテリーを19まで使い切っています" },
@@ -141,7 +157,14 @@ const DATA = {
       { k: "スタート", v: "—。強いて言えば、いつもの起床時刻は崩さないでください。9/8 は朝5:30〜6:00 スタートで閾値走に入ります" }
     ],
     why: "3つで決めています。①直近3日の負荷。9/4 が12.11km（M 6km連続）、9/5 が11.27km（E）、9/6 が16.11km（M 5km）で、3日で 39.49km、うち2日が質練習です。今日の有酸素TE 4.1 は今週最大でした。②明後日の中身。9/8 は閾値走 2km×3 を HR≤176 で走ります。今週このカテゴリは1本も入っておらず、来週の質3本のうち最も重要な1本です。閾値走は「LTを押し上げてMペースの天井を上げる」ための刺激なので、中途半端な脚でやると T帯（3:58〜4:08 を目指す途中の 4:10〜4:20）に届かず、ただのきつい走りになって効果が出ません。ここに1日を投資します。③健康データ。落とす条件は成立していませんが、週平均は前週より悪い。HRV −15%、ボディバッテリー最低 −29% です。急性の不良は抜けた（9/5 で HRV 99・準備度56・BB最低25）一方、週の総量としての回復は積み上がっていません。Phase 4 の規定休養は週1日で、来週その1日をここに置きます。これは削減ではなく配置です。来週の合計は 72km・質3本で、下限70km を満たしています。休養を明日に置いても週の数字は落ちません。最後に1つ。9/4・9/5・9/6 と3日続けて処方から外れています。9/5 は「完全休養」の処方を 11.27km にしました。明日また同じことが起きると、9/8 の閾値走は成立しません。明日の課題は走らないことです。",
-    alt: "①痛み・違和感がある → 明日以降も含めて即中止。今日中に教えてください。9/8 以降を引き直します。プロファイルで唯一データを待たずに止める条件です。②どうしても身体を動かしたい → ランニングではなく、20〜30分のウォーキングか自転車（心拍110以下）にしてください。走らないことが目的なので、これは代替として認めます。ジョグは認めません。③明朝の準備度が70以上・HRV が105以上・ボディバッテリー最低が30以上のいずれも満たしていて、脚も軽い → それでも走らないでください。数字が良いことは「今日走ってよい」ではなく「9/8 の閾値走が成立する」という意味です。前倒しで使わないこと。④逆に、明朝の準備度が30未満、またはボディバッテリー最低が再び20未満 → 休養は当然そのまま、加えて 9/8 の閾値走を 2km×3 から 2km×2（計10km）に1段落としてください。⑤明朝のHRVが80未満に落ちている、または安静時心拍が50以上 → 9/8 を閾値走から Eジョグ10km（HR≤140）に置換し、閾値は 9/10 に移します。本数は減らしません。",
+    // 切り替え条件は箇条書きで持つ（配列なら描画側が番号付きリストにする）
+    alt: [
+      "痛み・違和感がある → 即中止。今日中に教えてください。プロファイルで唯一、データを待たずに止める条件です。",
+      "どうしても身体を動かしたい → ランニングではなく20〜30分のウォーキングか自転車（心拍110以下）。走らないことが目的なので、これは代替として認めます。ジョグは認めません。",
+      "明朝の数字が良い（準備度70以上・HRV 105以上・BB最低30以上）→ それでも走らないでください。数字が良いことは「今日走ってよい」ではなく「9/8 の閾値走が成立する」という意味です。",
+      "明朝の準備度が30未満、またはBB最低が再び20未満 → 休養はそのまま。加えて 9/8 の閾値走を 2km×3 から 2km×2（計10km）に1段落とす。",
+      "明朝のHRVが80未満、または安静時心拍が50以上 → 9/8 を Eジョグ10km（HR≤140）に置換し、閾値は 9/10 へ移す。本数は減らしません。"
+    ],
     next: "9/8(火) が閾値走 2km×3（4:10〜4:20・HR≤176厳守・つなぎ800mジョグ）で計12km。今週の質1本目で、9月に入って初めての閾値カテゴリです。9/9(水)・9/10(木) は Eジョグ 10km / 12km（HR≤140厳守）。ここは今日の反省が直接効く場所で、E走をE強度で走れるかをもう一度見ます。9/11(金) がMペース走 4km×2（4:20〜4:30・HR≤167・つなぎ800mジョグ）で計14km、質2本目。今日の5km連続 4:33 と 9/4 の6km連続 4:25.8 を踏まえ、4km を2本に分けた形で 4:25 を切れるかが焦点です。9/12(土) Eジョグ8km。9/13(日) がロング18km・後半M5km で質3本目。今日 16.11km で止めた18kmを、もう一度同じ処方で出します。E区間14kmを HR≤145 で走り切ることが条件です。この7日で 72km・質3本・休養1日、Phase 4 の規定を距離も本数も満たします。"
   },
 
@@ -404,12 +427,62 @@ body {
 .v-warn { color: var(--warn); }
 .v-crit { color: var(--crit); }
 
-.hero-reason {
-  padding: 14px 24px;
-  font-size: 14px;
-  color: var(--ink-2);
-  border-bottom: 1px solid var(--line-soft);
-  max-width: 72ch;
+/* ---------- コメント（要点先出し） ----------
+   数値とグラフを先に見せ、そのあとに言葉を置く。言葉は
+   「1行の結論 → 要点リスト → 全文（折りたたみ）」の3段。
+   長文をそのまま流すと読まれないので、全文は必ず details の中に入れる。 */
+.cmt {
+  padding: 16px 24px 20px;
+  border-top: 1px solid var(--line-soft);
+  display: flex; flex-direction: column; gap: 12px;
+}
+.cmt-h {
+  margin: 0; font-size: 15.5px; font-weight: 700; line-height: 1.7;
+  max-width: 60ch; text-wrap: balance;
+}
+
+/* 要点リスト。○=良かった点 / △=外した点 / ・=留保 */
+.pts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
+.pt {
+  display: grid;
+  grid-template-columns: 16px minmax(7em, max-content) 1fr;
+  gap: 2px 11px; align-items: baseline; font-size: 13.5px; line-height: 1.75;
+}
+.pt-i { font-family: var(--num); font-weight: 700; font-size: 12px; text-align: center; }
+.pt.good .pt-i { color: var(--good); }
+.pt.bad  .pt-i { color: var(--warn); }
+.pt.note .pt-i { color: var(--ink-3); }
+.pt-l { font-weight: 700; color: var(--ink); }
+.pt-t { color: var(--ink-2); max-width: 58ch; }
+
+/* ラベル付きの説明ブロック */
+.blk { display: flex; flex-direction: column; gap: 5px; }
+.blk > b {
+  font-family: var(--num); font-weight: 900; font-size: 11px;
+  letter-spacing: .09em; color: var(--ink-3); text-transform: uppercase;
+}
+.lead { margin: 0; font-size: 13.5px; line-height: 1.8; color: var(--ink-2); max-width: 66ch; }
+.alts {
+  margin: 2px 0 0; padding-left: 1.4em;
+  display: flex; flex-direction: column; gap: 7px;
+  font-size: 13px; line-height: 1.8; color: var(--ink-2);
+}
+.alts li { max-width: 62ch; }
+
+/* 全文の折りたたみ */
+details.more > summary {
+  cursor: pointer; color: var(--accent-ink); font-weight: 700;
+  font-size: 11.5px; letter-spacing: .04em;
+  list-style: none; display: inline-flex; align-items: center; gap: 6px; padding: 3px 0;
+}
+details.more > summary::-webkit-details-marker { display: none; }
+details.more > summary::before { content: "▸"; font-size: 9px; }
+details.more[open] > summary::before { content: "▾"; }
+details.more > summary:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+details.more > p {
+  margin: 7px 0 2px; color: var(--ink-2); font-size: 13px;
+  line-height: 1.9; max-width: 66ch;
+  border-left: 2px solid var(--line); padding-left: 13px;
 }
 
 /* ---------- stat grid ---------- */
@@ -752,11 +825,24 @@ footer {
   .tab { padding: 10px 6px 9px; font-size: 12px; gap: 4px; white-space: nowrap; flex: 0 0 auto; }
   .panel { gap: 16px; }
 
-  .hero-head { padding: 14px 14px; gap: 10px; }
+  /* 日付と総合評価を1行目に、種別バッジを2行目に落とす。
+     素の折り返しだと評価の左に大きな余白ができてしまう。 */
+  .hero-head { padding: 14px 14px; gap: 8px 10px; }
+  .hero-date { order: 1; }
+  .verdict   { order: 2; margin-left: auto; }
+  .hero-type { order: 3; flex-basis: 100%; }
   .hero-date { font-size: 25px; }
   .hero-type { font-size: 14px; padding: 2px 9px; }
   .verdict-mark { font-size: 34px; }
-  .hero-reason { padding: 12px 14px; font-size: 13.5px; }
+  .cmt { padding: 14px 14px 16px; gap: 10px; }
+  .cmt-h { font-size: 14.5px; }
+  /* 狭い画面では ○ とラベルを1行目、本文を2行目に落とす */
+  .pt {
+    grid-template-columns: 15px 1fr;
+    grid-template-areas: "i l" ". t";
+    gap: 1px 8px; font-size: 13px;
+  }
+  .pt-i { grid-area: i; } .pt-l { grid-area: l; } .pt-t { grid-area: t; }
   .effect { padding: 10px 14px; font-size: 11.5px; }
   .chart-box { padding: 4px 4px 14px; }
   .chart-legend { padding: 0 4px 8px; gap: 6px 12px; font-size: 10.5px; }
@@ -801,6 +887,34 @@ footer {
   const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
   const vClass = { "◎": "v-good", "○": "v-good", "△": "v-warn", "✕": "v-crit" };
   const stateName = { good: "良好", ok: "良好", warn: "要調整", crit: "要注意" };
+  const toneMark = { good: "○", bad: "△", note: "・" };
+
+  /* ---------- 長文の扱い ----------
+     このダッシュボードの文章は放っておくと長くなる。読ませるために
+     「先頭の1文だけ出して、残りは折りたたむ」を共通のかたちにする。
+     DATA 側に要点（today.points / axes[].summary）が入っていればそれを使い、
+     入っていない日でも下の自動リードで最低限の読み口ができるようにしてある。 */
+  function splitLead(v) {
+    const t = String(v == null ? "" : v).trim();
+    const m = t.match(/^[\s\S]{1,120}?。/);
+    if (!m) return { lead: t, rest: "" };
+    return { lead: m[0], rest: t.slice(m[0].length).trim() };
+  }
+  function moreBlock(rest, label) {
+    if (!rest) return "";
+    return `<details class="more"><summary>${esc(label || "続きを読む")}</summary><p>${esc(rest)}</p></details>`;
+  }
+  // ラベル付きの説明ブロック（「なぜこの内容か」「読み取り」など）
+  function prose(label, v, moreLabel) {
+    const { lead, rest } = splitLead(v);
+    if (!lead) return "";
+    return `<div class="blk"><b>${esc(label)}</b><p class="lead">${esc(lead)}</p>${moreBlock(rest, moreLabel)}</div>`;
+  }
+  // 箇条書きは先頭の1文を太字にして拾い読みできるようにする
+  function bullet(v) {
+    const { lead, rest } = splitLead(v);
+    return `<b>${esc(lead)}</b>${rest ? " " + esc(rest) : ""}`;
+  }
 
   // スマホでは横スクロールさせずに1画面へ収める。viewBox を狭くして
   // その分だけ SVG 内の文字を大きめの単位で描く（描画後の実寸は約10〜11px）。
@@ -1084,7 +1198,7 @@ footer {
             <div class="hstat-n">${s.note ? esc(s.note) : "&nbsp;"}</div>
           </div>`).join("")}
         </div>
-        ${h.read ? `<p class="note"><b>読み取り</b><br>${esc(h.read)}</p>` : ""}
+        ${prose("読み取り", h.read, "読み取りの全文")}
         <div class="divider"></div>
         <div class="sub-h">睡眠</div>
         ${sleepChart(h)}
@@ -1138,7 +1252,7 @@ footer {
     return `<section class="card">
       <div class="card-head"><h2>この先1週間</h2><span class="sub">${esc(p.label || "")}</span></div>
       <div class="card-body">
-        ${p.policy ? `<p class="note">${esc(p.policy)}</p>` : ""}
+        ${prose("今週の組み方", p.policy, "方針の全文")}
         <div class="plan">${rows}</div>
         ${p.totalKm ? `<p class="note"><b>予定合計</b> ${esc(p.totalKm)} km（Phase 目標 ${esc(D.phase.weeklyTarget)}）</p>` : ""}
       </div>
@@ -1175,6 +1289,33 @@ footer {
     .some(s => s.state === "warn" || s.state === "crit");
   const hasHealth = !!(D.health && D.health.days && D.health.days.length);
 
+  // 数値とグラフのあとに置くコメント。結論 → 要点 → 全文の3段。
+  function commentBlock(t) {
+    const pts = t.points || [];
+    const head = t.headline
+      ? `<p class="cmt-h">${esc(t.headline)}</p>` : "";
+    const list = pts.length
+      ? `<ul class="pts">${pts.map(p => `<li class="pt ${esc(p.tone || "note")}">
+            <span class="pt-i">${toneMark[p.tone] || toneMark.note}</span>
+            <span class="pt-l">${esc(p.label)}</span>
+            <span class="pt-t">${esc(p.text)}</span>
+          </li>`).join("")}</ul>`
+      : "";
+    // 要点が用意されていない日は、全文の先頭1文をリードに立てて残りを畳む
+    let body;
+    if (head || list) {
+      body = moreBlock(t.verdictReason, "コメント全文を読む");
+    } else {
+      const { lead, rest } = splitLead(t.verdictReason);
+      body = `<p class="lead">${esc(lead)}</p>${moreBlock(rest, "コメント全文を読む")}`;
+    }
+    if (!head && !list && !body) return "";
+    return `<div class="cmt">
+        <div class="sub-h">コーチのコメント</div>
+        ${head}${list}${body}
+      </div>`;
+  }
+
   // 走りの評価パネル（今日の走り / コーチ評価 / 週間・月間ロード）
   // 明日以降のメニューは menuPanel 側に分けている。走りの評価が縦に長くなりすぎるため。
   const runPanel = `
@@ -1187,7 +1328,6 @@ footer {
           <span class="verdict-txt">${esc(t.verdictLabel)}<span>総合評価</span></span>
         </span>
       </div>
-      <p class="hero-reason">${esc(t.verdictReason)}</p>
       <div class="stats">
         ${t.stats.map(s => `<div class="stat ${s.state === "ok" ? "" : esc(s.state)}">
           <div class="stat-l">${esc(s.label)}</div>
@@ -1197,20 +1337,27 @@ footer {
       </div>
       <div class="effect">トレーニング効果: ${esc(t.effect)}</div>
       <div class="chart-box">${lapChart(t.laps)}</div>
+      ${commentBlock(t)}
     </section>
 
     <section class="card">
       <div class="card-head"><h2>コーチ評価</h2><span class="sub">5軸</span></div>
       <div class="card-body">
-        ${D.axes.map(a => `<div class="axis">
-          <div class="axis-h"><b>${esc(a.name)}</b><span class="pill ${esc(a.state)}">${esc(stateName[a.state] || a.state)}</span></div>
-          <p>${esc(a.text)}</p>
-        </div>`).join("")}
+        ${D.axes.map(a => {
+          const auto = splitLead(a.text);
+          const sum = a.summary || auto.lead;
+          const rest = a.summary ? a.text : auto.rest;
+          return `<div class="axis">
+            <div class="axis-h"><b>${esc(a.name)}</b><span class="pill ${esc(a.state)}">${esc(stateName[a.state] || a.state)}</span></div>
+            <p class="lead">${esc(sum)}</p>
+            ${moreBlock(rest, "この軸の詳細")}
+          </div>`;
+        }).join("")}
         <div class="divider"></div>
         <div class="sub-h">良かった点</div>
-        <ul class="lst">${D.good.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul>
+        <ul class="lst">${D.good.map(x => `<li><span>${bullet(x)}</span></li>`).join("")}</ul>
         <div class="sub-h">課題</div>
-        <ul class="lst neg">${D.issues.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul>
+        <ul class="lst neg">${D.issues.map(x => `<li><span>${bullet(x)}</span></li>`).join("")}</ul>
       </div>
     </section>
 
@@ -1228,7 +1375,7 @@ footer {
         <div class="divider"></div>
         <div>
           <div class="tot" style="margin-bottom:8px">
-            <div><span class="n">${wk.monthKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> / ${wk.monthTargetKm} km</em></span><span class="l">8月累計（${wk.monthDayCount}日経過）／ このペースだと月末 ${monthPace} km</span></div>
+            <div><span class="n">${wk.monthKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> / ${wk.monthTargetKm} km</em></span><span class="l">今月累計（${wk.monthDayCount}日経過）／ このペースだと月末 ${monthPace} km</span></div>
           </div>
           <div class="meter"><i style="width:${monthPct.toFixed(1)}%"></i></div>
         </div>
@@ -1247,9 +1394,11 @@ footer {
           ${D.tomorrow.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}
         </dl>
         <div class="divider"></div>
-        <p class="note"><b>なぜこの内容か</b><br>${esc(D.tomorrow.why)}</p>
-        <p class="note"><b>切り替え条件</b><br>${esc(D.tomorrow.alt)}</p>
-        <p class="note"><b>その先</b><br>${esc(D.tomorrow.next)}</p>
+        ${prose("なぜこの内容か", D.tomorrow.why, "理由の全文")}
+        ${Array.isArray(D.tomorrow.alt)
+          ? `<div class="blk"><b>切り替え条件</b><ol class="alts">${D.tomorrow.alt.map(x => `<li>${esc(x)}</li>`).join("")}</ol></div>`
+          : prose("切り替え条件", D.tomorrow.alt, "条件の全文")}
+        ${prose("その先", D.tomorrow.next, "この先の全文")}
       </div>
     </section>
 
