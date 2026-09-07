@@ -656,19 +656,8 @@ svg.laps { display: block; min-width: 560px; width: 100%; height: auto; }
 .meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 
 /* ---------- 明日のメニューの構成 ----------
-   距離の比率をそのままバーの幅にして、練習の「かたち」を一目で分かるようにする。
-   文字はバーの中に入れない（ゾーン色の上では読みにくいため）。詳細は下の行に出す。 */
-.segbar {
-  display: flex; height: 30px; border-radius: 3px; overflow: hidden;
-  background: var(--surface-2); gap: 1px;
-}
-.seg { display: block; min-width: 3px; }
-.seg.E { background: var(--z-e); }
-.seg.M { background: var(--z-m); }
-.seg.T { background: var(--z-t); }
-.seg.R { background: var(--z-r); }
-.seg.rest { background: var(--line); }
-
+   区間ごとの行だけを出す。距離比率のバーは 2026-09-07 に廃止した
+   （下の行と同じ情報しか持たないうえ、色帯だけでは何のゾーンか読めないため）。 */
 .segs { display: flex; flex-direction: column; }
 .segrow {
   display: grid;
@@ -1308,18 +1297,6 @@ footer {
     return m ? Number(m[0]) : null;
   };
 
-  function segBar(segs) {
-    if (!segs || !segs.length) return "";
-    const total = segs.reduce((a, x) => a + (numOf(x.km) || 0), 0);
-    if (!total) return "";
-    return `<div class="segbar" role="img" aria-label="練習の構成">${segs.map(x => {
-      const km = numOf(x.km) || 0;
-      if (!km) return "";
-      return `<i class="seg ${esc(x.zone || "E")}" style="flex:${km}"
-        title="${esc(x.label || x.zone || "")} ${esc(x.km)}km"></i>`;
-    }).join("")}</div>`;
-  }
-
   function segTable(segs) {
     if (!segs || !segs.length) return "";
     return `<div class="segs">${segs.map(x => {
@@ -1578,7 +1555,6 @@ footer {
       <div class="card-body">
         <h3 class="rx-title">${esc(D.tomorrow.title)}</h3>
         <p class="rx-headline">${esc(D.tomorrow.headline)}</p>
-        ${segBar(D.tomorrow.segments)}
         ${segTable(D.tomorrow.segments)}
         ${(D.tomorrow.prescription || []).length ? `<dl class="rx-list">
           ${D.tomorrow.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}
