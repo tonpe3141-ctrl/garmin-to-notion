@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": ["Artifact"]
+  },
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Artifact",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -e '.tool_input.action==\"write_db\" and .tool_input.collection==\"runs\"' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"daily coach routine STEP 6.6: runs history write\"}}' || true"
+          }
+        ]
+      }
+    ]
+  }
+}
