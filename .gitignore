@@ -310,4 +310,10 @@ pyrightconfig.json
 
 # Claude Code internal
 .claude/
+# ただし Routine の実行設定だけは追跡する。
+# クラウド実行環境のコンテナは毎回破棄されるため、リポジトリに入れておかないと
+# 毎日の実行で STEP 6.6 の承認プロンプトが復活する。
+!.claude/
+.claude/*
+!.claude/settings.json
 .DS_Store
