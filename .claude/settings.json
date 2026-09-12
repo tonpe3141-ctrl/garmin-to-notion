@@ -1,6 +1,13 @@
 {
   "permissions": {
-    "allow": ["Artifact"]
+    "allow": ["Artifact"],
+    "deny": [
+      "mcp__Notion__notion-create-pages",
+      "mcp__Notion__notion-update-page",
+      "mcp__Notion__notion-create-database",
+      "mcp__Notion__notion-create-comment",
+      "mcp__Notion__notion-update-data-source"
+    ]
   },
   "hooks": {
     "PreToolUse": [
