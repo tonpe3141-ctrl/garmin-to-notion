@@ -383,8 +383,20 @@ publish のあと、**その日の評価を Artifact の db に1件だけ書く�
 `dashboard/index.html` の `DATA.today` に入っているので、スクリプトに写させる。
 
 ```bash
-node scripts/export_run_history.js dashboard/index.html /tmp/run.json
+node scripts/export_run_history.js dashboard/index.html <書き出し先>/run.json
 ```
+
+> **⚠ 書き出し先に `/tmp` を使ってはいけない（2026-09-14 に判明）。**
+> `Artifact` の `file_path` は **作業ディレクトリ配下か、そのセッションのスクラッチパッド配下**しか
+> 黙って読めない。`/tmp/run.json` のようにその外を指すと、書き込み自体は許可されていても
+> **ファイルを読むところで承認を求められ**、無人の Routine はそこで `Denied by user` になる。
+> 2026-09-14 の実行で実際に2回失敗し、スクラッチパッドに置き直したら一度で通った。
+>
+> 書き出し先は次のどちらかにすること:
+> 1. **そのセッションのスクラッチパッドディレクトリ**（環境プロンプトの `Scratchpad directory:`
+>    に毎回そのセッションのパスが書かれている。セッションごとに変わるのでここに書き写さない）
+> 2. それが分からなければ **作業ディレクトリ直下の `run.json`**。
+>    その場合は STEP 7 で `rm -f run.json` して消すこと（消さないと Stop フックが発火する）
 
 出力された JSON を、そのままファイル渡しで書き込む:
 
@@ -395,7 +407,7 @@ Artifact(
   db_op: "set",
   collection: "runs",
   doc_id: "YYYY-MM-DD",     ← STEP 0 で確定した今日の日付
-  file_path: "/tmp/run.json"
+  file_path: "<書き出し先>/run.json"
 )
 ```
 
@@ -414,8 +426,23 @@ Artifact(
 > このファイルはコンテナが破棄されても残るよう **リポジトリにコミットしてある**
 > （`.gitignore` の `.claude/` に `!.claude/settings.json` の例外を入れてある）。
 > 消すと承認待ちが復活するので、消さないこと。
+>
+> **ただしこのフックが面倒を見るのは「db に書く権限」だけで、`file_path` のファイルを
+> 読む権限は別枠である。** 上の「書き出し先に `/tmp` を使ってはいけない」はそちらの話で、
+> フックを直しても解決しない。書き出し先のほうを直すこと。
 
-- `doc_id` は日付そのもの。同じ日に2回実行しても上書きになるだけで重複しない。
+- `doc_id` は日付そのもの。したがって同じ日に何度実行しても行が増えることはない。
+  ただし **`if_version` なしの `set` は、その日の記録が既にあると
+  `version_mismatch` で拒否される**（2026-09-14 に確認。「上書きになるだけ」ではない）。
+  同じ日に2回目を書くときは、先に読んでからそのバージョンを指定して書き直すこと:
+
+  ```
+  Artifact(action: "read_db",  …, db_op: "get", collection: "runs", doc_id: "YYYY-MM-DD")
+  Artifact(action: "write_db", …, db_op: "set", collection: "runs", doc_id: "YYYY-MM-DD",
+           file_path: "<書き出し先>/run.json", if_version: <read が返した version>)
+  ```
+
+  初回（その日の記録がまだ無いとき）は `if_version` を付けないこと。
 - `file_path` を使うこと。**中身を会話に流さないのが要点で、これで履歴1件あたりの
   生成コストがほぼゼロになる。** インラインの `data:` に貼り直すと台無しになる。
 - 休養日も書く。`DATA.today` を規定どおり（`type` は `"休養日"`、`verdict` は `"—"`、
