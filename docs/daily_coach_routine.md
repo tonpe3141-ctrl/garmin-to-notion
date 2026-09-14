@@ -431,7 +431,18 @@ Artifact(
 > 読む権限は別枠である。** 上の「書き出し先に `/tmp` を使ってはいけない」はそちらの話で、
 > フックを直しても解決しない。書き出し先のほうを直すこと。
 
-- `doc_id` は日付そのもの。同じ日に2回実行しても上書きになるだけで重複しない。
+- `doc_id` は日付そのもの。したがって同じ日に何度実行しても行が増えることはない。
+  ただし **`if_version` なしの `set` は、その日の記録が既にあると
+  `version_mismatch` で拒否される**（2026-09-14 に確認。「上書きになるだけ」ではない）。
+  同じ日に2回目を書くときは、先に読んでからそのバージョンを指定して書き直すこと:
+
+  ```
+  Artifact(action: "read_db",  …, db_op: "get", collection: "runs", doc_id: "YYYY-MM-DD")
+  Artifact(action: "write_db", …, db_op: "set", collection: "runs", doc_id: "YYYY-MM-DD",
+           file_path: "<書き出し先>/run.json", if_version: <read が返した version>)
+  ```
+
+  初回（その日の記録がまだ無いとき）は `if_version` を付けないこと。
 - `file_path` を使うこと。**中身を会話に流さないのが要点で、これで履歴1件あたりの
   生成コストがほぼゼロになる。** インラインの `data:` に貼り直すと台無しになる。
 - 休養日も書く。`DATA.today` を規定どおり（`type` は `"休養日"`、`verdict` は `"—"`、
