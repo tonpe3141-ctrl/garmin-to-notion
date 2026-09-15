@@ -114,8 +114,10 @@ WebFetch(
 > なおこのWebFetchは STEP 6 の publish の前提でもある（未読のまま publish しようとすると
 > 「This session hasn't viewed the latest version」で拒否される）。
 > **ただし WebFetch の要約だけでは足りず、保存されたソース全文を Read するまで
-> publish は通らない。** 拒否メッセージがローカルの保存先パスを教えてくれるので、
-> そのファイルを最後まで Read すること。これが STEP 6 の土台にもなる。
+> publish は通らない。** WebFetch の結果の1行目に
+> 「full HTML saved to <パス>」とローカルの保存先パスが書かれているので、
+> そのファイルを**最後の行まで** Read すること（1650行前後。2〜3回に分けて読む）。
+> このパスは STEP 6 の `splice_dashboard.js` の第1引数にもなる。
 
 ### STEP 4 — 分析する
 
@@ -232,28 +234,40 @@ WebFetch(
    push できるようになった今も、この順序（公開版が正）は変えない。
 
    公開済みソースは WebFetch / Artifact read の結果としてローカルにファイル保存される。
-   1行目に publish 時のラッパー（`<!doctype html>…<body>`）が付いているので、
-   それと末尾の重複した `</body></html>` を取り除き、**DATA オブジェクトの中身だけ**を
-   差し替える。
+   **差し替えは手でやらず、スクリプトに任せる（2026-09-15 から）:**
 
-   **出来上がったものは `dashboard/index.html` に書き戻すこと**（リポジトリ側の
+   1. その日の DATA を、スクラッチパッドに `data_block.js` として書く。
+      中身は `const DATA = {` から `};` までの**代入文まるごと**（下の「データ構造」どおり）。
+   2. 公開済みソースへ差し込んで検証する:
+      ```bash
+      node scripts/splice_dashboard.js <保存された公開済みソースのパス> <スクラッチパッド>/data_block.js dashboard/index.html
+      ```
+      これが publish ラッパー（1行目）と末尾の重複 `</body></html>` を外し、
+      `<script id="coach-data">` 〜 `</script>` の中身だけを差し替え、
+      `scripts/check_dashboard.js` で検証したうえで `dashboard/index.html` に書く。
+      **NG なら書き出さない。** 出た `✕` を直して再実行する。`⚠` は直せるなら直す。
+   3. publish の直前に、実際に描画して真っ白でないことを確かめる:
+      ```bash
+      node scripts/check_dashboard.js dashboard/index.html --render
+      ```
+      （Chromium が無い環境では「描画確認をスキップ」の警告になる。それは可。）
+
+   **出来上がったものは `dashboard/index.html` に置くこと**（リポジトリ側の
    古い中身は上書きしてよい。日々の DATA はコミットせず、STEP 7 で捨てる）。
    以降の publish・履歴の書き出しはすべてこのパスを見るので、
    ここを揃えておかないと **古い中身が履歴に残る。**
 
    **HTML・CSS・描画スクリプトには一切触れないこと。** 構造を変えると設計が壊れる。
 
-   > **⚠ 置換位置の目印には必ず `<script id="coach-data">` を使うこと。**
-   > 差し替える範囲は `<script id="coach-data">` の直後から、次に現れる `</script>` の直前まで。
+   > **⚠ 手で差し替えるときの注意（スクリプトが使えない場合だけ）:**
+   > 置換位置の目印には必ず「行全体が `<script id="coach-data">` の行」を使うこと。
+   > 差し替える範囲はその直後から、次に現れる `</script>` の行の直前まで。
    > **DATA の代入文そのものを検索の目印にしてはいけない。**
-   > ファイル冒頭の説明コメントにも似た文字列が現れることがあり、そちらにヒットすると
+   > ファイル冒頭の説明コメントにも同じ文字列が現れるので、そちらにヒットすると
    > コメントの閉じタグ `-->` と `<script>` 開始タグを巻き込んで削除してしまう。
    > するとページ全体が未終了の HTML コメントに飲み込まれ、**真っ白になる。**
    > 2026-08-24 の Routine 実行で実際にこれが起きた。
-   >
-   > 差し替えたら publish の前に必ず次を確認する:
-   > - ファイル内に DATA の代入文がちょうど1つだけあること
-   > - `-->` と `<script id="coach-data">` と `<div class="wrap" id="app">` が残っていること
+   > 手で差し替えたときも `check_dashboard.js` は必ず通すこと。
 
    ダッシュボードは4つのタブに分かれている（描画側が自動で振り分けるので DATA 側の操作は不要）:
    - **走りの評価** — `today` / `axes` / `good` / `issues` / `week`
@@ -273,6 +287,19 @@ WebFetch(
    > - 週の組み方を規定から外した理由 → `weekPlan.aim`
    > - 健康データの欠測・警戒サイン → `health.read` と `issues`
 2. データ構造は既存のものを厳密に踏襲する。キー名を変えない、増やさない、減らさない。
+   `check_dashboard.js` が列挙値・日付の整合・件数を機械的に見るので、`✕` が出たら
+   構造の側を直す（描画側を直さない）。
+   - **`today.plan`（2026-09-15 追加）** — 昨日出した処方。`{ title, km }` で、
+     STEP 3 で読んだ昨日の `tomorrow.title` と `segments[].km` の合計を写す。
+     描画側が「昨日の処方 → 実走」の1行をヒーローに出す。休養日は省略してよい。
+   - **`week` は「今日を含む週（月〜日）」の進行中の値**を入れる（2026-09-15 に統一。
+     それまでは「先週・確定」を入れる日と混在していた）。
+     - まだ走っていない日は `km: 0` / `hr: null` にして、`type` には予定の種別を入れる
+       （描画側は km 0 の日を灰色にする）
+     - **`week.remainingDays`（2026-09-15 追加）** — 今日より後に残っている日数（0〜6）。
+       描画側が「下限まであと N km（残り M 日・1日 X km）」を出し、前週比の % を隠す。
+       日曜（週の最終日）は `0` にする。すると前週比が出て「確定」の見た目になる。
+     - `prevKm` は先週の確定値。`label` は `"9/14(月) 〜 9/20(日)　※今週・進行中（2日目）"` のように書く
    - `stats[].state` は `"ok"` / `"warn"` / `"crit"` のいずれか
    - `axes[].state` は `"good"` / `"warn"` / `"crit"` のいずれか
    - `week.days[].type` は `"E"` / `"M"` / `"T"` / `"R"` / `"rest"` のいずれか
@@ -448,7 +475,7 @@ Artifact(
 - 休養日も書く。`DATA.today` を規定どおり（`type` は `"休養日"`、`verdict` は `"—"`、
   `stats` と `laps` は空配列）に作ってあれば、スクリプトがそのまま写す。
 - スクリプトが `DATA ブロックが見つかりません` で失敗する場合は、STEP 6 の差し替えで
-  ファイルを壊している。publish 前の確認に戻ること。
+  ファイルを壊している。`splice_dashboard.js` を使っていればここで落ちることはない。
 
 書き出される中身（すべて `DATA.today` からの機械的なコピー）:
 
@@ -500,6 +527,20 @@ Stop フックが仕込まれている。上のコマンドで作業ツリーを
 `PushNotification` で、総合評価と明日のメニュー名を1行で送る。
 
 例: `8/21 Eペース走 ○合格 ／ 明日: Eペースロング 14km（HR140厳守）`
+
+---
+
+## この Routine が使うスクリプト（`scripts/`）
+
+| スクリプト | 役割 | 使う STEP |
+|-----------|------|----------|
+| `splice_dashboard.js <公開済み.html> <data_block.js> [out]` | 公開済みソースに DATA を差し込み、検証してから `dashboard/index.html` に書く | 6 |
+| `check_dashboard.js <html> [--render] [--shot out.png]` | 骨格と DATA の検証。`--render` で Chromium 描画、`--shot` で PNG | 6（publish 直前） |
+| `export_run_history.js <html> <run.json>` | `DATA.today` から履歴1件を書き出す | 6.6 |
+
+描画側で決め打ちにしている値（`dashboard/index.html` の `ZONE_EDGE` / `HR_CAPS`）は
+`docs/athlete_profile.md` のペースゾーンから引いている。**プロファイルのゾーンを引き直したら
+ここも一緒に直す**（ラップの色分けと心拍上限線に使う）。
 
 ---
 
