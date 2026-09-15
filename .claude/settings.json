@@ -12,11 +12,11 @@
   "hooks": {
     "PreToolUse": [
       {
-        "matcher": "Artifact",
+        "matcher": "Artifact|ArtifactData",
         "hooks": [
           {
             "type": "command",
-            "command": "jq -e '.tool_input.action==\"write_db\" and .tool_input.collection==\"runs\"' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"daily coach routine STEP 6.6: runs history write\"}}' || true"
+            "command": "jq -e '(.tool_name==\"Artifact\" and .tool_input.action==\"write_db\" and .tool_input.collection==\"runs\") or (.tool_name==\"ArtifactData\" and (((.tool_input.action|IN(\"get\",\"list\",\"query\")) and .tool_input.collection==\"runs\") or ((.tool_input.action|IN(\"set\",\"update\",\"str_replace\")) and .tool_input.collection==\"runs\") or (.tool_input.action==\"batch\" and ((.tool_input.writes // [])|length>0) and all((.tool_input.writes // [])[]; .collection==\"runs\" and .op!=\"delete\"))))' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"daily coach routine STEP 6.6/6.7: runs history read/write\"}}' || true"
           }
         ]
       }
