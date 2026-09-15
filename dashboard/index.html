@@ -1455,19 +1455,29 @@ footer {
   let histState = "loading";      // loading / ready / off / error
   let histSel = null;             // 開いている日付
 
-  // 今日の分は db への書き込みを待たずに DATA から組み立てて先頭に出す
-  function todayRow() {
+  // 履歴1件の識別子。同じ日の2本目以降は seq を持つ（doc_id は "2026-09-09-2"）
+  const rowKey = (h) => (h.seq > 1 ? `${h.d}-${h.seq}` : h.d);
+  // 新しい日を上に、同じ日は1本目から順に
+  const sortRows = (rows) => rows.sort((a, b) => String(b.d).localeCompare(String(a.d)) || (a.seq || 1) - (b.seq || 1));
+
+  // 今日の分は db への書き込みを待たずに DATA から組み立てて先頭に出す。
+  // 同じ日に2本以上走った日は today.extra[] に2本目以降が入っている。
+  function todayRows() {
     const t = D.today || {};
-    const pick = (label) => {
-      const s = (t.stats || []).find(x => x.label === label);
-      return s ? s.value : null;
+    const toRow = (run, seq) => {
+      const pick = (label) => {
+        const s = (run.stats || []).find(x => x.label === label);
+        return s ? s.value : null;
+      };
+      return {
+        d: t.date, dow: t.dow, seq, type: run.type, verdict: run.verdict, verdictLabel: run.verdictLabel,
+        km: pick("距離"), pace: pick("平均ペース"), hr: pick("平均心拍"),
+        headline: run.headline, points: run.points || [],
+        stats: run.stats || [], effect: run.effect || "", laps: run.laps || []
+      };
     };
-    return {
-      d: t.date, dow: t.dow, type: t.type, verdict: t.verdict, verdictLabel: t.verdictLabel,
-      km: pick("距離"), pace: pick("平均ペース"), hr: pick("平均心拍"),
-      headline: t.headline, points: t.points || [],
-      stats: t.stats || [], effect: t.effect || "", laps: t.laps || []
-    };
+    if (!t.date) return [];
+    return [toRow(t, 1)].concat((Array.isArray(t.extra) ? t.extra : []).map((r, i) => toRow(r, i + 2)));
   }
 
   async function loadHistory() {
@@ -1476,7 +1486,7 @@ footer {
       const db = use ? await window.claude.use("db") : null;
       if (!db) { histState = "off"; paintHistory(); return; }
       const snap = await db.collection("runs").orderBy("d", "desc").limit(HIST_DAYS).get();
-      histRows = snap.docs.map(x => x.data()).filter(Boolean);
+      histRows = sortRows(snap.docs.map(x => x.data()).filter(Boolean));
       histState = "ready";
     } catch (e) {
       histState = "error";
@@ -1485,9 +1495,10 @@ footer {
   }
 
   function histHtml() {
-    const today = todayRow();
-    const past = (histRows || []).filter(h => h && h.d && h.d !== today.d);
-    const rows = today.d ? [today].concat(past) : past;
+    const todays = todayRows();
+    const todayD = todays.length ? todays[0].d : null;
+    const past = (histRows || []).filter(h => h && h.d && h.d !== todayD);
+    const rows = todays.concat(past);
 
     let note = "";
     if (histState === "loading") note = `<p class="hnote">過去の評価を読み込んでいます…</p>`;
@@ -1498,7 +1509,7 @@ footer {
     // 直近の記録を1列に。総合評価の並びで調子の流れが見える。押すとその日を開く
     const recent = rows.slice(0, 14).reverse();
     const strip = recent.length > 1 ? `<div class="hstrip">${recent.map(h => `
-      <button type="button" class="${histSel === h.d ? "sel" : ""}" data-d="${esc(h.d)}" title="${esc(h.d)} ${esc(h.type || "")}">
+      <button type="button" class="${histSel === rowKey(h) ? "sel" : ""}" data-d="${esc(rowKey(h))}" title="${esc(h.d)} ${esc(h.type || "")}">
         <span class="v ${vcls(h.verdict)}">${esc(h.verdict || "—")}</span>
         <span class="k">${h.km != null && h.km !== "" ? esc(h.km) : "—"}</span>
         <span class="d">${esc(shortD(h.d))}</span>
@@ -1510,15 +1521,16 @@ footer {
       </div>`;
 
     const list = rows.map(h => {
-      const open = histSel === h.d;
+      const key = rowKey(h);
+      const open = histSel === key;
       const meta = [
         h.pace ? `平均ペース ${h.pace}/km` : null,
         h.hr ? `平均心拍 ${h.hr}bpm` : null,
         h.verdictLabel ? `総合評価 ${h.verdict || ""} ${h.verdictLabel}` : null
       ].filter(Boolean).join("　／　");
       return `<div class="hitem ${open ? "open" : ""}">
-        <button class="hbtn" type="button" data-d="${esc(h.d)}" aria-expanded="${open}">
-          <span class="hd">${esc(h.d)}${h.dow ? `<em>(${esc(h.dow)})</em>` : ""}${h.d === today.d ? `<span class="htoday">今日</span>` : ""}</span>
+        <button class="hbtn" type="button" data-d="${esc(key)}" aria-expanded="${open}">
+          <span class="hd">${esc(h.d)}${h.dow ? `<em>(${esc(h.dow)})</em>` : ""}${h.d === todayD ? `<span class="htoday">今日</span>` : ""}${h.seq > 1 ? `<span class="htoday">${h.seq}本目</span>` : ""}</span>
           <span class="ht">${esc(h.type || "")}</span>
           <span class="hk">${h.km != null && h.km !== "" ? `${esc(h.km)}<em>km</em>` : ""}</span>
           <span class="hv ${vcls(h.verdict)}">${esc(h.verdict || "")}</span>

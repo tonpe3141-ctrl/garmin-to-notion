@@ -140,6 +140,20 @@ function check(html, opts = {}) {
     }
     if (!(l.hr === null || isNum(l.hr))) err(`laps[${i}].hr は数値か null`);
   });
+  // 同じ日の2本目以降（任意）。1本目と同じ形で、履歴には <日付>-2 … として書かれる
+  if (t.extra != null) {
+    const ex = arr(t.extra);
+    if (!ex) err("today.extra は配列");
+    else ex.forEach((r, i) => {
+      if (!isStr(r.type)) err(`extra[${i}].type がない`);
+      if (!VERDICTS.includes(r.verdict)) err(`extra[${i}].verdict "${r.verdict}" は ${VERDICTS.join(" ")} のいずれか`);
+      if (!isStr(r.headline)) err(`extra[${i}].headline がない`);
+      if (!(arr(r.stats) || []).some((s) => s.label === "距離")) err(`extra[${i}].stats に「距離」がない`);
+      (arr(r.laps) || []).forEach((l, j) => {
+        if (!Number.isInteger(l.sec) || l.sec <= 0) err(`extra[${i}].laps[${j}].sec は正の整数`);
+      });
+    });
+  }
   if (t.plan != null) {
     if (!isStr(t.plan.title)) err("today.plan.title がない");
     if (!isNum(t.plan.km)) err("today.plan.km は数値");

@@ -19,7 +19,7 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 | Google ドライブ読み取り | 可 | Google_Drive MCP コネクタ経由 |
 | Notion への登録 | **やらない** | 2026-09-11 に廃止。承認待ちで止まるため。下記参照 |
 | Artifact の発行・更新 | 可 | 固定URLへ上書き更新できる。更新前に WebFetch での既読が必須 |
-| Artifact の db 書き込み | 可 | **承認プロンプトは `.claude/settings.json` のフックで抑止済み。** 下記参照 |
+| Artifact の db 書き込み | 可 | **承認プロンプトは `.claude/settings.json` のフックで抑止済み。** 下記参照。ツール名は `Artifact`（`action: "write_db"`）のことも `ArtifactData`（`action: "set"` / `"batch"`）のこともある（2026-09-15 にセッション途中で分割された）。**どちらでも `runs` コレクションへの書き込みはフックが通す** |
 | GitHub Actions の手動起動 | 不明 | 以前は 403。連携し直したので通る可能性がある。必要になったら確かめる |
 | リポジトリへの push / コミット | 可 | **2026-09-06 に GitHub App を接続して解消。** それ以前は 403 だった |
 
@@ -289,6 +289,11 @@ WebFetch(
 2. データ構造は既存のものを厳密に踏襲する。キー名を変えない、増やさない、減らさない。
    `check_dashboard.js` が列挙値・日付の整合・件数を機械的に見るので、`✕` が出たら
    構造の側を直す（描画側を直さない）。
+   - **`today.extra[]`（2026-09-15 追加、任意）** — 同じ日の2本目以降。各要素は `today` と同じ形
+     （`type` / `verdict` / `verdictLabel` / `headline` / `points` / `stats` / `effect` / `laps`）。
+     流しだけの短い記録は `verdict: "—"`・`verdictLabel: "記録のみ"` でよい。
+     履歴には `<日付>-2` … として別行で書かれ、「過去の評価」に「2本目」の印が付く。
+     `today` 本体は**その日の主練習**にする（流しが2本目なら本体はジョグ）。
    - **`today.plan`（2026-09-15 追加）** — 昨日出した処方。`{ title, km }` で、
      STEP 3 で読んだ昨日の `tomorrow.title` と `segments[].km` の合計を写す。
      描画側が「昨日の処方 → 実走」の1行をヒーローに出す。休養日は省略してよい。
@@ -425,30 +430,39 @@ node scripts/export_run_history.js dashboard/index.html <書き出し先>/run.js
 > 2. それが分からなければ **作業ディレクトリ直下の `run.json`**。
 >    その場合は STEP 7 で `rm -f run.json` して消すこと（消さないと Stop フックが発火する）
 
-出力された JSON を、そのままファイル渡しで書き込む:
+出力された JSON を、そのままファイル渡しで書き込む。**db を扱うツールは環境によって名前が違う**ので、
+使えるほうを使う（同じ引数名。`ArtifactData` が ToolSearch に出るならそちら）:
 
 ```
-Artifact(
-  action: "write_db",
+ArtifactData(                       ← 2026-09-15 以降の形
+  action: "set",
   url: "https://claude.ai/code/artifact/eedcbce5-cbe3-45f2-8181-4fffcd8b79c4",
-  db_op: "set",
   collection: "runs",
-  doc_id: "YYYY-MM-DD",     ← STEP 0 で確定した今日の日付
+  doc_id: "YYYY-MM-DD",             ← STEP 0 で確定した今日の日付
   file_path: "<書き出し先>/run.json"
+)
+
+Artifact(                           ← 以前の形。Artifact に write_db があるときはこちら
+  action: "write_db", db_op: "set",
+  url: "…", collection: "runs", doc_id: "YYYY-MM-DD", file_path: "<書き出し先>/run.json"
 )
 ```
 
-> **⚠ この書き込みは承認プロンプトを出さない（2026-09-11 に対処済み）。**
-> `Artifact` はサーバー側提供のツールで、**`write_db` だけが独自に承認を要求する。**
-> `publish` と `read_db` は `permissions.allow: ["Artifact"]` で素通りするため、
-> 「ダッシュボードは更新されているのに、そのあとで承認を求められる」という形になっていた。
+同じ日に2本以上走った日は `export_run_history.js` が `run-2.json`, `run-3.json` … も書き出し、
+最後に `doc_id -> ファイル` の一覧を出す。その全部を `action: "batch"` の `writes` に
+`{ op: "set", collection: "runs", doc_id, file_path }` として並べて1回で書く。
+
+> **⚠ この書き込みは承認プロンプトを出さない（2026-09-11 に対処、2026-09-15 に更新）。**
+> db への書き込みだけが独自に承認を要求する。`publish` は `permissions.allow: ["Artifact"]` で
+> 素通りするため、「ダッシュボードは更新されているのに、そのあとで承認を求められる」という形になっていた。
 > 2026-09-11 の実行では実際にここで **2時間21分**（03:03 → 05:25 UTC）止まっている。
 > 無人で動く Routine なので、止まれば STEP 6.6 以降が丸ごと終わらない。
 >
-> 対処は `.claude/settings.json` の `PreToolUse` フック。
-> **`action == "write_db"` かつ `collection == "runs"` のときだけ** `permissionDecision: "allow"` を返し、
-> それ以外の Artifact 呼び出しには何も出力しない（＝通常どおり承認を求める）。
-> したがって、別のコレクションへ書こうとした場合は今までどおり止まる。
+> 対処は `.claude/settings.json` の `PreToolUse` フック（matcher は `Artifact|ArtifactData`）。
+> **`runs` コレクションへの読み書き（`write_db` / `get` / `list` / `query` / `set` / `update` /
+> `str_replace` / 全件が `runs` への `set`・`update` の `batch`）のときだけ** `permissionDecision: "allow"` を返し、
+> それ以外には何も出力しない（＝通常どおり承認を求める）。
+> したがって、別のコレクションへ書こうとした場合や `delete` は今までどおり止まる。
 >
 > このファイルはコンテナが破棄されても残るよう **リポジトリにコミットしてある**
 > （`.gitignore` の `.claude/` に `!.claude/settings.json` の例外を入れてある）。
@@ -464,10 +478,11 @@ Artifact(
   同じ日に2回目を書くときは、先に読んでからそのバージョンを指定して書き直すこと:
 
   ```
-  Artifact(action: "read_db",  …, db_op: "get", collection: "runs", doc_id: "YYYY-MM-DD")
-  Artifact(action: "write_db", …, db_op: "set", collection: "runs", doc_id: "YYYY-MM-DD",
-           file_path: "<書き出し先>/run.json", if_version: <read が返した version>)
+  ArtifactData(action: "get", …, collection: "runs", doc_id: "YYYY-MM-DD")
+  ArtifactData(action: "set", …, collection: "runs", doc_id: "YYYY-MM-DD",
+               file_path: "<書き出し先>/run.json", if_version: <get が返した version>)
   ```
+  （`Artifact` 形なら `action: "read_db", db_op: "get"` と `action: "write_db", db_op: "set"`）
 
   初回（その日の記録がまだ無いとき）は `if_version` を付けないこと。
 - `file_path` を使うこと。**中身を会話に流さないのが要点で、これで履歴1件あたりの
@@ -495,6 +510,52 @@ Artifact(
 >
 > db は1アーティファクトあたり5,000件まで。1日1件なので当面問題にならないが、
 > 数年後に上限が近づいたら古い日を削ること。
+
+---
+
+### STEP 6.7 — 履歴の取りこぼしを埋める（2026-09-15 追加）
+
+**この Routine は「今日の走り」しか評価しないので、次の走りは履歴に残らない:**
+
+- 12:00 の実行までにドライブへ同期されなかった走り（8:30 の同期が遅れた、走り終わりが遅かった）
+- Routine 自体が失敗した日（承認待ちで止まった、`/tmp` の読み取りで落ちた）
+- 同じ日の2本目以降
+
+2026-09-13（日）の 22.14km ロングと 9/9 の2本目がまさにこれで、翌日の分析文には出てくるのに
+「過去の評価」には無い、という状態になっていた。**毎日この STEP で直近の穴を埋める。**
+
+1. 履歴の一覧を取る（中身は読まない。ファイル名と `d` が分かればよい）:
+   ```
+   ArtifactData(action: "list", url: "…", collection: "runs",
+                query: { limit: 100 }, out_dir: "<スクラッチパッド>/db")
+   ```
+2. **直近14日**（今日を除く）について、ドライブの「直近4週のランニング詳細」と突き合わせる:
+   - ドライブに走りがあるのに db に `<日付>` が無い、または db の `<日付>` が `休養日` → **その日を評価して書く**
+   - ドライブに同じ日の走りが N 本あるのに db に `<日付>-2` … `<日付>-N` が無い → **2本目以降を書く**
+   - ドライブに走りが無く db にも無い → 休養日として書く（一覧が途切れないようにするため）
+   - 一致していればその日は何もしない
+3. 埋める日ごとに、`DATA.today` と同じ形の JSON を `<スクラッチパッド>/entry_<日付>.json` に書く
+   （`date` / `dow` / `type` / `verdict` / `verdictLabel` / `headline` / `points` / `stats` / `effect` / `laps`。
+   2本目以降は `extra: [ … ]` に同じ形で。`plan` は昨日のダッシュボードから分かるときだけ）。
+   **評価の基準は今日と同じ。** 後追いだからといって甘くしない。ただし分量は
+   `headline` 1文 + `points` 3〜5個で足りる。`points` の最後に
+   `{ tone: "note", label: "後追い記録", text: "この日の Routine は履歴を書けておらず、M/D に後追いで記録した。" }` を置く。
+4. 書き出して、まとめて1回で書く:
+   ```bash
+   node scripts/export_run_history.js <スクラッチパッド>/entry_YYYY-MM-DD.json <スクラッチパッド>/hist_YYYY-MM-DD.json
+   ```
+   ```
+   ArtifactData(action: "batch", url: "…", writes: [
+     { op: "set", collection: "runs", doc_id: "YYYY-MM-DD",   file_path: "<スクラッチパッド>/hist_YYYY-MM-DD.json" },
+     { op: "set", collection: "runs", doc_id: "YYYY-MM-DD-2", file_path: "<スクラッチパッド>/hist_YYYY-MM-DD-2.json" },
+     …
+   ])
+   ```
+   既にある `<日付>`（休養日で書いてしまった日）を上書きするときは、1. の一覧に出た
+   `version` を `if_version` に付ける。
+
+穴が無い日はこの STEP は 1. の一覧を取るだけで終わる（数秒）。
+**穴があったのに埋めなかった場合は、最後の報告にその日付と理由を書くこと。**
 
 ---
 
@@ -536,7 +597,7 @@ Stop フックが仕込まれている。上のコマンドで作業ツリーを
 |-----------|------|----------|
 | `splice_dashboard.js <公開済み.html> <data_block.js> [out]` | 公開済みソースに DATA を差し込み、検証してから `dashboard/index.html` に書く | 6 |
 | `check_dashboard.js <html> [--render] [--shot out.png]` | 骨格と DATA の検証。`--render` で Chromium 描画、`--shot` で PNG | 6（publish 直前） |
-| `export_run_history.js <html> <run.json>` | `DATA.today` から履歴1件を書き出す | 6.6 |
+| `export_run_history.js <html または entry.json> <run.json>` | `DATA.today`（または同じ形の JSON）から履歴を書き出す。`extra[]` があれば `run-2.json` … も | 6.6 / 6.7 |
 
 描画側で決め打ちにしている値（`dashboard/index.html` の `ZONE_EDGE` / `HR_CAPS`）は
 `docs/athlete_profile.md` のペースゾーンから引いている。**プロファイルのゾーンを引き直したら
