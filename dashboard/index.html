@@ -836,19 +836,7 @@ table.htab tr:last-child td { border-bottom: none; }
 .plan-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
 .plan-sum b { font-family: var(--num); font-weight: 700; color: var(--ink); font-size: 13px; }
 
-/* 過去の評価: 直近の記録を1列に並べる。押すとその日を開く */
-.hstrip { display: flex; gap: 4px; overflow-x: auto; padding-bottom: 4px; }
-.hstrip button {
-  appearance: none; border: 1px solid var(--line-soft); background: var(--surface);
-  border-radius: 3px; padding: 5px 0 4px; min-width: 44px; flex: 1 0 44px; cursor: pointer;
-  font-family: var(--jp); display: flex; flex-direction: column; align-items: center; gap: 1px;
-}
-.hstrip button:hover { border-color: var(--line); }
-.hstrip button.sel { background: var(--surface-2); border-color: var(--line); }
-.hstrip button:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.hstrip .v { font-family: var(--num); font-weight: 700; font-size: 15px; line-height: 1.1; }
-.hstrip .k { font-family: var(--num); font-size: 10.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; }
-.hstrip .d { font-family: var(--mono); font-size: 9.5px; color: var(--ink-3); }
+/* 過去の評価: 総合評価の凡例 */
 .hlegend { font-size: 11px; color: var(--ink-3); font-family: var(--mono); display: flex; gap: 12px; flex-wrap: wrap; }
 .hlegend b { font-family: var(--num); font-weight: 700; }
 .v-rest { color: var(--ink-3); }
@@ -970,8 +958,6 @@ footer {
   const zoneOf = (sec) => sec <= ZONE_EDGE.r ? "z-r" : sec <= ZONE_EDGE.t ? "z-t" : sec <= ZONE_EDGE.m ? "z-m" : "z-e";
   const HR_CAPS = [{ hr: 167, label: "M上限" }, { hr: 176, label: "T上限" }];
 
-  // "2026-09-15" → "9/15"
-  const shortD = (iso) => { const m = String(iso || "").match(/^\d{4}-(\d{2})-(\d{2})/); return m ? `${+m[1]}/${+m[2]}` : String(iso || ""); };
   // race.daysLeft が無いときは meta.generatedAt の日付から数える（Routine の書き忘れに備える）
   const dateOf = (s) => { const m = String(s || "").match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : null; };
   const daysLeftOf = (x) => {
@@ -1506,18 +1492,12 @@ footer {
     else if (histState === "error") note = `<p class="hnote">履歴の読み込みに失敗しました。再読み込みしてください。今日の分だけ表示しています。</p>`;
     else if (!past.length) note = `<p class="hnote">保存済みの過去データはまだありません。毎日 12:00 JST の更新で1日ぶんずつ積み上がります。</p>`;
 
-    // 直近の記録を1列に。総合評価の並びで調子の流れが見える。押すとその日を開く
-    const recent = rows.slice(0, 14).reverse();
-    const strip = recent.length > 1 ? `<div class="hstrip">${recent.map(h => `
-      <button type="button" class="${histSel === rowKey(h) ? "sel" : ""}" data-d="${esc(rowKey(h))}" title="${esc(h.d)} ${esc(h.type || "")}">
-        <span class="v ${vcls(h.verdict)}">${esc(h.verdict || "—")}</span>
-        <span class="k">${h.km != null && h.km !== "" ? esc(h.km) : "—"}</span>
-        <span class="d">${esc(shortD(h.d))}</span>
-      </button>`).join("")}</div>` : "";
+    // 直近の記録を横に並べるストリップは 2026-09-15 に付けてすぐ外した
+    // （下の一覧と同じ情報で、日付が増えると横スクロールが面倒になるため）。凡例だけ残す。
     const legend = `<div class="hlegend">
         <span><b class="v-good">◎</b> 完璧</span><span><b class="v-good">○</b> 合格</span>
         <span><b class="v-warn">△</b> 要調整</span><span><b class="v-crit">✕</b> 中止</span>
-        <span><b class="v-rest">—</b> 休養</span><span>数字 = km</span>
+        <span><b class="v-rest">—</b> 休養</span>
       </div>`;
 
     const list = rows.map(h => {
@@ -1546,7 +1526,7 @@ footer {
       </div>`;
     }).join("");
 
-    return `${note}${strip}${legend}<div class="hlist">${list}</div>`;
+    return `${note}${legend}<div class="hlist">${list}</div>`;
   }
 
   function paintHistory() {
@@ -1771,7 +1751,7 @@ footer {
 
   // 履歴の開閉。app 自体は render() で作り直されないので、ここで一度だけ張る。
   document.getElementById("app").addEventListener("click", (e) => {
-    const btn = e.target.closest ? e.target.closest(".hbtn, .hstrip button") : null;
+    const btn = e.target.closest ? e.target.closest(".hbtn") : null;
     if (!btn) return;
     histSel = histSel === btn.dataset.d ? null : btn.dataset.d;
     paintHistory();
