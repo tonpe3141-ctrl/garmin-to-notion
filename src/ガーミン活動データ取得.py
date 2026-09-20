@@ -190,6 +190,32 @@ def format_pace(average_speed: float) -> str:
     return ""
 
 
+def format_vertical_oscillation(raw) -> float | None:
+    """avgVerticalOscillation を cm に正規化して返す。取れないときは None。
+
+    Garmin は機種・エンドポイントによって cm（8.4）で返すことも
+    mm（84.0）で返すこともあるので、値域で判定して cm に揃える。
+
+    2026-09-20 まではここで無条件に /10 していたため、cm で返ってきた
+    8.4cm が 0.84 → round(,1) で 0.8 に潰れていた。実際の値が 7.5〜8.5cm の
+    どこにあっても表示は 0.8 になるので、「上下動が1か月動いていない」ように
+    見えていたのは実データではなく丸め誤差だった。
+
+    単位が判別できない値は「取れなかった」扱いで None を返す。
+    誤った数値を出して評価させるより、欠測として扱うほうが安全。
+    """
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if v <= 0:
+        return None
+    if 3.0 <= v <= 20.0:      # cm でそのまま返ってきている
+        return round(v, 1)
+    if 30.0 <= v <= 200.0:    # mm で返ってきている
+        return round(v / 10, 1)
+    return None               # 単位が判別できない。評価させない
+
 
 def fetch_and_format_laps(garmin_client: GarminClient, activity_id: str) -> str:
     laps_text = ""
@@ -1171,7 +1197,7 @@ def sync_doc_from_garmin(
                 cadence = round(activity.get('averageRunningCadenceInStepsPerMinute', 0)) if activity.get('averageRunningCadenceInStepsPerMinute') else None
                 stride = round(activity.get('averageStrideLength', 0) / 100, 2) if activity.get('averageStrideLength') else None
                 gct = round(activity.get('avgGroundContactTime')) if activity.get('avgGroundContactTime') else None
-                vo = round(activity.get('avgVerticalOscillation', 0) / 10, 1) if activity.get('avgVerticalOscillation') else None
+                vo = format_vertical_oscillation(activity.get('avgVerticalOscillation'))
                 balance = activity.get('avgGroundContactBalance')
                 balance_str = None
                 if balance:
