@@ -550,6 +550,36 @@ body {
 svg.laps { display: block; min-width: 560px; width: 100%; height: auto; }
 @media (max-width: 640px) { svg.laps { min-width: 0; } }
 
+/* ---------- グラフの元データ（ラップ一覧） ----------
+   グラフだけではラップタイムが読めないので、開けば数値で確かめられるようにする。 */
+.lapdata { margin: 6px 12px 0; border-top: 1px solid var(--line-soft); }
+.lapdata > summary {
+  cursor: pointer; list-style: none;
+  padding: 10px 0 4px; font-size: 12px; color: var(--ink-2);
+}
+.lapdata > summary::-webkit-details-marker { display: none; }
+.lapdata > summary::before {
+  content: "▸"; display: inline-block; width: 1em; color: var(--ink-3);
+  transition: transform .15s;
+}
+.lapdata[open] > summary::before { transform: rotate(90deg); }
+.lapdata > summary em { font-style: normal; color: var(--ink-3); margin-left: 6px; font-family: var(--mono); font-size: 11px; }
+.lapsum { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 6px 0 8px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.lapsum b { font-family: var(--num); font-weight: 700; color: var(--ink); }
+.laptbl {
+  width: 100%; border-collapse: collapse;
+  font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
+}
+.laptbl th {
+  font-weight: 400; font-size: 11px; color: var(--ink-3); text-align: right;
+  padding: 4px 8px; border-bottom: 1px solid var(--line);
+}
+.laptbl td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line-soft); }
+.laptbl th:nth-child(-n+2), .laptbl td:nth-child(-n+2) { text-align: left; }
+.lapdata .zn { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.laptbl td.over { color: var(--crit); font-weight: 700; }
+.laptbl td.d { color: var(--ink-3); font-size: 11.5px; }
+
 /* ---------- sections ---------- */
 .card {
   background: var(--surface);
@@ -1084,6 +1114,52 @@ footer {
       </svg></div>`;
   }
 
+  /* ---------- グラフの元データ（ラップ一覧） ----------
+     グラフのラベルは間引かれるうえ、バーの高さだけではラップタイムが読めない。
+     グラフ直下に開閉式の表を置き、全ラップのペースと心拍を数値で出す。
+     開閉状態は key ごとに覚えておき、画面幅の切り替えによる再描画でも閉じないようにする。 */
+  const lapOpen = new Set();
+  const ZONES = [
+    { cls: "z-r", name: "R" }, { cls: "z-t", name: "T" },
+    { cls: "z-m", name: "M" }, { cls: "z-e", name: "E" }
+  ];
+  // 域ごとの心拍上限（M上限167 / T上限176）。超えたラップの心拍を赤字にする
+  const capOf = { "z-m": HR_CAPS[0].hr, "z-t": HR_CAPS[1].hr };
+  const mmssOf = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+
+  function lapTable(laps, key) {
+    if (!laps || !laps.length) return "";
+    const zoneName = (cls) => ZONES.find(z => z.cls === cls).name;
+    // 域ごとの本数・平均ペース・平均心拍。メインの区間がどのペースだったかを一行で読めるようにする
+    const sum = ZONES.map(z => {
+      const ls = laps.filter(l => zoneOf(l.sec) === z.cls);
+      if (!ls.length) return "";
+      const hs = ls.map(l => l.hr).filter(h => h != null);
+      const avgSec = ls.reduce((a, l) => a + l.sec, 0) / ls.length;
+      const avgHr = hs.length ? Math.round(hs.reduce((a, h) => a + h, 0) / hs.length) : null;
+      return `<span><i class="zn" style="background:var(--${z.cls})"></i>${z.name}域 ${ls.length}本
+        平均 <b>${mmssOf(avgSec)}</b>/km${avgHr != null ? ` ／ HR <b>${avgHr}</b>` : ""}</span>`;
+    }).join("");
+    const rows = laps.map(l => {
+      const z = zoneOf(l.sec);
+      const over = l.hr != null && capOf[z] != null && l.hr > capOf[z];
+      return `<tr>
+        <td>${esc(l.n)}</td>
+        <td><i class="zn" style="background:var(--${z})"></i>${zoneName(z)}</td>
+        <td>${esc(l.pace || mmssOf(l.sec))}</td>
+        <td class="${over ? "over" : ""}">${l.hr ?? "—"}${over ? ` <span class="d">&gt;${capOf[z]}</span>` : ""}</td>
+      </tr>`;
+    }).join("");
+    return `<details class="lapdata" data-lap="${esc(key)}" ${lapOpen.has(key) ? "open" : ""}>
+        <summary>ラップ一覧（ペース・心拍）<em>${laps.length}本</em></summary>
+        <div class="lapsum">${sum}</div>
+        <table class="laptbl">
+          <thead><tr><th>Lap</th><th>域</th><th>ペース /km</th><th>心拍 bpm</th></tr></thead>
+          <tbody>${rows}</tbody>
+        </table>
+      </details>`;
+  }
+
   /* ---------- condition charts ----------
      睡眠と HRV は別々のグラフにする。1枚に重ねると凡例がどちらの系列のものか
      分かりにくくなるため、それぞれの凡例をそのグラフの直上に置く。
@@ -1518,7 +1594,7 @@ footer {
         ${open ? `<div class="hbody">
           ${statsGrid(h.stats)}
           ${h.effect ? `<div class="effect">トレーニング効果: ${esc(h.effect)}</div>` : ""}
-          ${(() => { const lp = expandLaps(h.laps); return lp.length ? `<div class="chart-box">${lapChart(lp)}</div>` : ""; })()}
+          ${(() => { const lp = expandLaps(h.laps); return lp.length ? `<div class="chart-box">${lapChart(lp)}${lapTable(lp, "h:" + key)}</div>` : ""; })()}
           ${h.headline ? `<p class="cmt-h">${esc(h.headline)}</p>` : ""}
           ${pointsList(h.points)}
           ${meta ? `<div class="hmeta">${esc(meta)}</div>` : ""}
@@ -1584,7 +1660,7 @@ footer {
       </div>
       ${statsGrid(t.stats)}
       <div class="effect">トレーニング効果: ${esc(t.effect)}</div>
-      <div class="chart-box">${lapChart(t.laps)}</div>
+      <div class="chart-box">${lapChart(t.laps)}${lapTable(t.laps, "today")}</div>
       ${commentBlock(t)}
     </section>
 
@@ -1756,6 +1832,12 @@ footer {
     histSel = histSel === btn.dataset.d ? null : btn.dataset.d;
     paintHistory();
   });
+  // ラップ一覧の開閉状態を覚える（toggle はバブリングしないので capture で拾う）
+  document.getElementById("app").addEventListener("toggle", (e) => {
+    const d = e.target;
+    if (!d.classList || !d.classList.contains("lapdata")) return;
+    if (d.open) lapOpen.add(d.dataset.lap); else lapOpen.delete(d.dataset.lap);
+  }, true);
   // db は初回描画のあとに解決される。読めたら履歴部分だけ差し替える。
   loadHistory();
 
