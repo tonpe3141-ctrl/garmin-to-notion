@@ -18,6 +18,7 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 | Garmin API への直接アクセス | **不可** | サンドボックスの egress プロキシが `*.garmin.com` を 403 で拒否 |
 | Google ドライブ読み取り | 可 | Google_Drive MCP コネクタ経由 |
 | Notion への登録 | **やらない** | 2026-09-11 に廃止。承認待ちで止まるため。下記参照 |
+| Notion のウィジェット用ページの更新 | 可（例外） | STEP 6.8 の1ページだけ。`.claude/settings.json` のフックで、そのページの `replace_content` だけを承認なしで通す |
 | Artifact の発行・更新 | 可 | 固定URLへ上書き更新できる。更新前に WebFetch での既読が必須 |
 | Artifact の db 書き込み | 可 | **承認プロンプトは `.claude/settings.json` のフックで抑止済み。** 下記参照。ツール名は `Artifact`（`action: "write_db"`）のことも `ArtifactData`（`action: "set"` / `"batch"`）のこともある（2026-09-15 にセッション途中で分割された）。**どちらでも `runs` コレクションへの書き込みはフックが通す** |
 | GitHub Actions の手動起動 | 不明 | 以前は 403。連携し直したので通る可能性がある。必要になったら確かめる |
@@ -41,6 +42,13 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 > **トリガーのプロンプトに「Notion登録の可否を報告」と書かれていても、それは古い記述なので従わないこと。**
 > 保険として `.claude/settings.json` の `permissions.deny` に Notion の書き込みツールを入れてある。
 > 万一呼んでも承認待ちにはならず即座に拒否される。消さないこと。
+>
+> **例外は STEP 6.8 の1回だけ（2026-09-25 追加）。** iPhone ウィジェット用ページの全文置換
+> （`notion-update-page`・`command: "replace_content"`・ページID固定）だけは呼んでよい。
+> `notion-update-page` は deny から外し、代わりに `PreToolUse` フックで
+> **そのページの `replace_content` なら allow、それ以外は deny** を返している。
+> したがって他のページを更新しようとしても、承認待ちにはならず即座に拒否される。
+> Notion の**読み取り**ツール（`notion-fetch` など）も承認を求める可能性があるので呼ばないこと。
 
 **したがって Garmin からのデータ取得はこの Routine の仕事ではない。**
 取得は GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`、毎日 8:30 JST 前後）が担当し、
@@ -576,6 +584,41 @@ Artifact(                           ← 以前の形。Artifact に write_db が
 
 ---
 
+### STEP 6.8 — iPhone ウィジェット用データを更新する（2026-09-25 追加）
+
+iPhone のウィジェット（`widget/running_widget.js`、Scriptable）は Artifact を読めない
+（claude.ai のログインが要るため）。代わりに Notion の専用ページにある JSON を Notion API で読んでいる。
+そのページを、publish 済みの DATA から毎日書き換える。
+
+- ページID: `3e5862c3-def7-815c-a6da-c05c5b756c20`（「📱 ウィジェット用データ」、親は「各種連携」）
+
+**中身を書き起こしてはいけない。** STEP 6.6 と同じく、スクリプトに作らせる:
+
+```bash
+node scripts/export_widget_data.js dashboard/index.html <スクラッチパッド>/widget.md --history <スクラッチパッド>/db
+```
+
+- `--history` には STEP 6.7 の 1. で `out_dir` に保存した db 一覧のディレクトリを渡す。
+  今日が休養日のとき、ウィジェットの「直近」に出すランをそこから拾う。
+- 出力の `widget.md` は「説明1行 + JSON のコードブロック1つ」になっている。
+  **その全文を一字も変えずに** `new_str` に渡す:
+
+```
+notion-update-page(
+  page_id: "3e5862c3-def7-815c-a6da-c05c5b756c20",
+  command: "replace_content",
+  new_str: <widget.md の全文>
+)
+```
+
+- ページの読み取り（`notion-fetch`）はしない。確認のために読み直す必要もない。
+- JSON のキーを変えたいときは、スクリプトとウィジェット本体（`widget/running_widget.js`）を一緒に直す。
+- **このツールが拒否されたら、そこで止まらず STEP 7 へ進む。** ウィジェットは古いデータのまま
+  ⚠ を出し、受け取り済みの1週間の予定から今日のメニューを表示し続ける。
+  拒否された場合は STEP 8 の通知の末尾に「（ウィジェット未更新）」と付ける。
+
+---
+
 ### STEP 7 — 作業ツリーを戻す（日々の DATA はコミットしない）
 
 **2026-09-06 に GitHub 連携が復旧し、push できるようになった。**
@@ -615,6 +658,7 @@ Stop フックが仕込まれている。上のコマンドで作業ツリーを
 | `splice_dashboard.js <公開済み.html> <data_block.js> [out]` | 公開済みソースに DATA を差し込み、検証してから `dashboard/index.html` に書く | 6 |
 | `check_dashboard.js <html> [--render] [--shot out.png]` | 骨格と DATA の検証。`--render` で Chromium 描画、`--shot` で PNG | 6（publish 直前） |
 | `export_run_history.js <html または entry.json> <run.json>` | `DATA.today`（または同じ形の JSON）から履歴を書き出す。`extra[]` があれば `run-2.json` … も | 6.6 / 6.7 |
+| `export_widget_data.js <html> <out.md> [--history <dir>]` | DATA から iPhone ウィジェット用の JSON を作り、Notion ページの本文の形で書き出す | 6.8 |
 
 描画側で決め打ちにしている値（`dashboard/index.html` の `ZONE_EDGE` / `HR_CAPS`）は
 `docs/athlete_profile.md` のペースゾーンから引いている。**プロファイルのゾーンを引き直したら
@@ -629,6 +673,7 @@ Stop フックが仕込まれている。上のコマンドで作業ツリーを
   その場合は `PushNotification` で「ドライブが読めず分析できませんでした」と通知する。
 - **承認を求めてくるツールは呼ばないこと。** 無人で動く Routine は承認待ちで止まり、
   その先のステップが丸ごと終わらない。2026-09-11 の Notion 登録がその例で、廃止した。
+  STEP 6.8 の Notion 更新はフックで allow / deny が即決するので、承認待ちにはならない。
 
 ---
 
