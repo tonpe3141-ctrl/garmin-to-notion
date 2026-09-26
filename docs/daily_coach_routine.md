@@ -7,6 +7,7 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 - Routine ID: `trig_01YGr4cSdLmfUgQS9iwasgQr`
 - 管理画面: https://claude.ai/code/routines
 - 実行時刻: 毎日 02:57 UTC（= 11:57 JST）。完了は 12:00 JST 前後。
+- ダッシュボードの描画レイヤーの正はリポジトリの main（STEP 6）。DATA の正は公開版（STEP 3）。
 - 実行環境: Anthropic クラウド。**ユーザーのMacの電源・スリープとは無関係に動作する。**
 
 ---
@@ -114,9 +115,9 @@ WebFetch(
 **その指示に対して実際の走りがどうだったかを、今日の評価に必ず織り込む。**
 これがこの仕組みの肝で、単発の講評ではなく連続したコーチングになる部分。
 
-> **リポジトリの `dashboard/index.html` を昨日の状態だと思わないこと。**
-> リポジトリの中身は誰かがコミットしたときにしか変わらない。日々の DATA は
-> publish でしか更新されないので、**最新は常に公開済み Artifact の側にある。**
+> **リポジトリの `dashboard/index.html` の DATA を昨日の状態だと思わないこと。**
+> 日々の DATA は publish でしか更新されないので、**昨日の DATA は常に公開済み Artifact の側にある。**
+> 一方で**描画レイヤー（HTML / CSS / 描画スクリプト）の正はリポジトリの main**である（2026-09-26〜）。
 > 土台の扱いは STEP 6 を見ること。
 >
 > なおこのWebFetchは STEP 6 の publish の前提でもある（未読のまま publish しようとすると
@@ -124,8 +125,8 @@ WebFetch(
 > **ただし WebFetch の要約だけでは足りず、保存されたソース全文を Read するまで
 > publish は通らない。** WebFetch の結果の1行目に
 > 「full HTML saved to <パス>」とローカルの保存先パスが書かれているので、
-> そのファイルを**最後の行まで** Read すること（1650行前後。2〜3回に分けて読む）。
-> このパスは STEP 6 の `splice_dashboard.js` の第1引数にもなる。
+> そのファイルを**最後の行まで** Read すること（1700〜2300行。数回に分けて読む）。
+> このパスは STEP 6 の `splice_dashboard.js` の `--published` にも渡す（描画レイヤーの差分の報告用）。
 
 ### STEP 4 — 分析する
 
@@ -157,6 +158,12 @@ WebFetch(
   4. 安静時心拍の前週比 +3bpm 以上
   5. 睡眠スコアの週平均が 70 未満
   該当したサインは「疲労・コンディション」軸の `summary` と `issues` に、具体的な数値とともに書く。
+- **当日の行（2026-09-26〜）:** 取得のタイムゾーンを JST に直したので、当日朝の睡眠・HRV・
+  安静心拍・準備度が入るようになった（それまでは当日の行が毎日空だった）。
+  ただし当日の**ボディバッテリー最低・ストレス・歩数は取得時点までの途中値**
+  （ドキュメントの当日行に「※当日: …途中値」と出る）。朝の BB は高く出るので、
+  **当日の `bbLow` / `stress` / `steps` は `null` にし、判定にも使わない。**
+  「BB最低 < 20 が2日連続」などは前日までの確定値で見る。週平均はドキュメント側で当日の途中値を除いてある。
 - 健康データが空欄の日がある場合は、その項目を `null` にして
   「取れていない」ことを `issues` と `health.read` に明記する。
   0 や推測値で埋めない。
@@ -251,26 +258,28 @@ WebFetch(
 
 ### STEP 6 — ダッシュボードを更新する
 
-1. **差し替えの土台は、STEP 3 で取得した「公開済み Artifact のソース」を使う。**
-   `dashboard/index.html`（リポジトリ側）を土台にしてはいけない。
-   リポジトリの中身はコミットされたときにしか変わらないので、公開ページ側に
-   入っている改良より古いことがある。それを土台に publish すると、
-   **公開ページの改良を巻き戻すことになる。** 2026-09-06 に実際に起きかけた。
-   push できるようになった今も、この順序（公開版が正）は変えない。
+1. **差し替えの土台は、リポジトリの `dashboard/index.html`（描画レイヤーの正）を使う（2026-09-26 変更）。**
+   以前は「公開済み Artifact のソース」を土台にしていたが、そのせいで PR で main に入れた
+   描画の改修が公開ページに一度も届かなかった（PR #10 のラップ一覧が 9/26 時点で公開版に無かった）。
+   描画の改修は PR で main に入れ、ここで毎日そのまま公開する、という一方向の流れにした。
+   **公開版の描画レイヤーを手で直して publish しないこと**（翌日にリポジトリ版で上書きされる）。
 
-   公開済みソースは WebFetch / Artifact read の結果としてローカルにファイル保存される。
-   **差し替えは手でやらず、スクリプトに任せる（2026-09-15 から）:**
+   **差し替えは手でやらず、スクリプトに任せる:**
 
    1. その日の DATA を、スクラッチパッドに `data_block.js` として書く。
       中身は `const DATA = {` から `};` までの**代入文まるごと**（下の「データ構造」どおり）。
-   2. 公開済みソースへ差し込んで検証する:
+      `DATA.season` は書かない（次のスクリプトがプロファイルから差し込む）。
+   2. リポジトリの描画レイヤーへ差し込んで検証する:
       ```bash
-      node scripts/splice_dashboard.js <保存された公開済みソースのパス> <スクラッチパッド>/data_block.js dashboard/index.html
+      node scripts/splice_dashboard.js <スクラッチパッド>/data_block.js dashboard/index.html --published <STEP 3 で保存された公開済みソースのパス>
       ```
-      これが publish ラッパー（1行目）と末尾の重複 `</body></html>` を外し、
-      `<script id="coach-data">` 〜 `</script>` の中身だけを差し替え、
-      `scripts/check_dashboard.js` で検証したうえで `dashboard/index.html` に書く。
+      これが `dashboard/index.html` の `<script id="coach-data">` 〜 `</script>` の中身だけを差し替え、
+      `docs/athlete_profile.md` のロードマップ表・レース表・Mペース量の到達目標を読んで
+      `DATA.season` を足し、`scripts/check_dashboard.js` で検証したうえで書き出す。
+      `--published` は公開版と描画レイヤーが違うかどうかを報告するだけ（置き換えはリポジトリ側）。
       **NG なら書き出さない。** 出た `✕` を直して再実行する。`⚠` は直せるなら直す。
+      「プロファイルからシーズンを読めなかった」と出たら、プロファイルの表の形が崩れている。
+      publish は続けてよいが、最後の報告に書くこと（「進捗」タブのシーズンの帯が消える）。
    3. publish の直前に、実際に描画して真っ白でないことを確かめる:
       ```bash
       node scripts/check_dashboard.js dashboard/index.html --render
@@ -294,11 +303,18 @@ WebFetch(
    > 2026-08-24 の Routine 実行で実際にこれが起きた。
    > 手で差し替えたときも `check_dashboard.js` は必ず通すこと。
 
-   ダッシュボードは4つのタブに分かれている（描画側が自動で振り分けるので DATA 側の操作は不要）:
+   ダッシュボードは5つのタブに分かれている（描画側が自動で振り分けるので DATA 側の操作は不要）:
    - **走りの評価** — `today` / `axes` / `good` / `issues` / `week`
    - **明日以降のメニュー** — `tomorrow` / `weekPlan`
    - **コンディション** — `health`
+   - **進捗**（2026-09-26 追加） — `season`（splice が差し込む）と db の履歴から**描画側が計算する**。
+     シーズンの帯と現在地、Mペースの持続力（4:25/km 以内の連続km）、週間距離の推移、
+     E帯の心拍の推移、フル予測の推移。**Routine が書き足すものは無い。**
+     ここに出る数字（記録上の最長・直近2週の最長など）は `today.points` や `issues` で使ってよい
    - **過去の評価** — DATA ではなく db を読む（STEP 6.6 参照）
+
+   今日の走りでラップが 4:25/km 以内で連続した距離が、履歴上の最長以上になると、
+   ヒーローに「記録上の最長を更新」の印が自動で出る（事実だけを出す。評価は変えない）。
 
    `race` カウンターだけが全タブ共通で常に上部に出る。
 
@@ -345,8 +361,10 @@ WebFetch(
      - `health.days[]` は直近7日を古い順に。キーは
        `hrv` / `rhr` / `sleep`（スコア） / `sleepMin`（分） /
        `sleepDeep` / `sleepRem` / `sleepLight`（分・積み上げグラフ用） /
-       `bbLow` / `stress` / `readiness`。
+       `bbLow` / `stress` / `readiness` / **`steps`**（歩数。2026-09-26 追加。ドキュメントの「歩数」を数値で）。
        取れなかった値は `null`。描画側が「—」を出す。
+       **当日（末尾）の `bbLow` / `stress` / `steps` は途中値なので `null`**（STEP 4 参照）。
+       歩数は 18,000 歩以上の日が色付きで出る（BB最低の20割れの主因になっているため）。
      - `health.sleepTargetMin` は睡眠の目標ライン（分）。グラフの基準線になる。
        通常は `420`（7時間）のままでよい。
      - `health.baseline` は HRV のバランス域（Garmin が返す `baseline.balancedLow` / `balancedUpper`）。
@@ -526,6 +544,7 @@ Artifact(                           ← 以前の形。Artifact に write_db が
 | `headline` / `points` | 開いたときの結論と要点 |
 | `stats` / `effect` | 数値タイルとトレーニング効果 |
 | `laps` | `"秒:心拍,秒:心拍,…"` の1行に圧縮（ペースは秒から復元するので持たない） |
+| `pred` / `vo2` | その日の Garmin フル予測と VO2max（`health.fitness` から。1本目だけ。2026-09-26 追加）。「進捗」タブの推移に使う |
 
 > **なぜ DATA に持たせないか。**
 > 過去分を `DATA` に積むと、Routine は毎日その全部を書き直すことになり、
@@ -655,12 +674,13 @@ Stop フックが仕込まれている。上のコマンドで作業ツリーを
 
 | スクリプト | 役割 | 使う STEP |
 |-----------|------|----------|
-| `splice_dashboard.js <公開済み.html> <data_block.js> [out]` | 公開済みソースに DATA を差し込み、検証してから `dashboard/index.html` に書く | 6 |
+| `splice_dashboard.js <data_block.js> [out] [--published <公開済み.html>]` | リポジトリの描画レイヤーに DATA とプロファイル由来の `season` を差し込み、検証してから書く | 6 |
+| `profile_season.js [profile.md]` | プロファイルの表からフェーズ・レース・Mペース量の目標を読む（splice が使う。単体で実行すると JSON を表示） | 6 |
 | `check_dashboard.js <html> [--render] [--shot out.png]` | 骨格と DATA の検証。`--render` で Chromium 描画、`--shot` で PNG | 6（publish 直前） |
 | `export_run_history.js <html または entry.json> <run.json>` | `DATA.today`（または同じ形の JSON）から履歴を書き出す。`extra[]` があれば `run-2.json` … も | 6.6 / 6.7 |
 | `export_widget_data.js <html> <out.md> [--history <dir>]` | DATA から iPhone ウィジェット用の JSON を作り、Notion ページの本文の形で書き出す | 6.8 |
 
-描画側で決め打ちにしている値（`dashboard/index.html` の `ZONE_EDGE` / `HR_CAPS`）は
+描画側で決め打ちにしている値（`dashboard/index.html` の `ZONE_EDGE` / `HR_CAPS` / `M_EDGE` / `E_BAND`）は
 `docs/athlete_profile.md` のペースゾーンから引いている。**プロファイルのゾーンを引き直したら
 ここも一緒に直す**（ラップの色分けと心拍上限線に使う）。
 

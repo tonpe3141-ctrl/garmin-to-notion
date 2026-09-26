@@ -25,6 +25,10 @@ if (!src || !out) {
   process.exit(2);
 }
 
+// その日の Garmin フル予測と VO2max。「進捗」タブがこれを並べて推移を描く（DATA.health.fitness の丸写し）。
+// 後追い記録（entry.json）には健康データが無いので付かない。それでよい。
+let fitness = {};
+
 function loadToday(file) {
   const text = fs.readFileSync(file, "utf8");
   if (!/\.html?$/i.test(file)) {
@@ -39,6 +43,8 @@ function loadToday(file) {
   const to = from < 0 ? -1 : lines.findIndex((l, i) => i > from && l.trim() === "</script>");
   if (from < 0 || to < 0) { console.error("DATA ブロックが見つかりません: " + file); process.exit(1); }
   const DATA = Function(lines.slice(from + 1, to).join("\n") + "\n; return DATA;")();
+  const f = (DATA.health && DATA.health.fitness) || {};
+  fitness = { pred: (f.race && f.race.full) || null, vo2: f.vo2max == null ? null : f.vo2max };
   return DATA.today || {};
 }
 
@@ -71,6 +77,9 @@ function toDoc(run, date, dow, seq) {
     laps
   };
   if (seq > 1) doc.seq = seq;
+  // 1本目にだけ付ける（その日の値なので2本目に重ねない）
+  if (seq === 1 && fitness.pred) doc.pred = fitness.pred;
+  if (seq === 1 && fitness.vo2 != null) doc.vo2 = fitness.vo2;
   return doc;
 }
 

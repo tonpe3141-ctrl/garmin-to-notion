@@ -738,7 +738,9 @@ def prefetch_health_data(page, spa_headers: dict, days: int = None) -> tuple:
         days = int(os.environ.get("GARMIN_HEALTH_FETCH_DAYS", "14"))
     print("\n[健康データ事前取得] 直近 %d 日分を取得中..." % days)
 
-    today = datetime.date.today()
+    # 日付は必ず JST で数える。ランナーの TZ（以前は America/Montreal）で数えると
+    # 8:30 JST の実行時に「今日」が前日になり、当日朝の睡眠・HRV・準備度が毎日欠けていた。
+    today = (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=9)).date()
     dates = [(today - datetime.timedelta(days=i)).isoformat() for i in range(days)]
     headers_js = json.dumps(spa_headers)
     dates_js = json.dumps(dates)
