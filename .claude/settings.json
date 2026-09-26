@@ -1,9 +1,10 @@
 {
   "permissions": {
-    "allow": ["Artifact"],
+    "allow": [
+      "Artifact"
+    ],
     "deny": [
       "mcp__Notion__notion-create-pages",
-      "mcp__Notion__notion-update-page",
       "mcp__Notion__notion-create-database",
       "mcp__Notion__notion-create-comment",
       "mcp__Notion__notion-update-data-source"
@@ -17,6 +18,15 @@
           {
             "type": "command",
             "command": "jq -e '(.tool_name==\"Artifact\" and .tool_input.action==\"write_db\" and .tool_input.collection==\"runs\") or (.tool_name==\"ArtifactData\" and (((.tool_input.action|IN(\"get\",\"list\",\"query\")) and .tool_input.collection==\"runs\") or ((.tool_input.action|IN(\"set\",\"update\",\"str_replace\")) and .tool_input.collection==\"runs\") or (.tool_input.action==\"batch\" and ((.tool_input.writes // [])|length>0) and all((.tool_input.writes // [])[]; .collection==\"runs\" and .op!=\"delete\"))))' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"daily coach routine STEP 6.6/6.7: runs history read/write\"}}' || true"
+          }
+        ]
+      },
+      {
+        "matcher": "mcp__Notion__notion-update-page",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "jq -e '.tool_input.command==\"replace_content\" and ((.tool_input.page_id // \"\")|gsub(\"-\";\"\")|ascii_downcase|contains(\"3e5862c3def7815ca6dac05c5b756c20\"))' >/dev/null 2>&1 && echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"allow\",\"permissionDecisionReason\":\"daily coach routine STEP 6.8: widget data page\"}}' || echo '{\"hookSpecificOutput\":{\"hookEventName\":\"PreToolUse\",\"permissionDecision\":\"deny\",\"permissionDecisionReason\":\"Notion write is allowed only for replace_content on the widget data page (docs/daily_coach_routine.md STEP 6.8)\"}}'"
           }
         ]
       }
