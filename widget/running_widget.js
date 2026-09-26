@@ -263,6 +263,14 @@ function lastRow(stack, v) {
   }
 }
 
+// 今週の距離。下限に届くまでは残りを出す（「あと何km」が一番行動につながるため）
+function weekCaption(wk) {
+  const km = Number(wk.km) || 0;
+  const low = Number((String(wk.target || "").match(/\d+(\.\d+)?/) || [])[0]);
+  if (!low) return `今週 ${km}km`;
+  return km >= low ? `今週 ${km}km ✓ 下限${low}` : `今週 ${km}km · 下限${low}まで あと${(low - km).toFixed(1)}`;
+}
+
 function footer(w, v, error) {
   const f = w.addStack();
   f.centerAlignContent();
@@ -312,7 +320,7 @@ function large(w, v, error) {
   const h = w.addStack();
   caption(h, "この先");
   h.addSpacer();
-  if (v.week) caption(h, `今週 ${v.week.km}km / 目標 ${v.week.target}`);
+  if (v.week) caption(h, weekCaption(v.week));
   w.addSpacer(3);
 
   for (const p of v.later.slice(0, 5)) {

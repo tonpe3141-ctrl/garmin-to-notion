@@ -952,6 +952,11 @@ def sync_to_google_doc(activities: List[dict], folder_id: str, service_account_j
         traceback.print_exc()
 
 
+def _days_before(date_str: str, n: int) -> str:
+    """'YYYY-MM-DD' の n 日前を同じ形式で返す。"""
+    return (datetime.strptime(date_str, '%Y-%m-%d') - timedelta(days=n)).strftime('%Y-%m-%d')
+
+
 def _build_health_summary_lines(health_data_list: List[dict], race_predictions: dict) -> List[str]:
     """デイリーヘルスデータを Google Doc 用テキスト（行リスト）に変換する。"""
     if not health_data_list:
@@ -965,6 +970,10 @@ def _build_health_summary_lines(health_data_list: List[dict], race_predictions: 
     sorted_data = all_sorted[:7]
     prev_week = all_sorted[7:14]
 
+    # 当日の行は取得時点（朝）までの途中値。睡眠・HRV・安静心拍・準備度は前夜の確定値だが、
+    # ボディバッテリー最低・ストレス・歩数は一日が終わるまで動くので、そう明記する。
+    today_str = datetime.now(local_tz).date().isoformat()
+
     for d in sorted_data:
         try:
             dt = datetime.strptime(d['date'], '%Y-%m-%d')
@@ -973,6 +982,8 @@ def _build_health_summary_lines(health_data_list: List[dict], race_predictions: 
             date_label = d['date']
 
         parts = [f"**{date_label}**"]
+        if d['date'] == today_str:
+            parts.append("※当日: ボディバッテリー・ストレス・歩数は取得時点までの途中値")
 
         sleep_score = d.get('sleep_score')
         sleep_total = d.get('sleep_total_min')
@@ -1027,8 +1038,12 @@ def _build_health_summary_lines(health_data_list: List[dict], race_predictions: 
     lines.append("\n")
 
     # 週平均と前週比（疲労判定の裏取りに使う）。前週データが無い項目は出さない。
+    # 当日の途中値（BB最低・ストレス）は週平均に入れない。朝の時点の BB は高く出るので平均を甘くする。
+    partial_keys = {'body_battery_low', 'stress_avg'}
+
     def _avg(rows, key):
-        vals = [r[key] for r in rows if r.get(key) is not None]
+        vals = [r[key] for r in rows if r.get(key) is not None
+                and not (key in partial_keys and r.get('date') == today_str)]
         return round(sum(vals) / len(vals), 1) if vals else None
 
     cmp_specs = [
@@ -1054,15 +1069,25 @@ def _build_health_summary_lines(health_data_list: List[dict], race_predictions: 
     if cmp_parts:
         lines.append("**週平均と前週比:** " + " / ".join(cmp_parts) + "\n\n")
 
-    # フィットネス指標（最新日のデータを使用）
-    latest = sorted_data[0] if sorted_data else {}
+    # フィットネス指標。最新日だけを見ると、その日が未取得のとき毎日欠ける
+    # （2026-09 に13日連続で出なかった）。値のある最も新しい日を使い、その日付も添える。
+    def _latest(key):
+        for row in all_sorted:
+            if row.get(key):
+                return row[key], row['date']
+        return None, None
+
     fitness_parts = []
-    vo2max = latest.get('vo2max')
+    vo2max, vo2_date = _latest('vo2max')
     if vo2max:
-        fitness_parts.append(f"**VO2max:** {vo2max}")
-    training_status = latest.get('training_status')
+        # 2週前の値と比べて推移も出す（VO2max は日単位ではほぼ動かないため）
+        prev_vo2 = next((r['vo2max'] for r in all_sorted
+                         if r.get('vo2max') and r['date'] <= _days_before(vo2_date, 7)), None)
+        trend = f"（1週前 {prev_vo2}）" if prev_vo2 else ""
+        fitness_parts.append(f"**VO2max:** {vo2max}{trend} [{vo2_date}]")
+    training_status, ts_date = _latest('training_status')
     if training_status:
-        fitness_parts.append(f"**トレーニングステータス:** {training_status}")
+        fitness_parts.append(f"**トレーニングステータス:** {training_status} [{ts_date}]")
     if fitness_parts:
         lines.append(" | ".join(fitness_parts) + "\n\n")
 

@@ -240,8 +240,17 @@ function check(html, opts = {}) {
     const tot = numOf(wp.totalKm);
     if (tot != null && Math.abs(tot - sum) > 3) warn(`weekPlan.totalKm "${wp.totalKm}" と days の合計 ${sum}km が3km以上ずれている`);
     info(`weekPlan: ${sum}km（下限側）／ 質練習 ${quality}本 ／ 休養 ${restDays}日`);
-    if (quality < 3) warn(`weekPlan の質練習が ${quality}本。Phase 4/5 は週3本が下限。落とすなら理由を aim と issues に書くこと`);
-    if (restDays > 1) warn(`weekPlan の休養日が ${restDays}日。Phase 4/5 は週1日。増やすなら警戒サインを aim と issues に書くこと`);
+    // 規定はプロファイルのロードマップ表（DATA.season）から、週プランの初日が属するフェーズのものを使う。
+    // 回復週・テーパー週に「質3本」を求めて誤警告しないため。season が無ければ従来どおり 3本 / 1日。
+    const ph = D.season && arr(D.season.phases) && isoDate(tm.date)
+      ? D.season.phases.find((p) => p.from <= tm.date && tm.date <= p.to) : null;
+    const nums = (v) => (String(v || "").match(/\d+/g) || []).map(Number);
+    const qMin = ph && nums(ph.quality).length ? nums(ph.quality)[0] : 3;
+    const rMax = ph && nums(ph.rest).length ? Math.max(...nums(ph.rest)) : 1;
+    const who = ph ? ph.name : "Phase 4/5";
+    if (quality < qMin) warn(`weekPlan の質練習が ${quality}本。${who} は週${qMin}本が下限。落とすなら理由を aim と issues に書くこと`);
+    if (qMin === 0 && quality > 0) warn(`weekPlan に質練習が ${quality}本ある。${who} は質ゼロの週`);
+    if (restDays > rMax) warn(`weekPlan の休養日が ${restDays}日。${who} は週${rMax}日まで。増やすなら警戒サインを aim と issues に書くこと`);
   }
 
   // --- week ---
@@ -301,6 +310,13 @@ function check(html, opts = {}) {
         if (!(k in d)) err(`health.days[${i}].${k} がない（取れない日は null）`);
         else if (!(d[k] === null || isNum(d[k]))) err(`health.days[${i}].${k} は数値か null`);
       }
+      // 歩数（2026-09-26 追加・任意）。当日は途中値なので null にする
+      if ("steps" in d && !(d.steps === null || isNum(d.steps))) err(`health.days[${i}].steps は数値か null`);
+      if (i === hd.length - 1) {
+        for (const k of ["bbLow", "stress", "steps"]) {
+          if (isNum(d[k])) warn(`health.days の当日（${d.d}）の ${k} に値がある。取得時点までの途中値なので null にすること`);
+        }
+      }
       if (isoDate(today)) {
         const want = addDays(today, i - 6);
         if (d.d !== md(want)) err(`health.days[${i}].d "${d.d}" は ${md(want)}（今日を末尾に7日）`);
@@ -308,10 +324,29 @@ function check(html, opts = {}) {
     });
     const missing = hd.filter((d) => keys.every((k) => d[k] === null)).map((d) => d.d);
     if (missing.length) info(`health.days 全項目 null の日: ${missing.join(", ")}`);
+    if (!hd.some((d) => "steps" in d)) warn("health.days に steps がない（歩数列が出ない。ドキュメントの「歩数」を写す）");
   }
   const f = h.fitness || {};
   if (!f.race || !Object.values(f.race).some(isStr)) warn("health.fitness.race にレース予測がない");
   if (!isStr(h.read)) err("health.read がない");
+
+  // --- season（splice_dashboard.js が docs/athlete_profile.md から差し込む。Routine は書かない） ---
+  if (D.season != null) {
+    const ss = D.season;
+    if (!arr(ss.phases) || !ss.phases.length) err("season.phases が空");
+    else ss.phases.forEach((p, i) => {
+      if (!isStr(p.name) || !isoDate(p.from) || !isoDate(p.to) || p.from > p.to) err(`season.phases[${i}] の name/from/to が不正`);
+    });
+    if (!arr(ss.races) || !ss.races.every((r) => isStr(r.name) && isoDate(r.date))) err("season.races が不正");
+    if (isoDate(today) && arr(ss.phases) && !ss.phases.some((p) => p.from <= today && today <= p.to)) {
+      warn(`今日（${today}）を含むフェーズが season にない。プロファイルのロードマップ表を確認すること`);
+    }
+    if (arr(ss.races) && D.race && isStr(D.race.date) && !ss.races.some((r) => r.date === D.race.date)) {
+      warn(`race.date ${D.race.date} がプロファイルのレース表に無い。DATA.race とプロファイルが食い違っている`);
+    }
+  } else {
+    info("DATA.season がない（splice_dashboard.js を通していないか、プロファイルを読めなかった）");
+  }
 
   // --- 描画（任意） ---
   if (opts.render || opts.shot) {
