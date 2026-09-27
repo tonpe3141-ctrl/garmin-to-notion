@@ -4,7 +4,7 @@
  *
  *   node scripts/export_widget_data.js <dashboard.html> <out.md> [--history <dir>]
  *
- * DATA から「直近のラン」「次のラン」「この先7日」「今週の距離」「レース」だけを抜き出し、
+ * DATA から「直近のラン」「次のラン」「この先7日」「直近7日の距離」「レース」だけを抜き出し、
  * Notion の「📱 ウィジェット用データ」ページにそのまま入れられる本文（説明1行 + JSON コードブロック）を
  * <out.md> に書く。Routine はこの中身を notion-update-page の new_str に渡すだけでよい（STEP 6.8）。
  *

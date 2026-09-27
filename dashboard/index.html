@@ -173,23 +173,24 @@ const DATA = {
   },
 
   week: {
-    label: "9/21(月) 〜 9/27(日)　※今週・進行中（6日目）",
-    totalKm: 59.13,
-    prevKm: 84.22,
+    // 今日を含む直近7日（今日−6日 〜 今日）。月曜始まりの暦週ではない。
+    // prevKm はその前の7日（今日−13日 〜 今日−7日）の合計。
+    label: "9/20(日) 〜 9/26(土)　直近7日",
+    totalKm: 81.23,
+    prevKm: 84.26,
     targetKm: "70〜85",
-    runs: 5,
-    remainingDays: 1,
+    runs: 6,
     monthKm: 259.87,
     monthTargetKm: 300,
     monthDayCount: 26,
     days: [
+      { d: "9/20", dow: "日", km: 22.1,  hr: 142,  type: "M" },
       { d: "9/21", dow: "月", km: 0,     hr: null, type: "rest" },
       { d: "9/22", dow: "火", km: 14.54, hr: 154,  type: "T" },
       { d: "9/23", dow: "水", km: 10.04, hr: 130,  type: "E" },
       { d: "9/24", dow: "木", km: 16.16, hr: 145,  type: "M" },
       { d: "9/25", dow: "金", km: 8.05,  hr: 135,  type: "E" },
-      { d: "9/26", dow: "土", km: 10.34, hr: 128,  type: "E" },
-      { d: "9/27", dow: "日", km: 0,     hr: null, type: "M" }
+      { d: "9/26", dow: "土", km: 10.34, hr: 128,  type: "E" }
     ]
   },
 
@@ -640,7 +641,7 @@ svg.laps { display: block; min-width: 560px; width: 100%; height: auto; }
 .wd-bar.R { background: var(--z-r); }
 .wd-bar.rest { background: var(--line); }
 .wd-km { font-family: var(--num); font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
-.wd-d { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); }
+.wd-d { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); text-align: center; line-height: 1.35; }
 
 .tot { display: flex; flex-wrap: wrap; gap: 22px; }
 .tot div { display: flex; flex-direction: column; }
@@ -1522,7 +1523,7 @@ footer {
       return `<div class="wd">
         <span class="wd-km">${d.km > 0 ? d.km.toFixed(1) : "—"}</span>
         <span class="wd-bar ${cls}" style="height:${h.toFixed(0)}px" title="${esc(d.d)} ${d.km}km${d.hr ? " HR" + d.hr : ""}"></span>
-        <span class="wd-d">${esc(d.dow)}</span>
+        <span class="wd-d">${esc(d.d)}<br>${esc(d.dow)}</span>
       </div>`;
     }).join("");
   }
@@ -1882,7 +1883,12 @@ footer {
     const weeks = new Map();
     runs.forEach(r => { const m = mondayOf(r.d); weeks.set(m, (weeks.get(m) || 0) + r.km); });
     const thisMon = mondayOf(today);
-    if (D.week && isFinite(D.week.totalKm)) weeks.set(thisMon, D.week.totalKm); // 今週は DATA の値が正
+    // 今週（月〜今日）は DATA の値が正。DATA.week は「今日を含む直近7日」なので、
+    // そのうち今週の月曜以降の日だけを足す（days[6] が今日）
+    if (D.week && Array.isArray(D.week.days) && D.week.days.length === 7) {
+      weeks.set(thisMon, D.week.days.reduce((s, d, i) =>
+        isoAdd(today, i - 6) >= thisMon ? s + (Number(d.km) || 0) : s, 0));
+    }
     const first = runs.length ? runs[0].d : today;
     const wlist = [...weeks.keys()].sort().slice(-10).map(m => {
       const ph = phaseAt(m);
@@ -1913,7 +1919,7 @@ footer {
     }
     if (D.week) {
       const low = numOf(D.week.targetKm);
-      tiles.push(tile("今週の距離", Number(D.week.totalKm).toFixed(1), "km",
+      tiles.push(tile("直近7日の距離", Number(D.week.totalKm).toFixed(1), "km",
         low ? (D.week.totalKm >= low ? `下限 ${low}km に到達 ✓` : `下限 ${low}km まで あと ${(low - D.week.totalKm).toFixed(1)}km`) : "",
         low && D.week.totalKm >= low ? "good" : ""));
     }
@@ -2037,10 +2043,8 @@ footer {
   const tdate = dateOf(t.date) || dateOf(D.meta && D.meta.generatedAt);
   const monthDays = tdate ? new Date(Date.UTC(+tdate.slice(0, 4), +tdate.slice(5, 7), 0)).getUTCDate() : 31;
   const monthPace = Math.round(wk.monthKm / wk.monthDayCount * monthDays);
-  // 進行中の週は「下限まであと何km・1日あたり何km」を出し、前週比は確定してから出す
+  // 週は「今日を含む直近7日」。常に7日そろっているので、前の7日との比較をそのまま出す
   const lowKm = numOf(wk.targetKm);
-  const remain = Number.isInteger(wk.remainingDays) ? wk.remainingDays : 0;
-  const leftKm = lowKm != null ? Math.max(0, lowKm - wk.totalKm) : null;
   const weekPct = lowKm ? Math.min(100, (wk.totalKm / lowKm) * 100) : 0;
   const kmStat = (t.stats || []).find(s => s.label === "距離");
 
@@ -2105,13 +2109,12 @@ footer {
         <div class="week-grid">${weekBars(wk)}</div>
         <div class="divider"></div>
         <div class="tot">
-          <div><span class="n">${wk.totalKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> km</em></span><span class="l">${remain > 0 ? "今週ここまで" : "今週合計"}（目標 ${esc(wk.targetKm)} km）</span></div>
+          <div><span class="n">${wk.totalKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> km</em></span><span class="l">直近7日（週の目標 ${esc(wk.targetKm)} km）</span></div>
           <div><span class="n">${wk.runs}<em style="font-size:12px;font-weight:400"> 回</em></span><span class="l">走行回数</span></div>
-          ${remain > 0 && leftKm != null ? `<div><span class="n" style="color:${leftKm > 0 ? "var(--warn)" : "var(--good)"}">${leftKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> km</em></span><span class="l">下限 ${lowKm}km まで（残り ${remain}日・1日 ${(leftKm / remain).toFixed(1)}km）</span></div>` : ""}
-          <div><span class="n">${wk.prevKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> km</em></span><span class="l">前週${remain > 0 ? "（確定）" : ""}</span></div>
-          ${remain === 0 && deltaPct !== null ? `<div><span class="n delta" style="color:${deltaPct > 10 ? "var(--warn)" : "var(--good)"}">${deltaPct > 0 ? "+" : ""}${deltaPct}%</span><span class="l">前週比（+10%超で過負荷）</span></div>` : ""}
+          <div><span class="n">${wk.prevKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> km</em></span><span class="l">その前の7日</span></div>
+          ${deltaPct !== null ? `<div><span class="n delta" style="color:${deltaPct > 10 ? "var(--warn)" : "var(--good)"}">${deltaPct > 0 ? "+" : ""}${deltaPct}%</span><span class="l">前の7日比（+10%超で過負荷）</span></div>` : ""}
         </div>
-        ${lowKm ? `<div class="meter" title="週の下限 ${lowKm}km に対する進捗 ${weekPct.toFixed(0)}%"><i style="width:${weekPct.toFixed(1)}%"></i></div>` : ""}
+        ${lowKm ? `<div class="meter" title="週の下限 ${lowKm}km に対する直近7日の割合 ${weekPct.toFixed(0)}%"><i style="width:${weekPct.toFixed(1)}%"></i></div>` : ""}
         <div class="divider"></div>
         <div>
           <div class="tot" style="margin-bottom:8px">

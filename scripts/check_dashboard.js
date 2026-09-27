@@ -8,7 +8,7 @@
  *   - HTML の骨格（publish ラッパーの残り、DATA 代入文の重複、コメント閉じタグ、#app）
  *     → ここが壊れるとページが真っ白になる（2026-08-24 に実際に発生）
  *   - DATA のキーの抜け・廃止キー・列挙値・日付の整合・件数
- *   - 週プラン／週間ロードの合計と日付の連続
+ *   - 週プラン／週間ロード（今日を含む直近7日）の合計と日付の連続
  *   - --render: Chromium があれば実際に描画し、#app に今日の日付が出るかを見る
  *   - --shot:   描画結果を PNG に保存する（目視確認用。--render を含む）
  *
@@ -30,9 +30,10 @@ const VERDICTS = ["◎", "○", "△", "✕", "—"];
 const isoDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
 const md = (iso) => { const [, m, d] = iso.split("-"); return `${Number(m)}/${Number(d)}`; };
 const dowOf = (iso) => DOW[new Date(iso + "T00:00:00").getDay()];
+// UTC で計算する（ローカル時刻で作って toISOString すると JST では1日ずれる）
 const addDays = (iso, n) => {
-  const d = new Date(iso + "T00:00:00");
-  d.setDate(d.getDate() + n);
+  const d = new Date(iso + "T00:00:00Z");
+  d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);
 };
 const daysBetween = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
@@ -81,6 +82,7 @@ function check(html, opts = {}) {
   if ("alerts" in D) err("廃止キー DATA.alerts がある（2026-09-06 廃止）");
   if (D.today && "verdictReason" in D.today) err("廃止キー today.verdictReason がある");
   if (D.weekPlan && "policy" in D.weekPlan) err("廃止キー weekPlan.policy がある（aim を使う）");
+  if (D.week && "remainingDays" in D.week) err("廃止キー week.remainingDays がある（2026-09-27 に週間ロードを直近7日へ変更）");
   (arr(D.axes) || []).forEach((a, i) => { if (a && "text" in a) err(`廃止キー axes[${i}].text がある（summary を使う）`); });
 
   // --- meta ---
@@ -259,9 +261,6 @@ function check(html, opts = {}) {
   for (const k of ["totalKm", "prevKm", "monthKm", "monthTargetKm"]) if (!isNum(wk[k])) err(`week.${k} は数値`);
   for (const k of ["runs", "monthDayCount"]) if (!Number.isInteger(wk[k])) err(`week.${k} は整数`);
   if (!isStr(wk.targetKm)) err("week.targetKm は文字列（\"70〜85\"）");
-  if (wk.remainingDays != null && !(Number.isInteger(wk.remainingDays) && wk.remainingDays >= 0 && wk.remainingDays <= 7)) {
-    err("week.remainingDays は 0〜7 の整数（省略可）");
-  }
   const wd = arr(wk.days);
   if (!wd || wd.length !== 7) err("week.days は7日");
   else {
@@ -270,13 +269,18 @@ function check(html, opts = {}) {
       if (!ZONES.includes(d.type)) err(`week.days[${i}].type "${d.type}" は E/M/T/R/rest`);
       if (!isNum(d.km)) err(`week.days[${i}].km は数値`);
       if (!(d.hr === null || isNum(d.hr))) err(`week.days[${i}].hr は数値か null`);
+      if (isoDate(today)) {
+        const want = addDays(today, i - 6);
+        if (d.d !== md(want)) err(`week.days[${i}].d "${d.d}" は ${md(want)} であること（今日を含む直近7日・古い順）`);
+        if (d.dow !== dowOf(want)) err(`week.days[${i}].dow "${d.dow}" は ${dowOf(want)}`);
+      }
       sum += d.km || 0;
       if (d.km > 0) runs++;
     });
     if (isNum(wk.totalKm) && Math.abs(sum - wk.totalKm) > 0.05) err(`week.totalKm ${wk.totalKm} と days の合計 ${sum.toFixed(2)} が合わない`);
     if (Number.isInteger(wk.runs) && runs !== wk.runs) warn(`week.runs ${wk.runs} と km>0 の日数 ${runs} が違う（同日2本なら可）`);
-    if (wk.remainingDays == null && wd.some((d) => d.km === 0 && d.type !== "rest")) {
-      warn("week.days に km 0 で type が rest 以外の日がある（未走の日）。進行中の週なら week.remainingDays を入れること");
+    if (wd.some((d) => d.km === 0 && d.type !== "rest")) {
+      warn("week.days に km 0 で type が rest 以外の日がある。直近7日はすべて過去なので、走っていない日は rest にする");
     }
   }
 
