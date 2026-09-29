@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * 「過去の評価」用の履歴を書き出す。
+ * 「成長の記録」タブ（カレンダー・推移）用の履歴を書き出す。
  *
  *   node scripts/export_run_history.js <dashboard.html | entry.json> <out.json>
  *
@@ -25,9 +25,12 @@ if (!src || !out) {
   process.exit(2);
 }
 
-// その日の Garmin フル予測と VO2max。「進捗」タブがこれを並べて推移を描く（DATA.health.fitness の丸写し）。
+// その日の Garmin フル予測と VO2max。「成長の記録」タブとホームの「現在地」がこれを並べて推移を描く（DATA.health.fitness の丸写し）。
 // 後追い記録（entry.json）には健康データが無いので付かない。それでよい。
 let fitness = {};
+// その日の「今日の読みもの」（DATA.news）。ダッシュボードの「読みものの記録」と、
+// 翌日以降に同じ記事を選ばないための照合（scripts/recent_news.js）に使う。1本目だけに付ける。
+let news = null;
 
 function loadToday(file) {
   const text = fs.readFileSync(file, "utf8");
@@ -45,6 +48,11 @@ function loadToday(file) {
   const DATA = Function(lines.slice(from + 1, to).join("\n") + "\n; return DATA;")();
   const f = (DATA.health && DATA.health.fitness) || {};
   fitness = { pred: (f.race && f.race.full) || null, vo2: f.vo2max == null ? null : f.vo2max };
+  const n = DATA.news;
+  if (n && n.title && n.url) {
+    // 短いキーで持つ（t=タイトル / u=URL / s=媒体 / th=テーマ / k=種類 / p=公開日）
+    news = { t: n.title, u: n.url, s: n.source || "", th: n.theme || "", k: n.kind || "", p: n.published || "" };
+  }
   return DATA.today || {};
 }
 
@@ -80,6 +88,7 @@ function toDoc(run, date, dow, seq) {
   // 1本目にだけ付ける（その日の値なので2本目に重ねない）
   if (seq === 1 && fitness.pred) doc.pred = fitness.pred;
   if (seq === 1 && fitness.vo2 != null) doc.vo2 = fitness.vo2;
+  if (seq === 1 && news) doc.news = news;
   return doc;
 }
 

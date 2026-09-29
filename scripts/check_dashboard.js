@@ -9,6 +9,7 @@
  *     → ここが壊れるとページが真っ白になる（2026-08-24 に実際に発生）
  *   - DATA のキーの抜け・廃止キー・列挙値・日付の整合・件数
  *   - 週プラン／週間ロード（今日を含む直近7日）の合計と日付の連続
+ *   - 今日の読みもの（news）の形・URL・日付
  *   - --render: Chromium があれば実際に描画し、#app に今日の日付が出るかを見る
  *   - --shot:   描画結果を PNG に保存する（目視確認用。--render を含む）
  *
@@ -25,6 +26,9 @@ const TONES = ["good", "bad", "note"];
 const STAT_STATES = ["ok", "warn", "crit"];
 const AXIS_STATES = ["good", "warn", "crit"];
 const VERDICTS = ["◎", "○", "△", "✕", "—"];
+// 今日の読みものの曜日テーマ（docs/daily_coach_routine.md STEP 5.8）。大きなニュースがあればテーマ外でもよい
+const NEWS_THEMES = ["研究・科学", "トレーニング", "レース・大会", "栄養・回復", "シューズ・ギア", "コラム・人物", "メンタル・戦略"];
+const NEWS_KINDS = ["ニュース", "コラム", "研究"];
 
 // ---------- helpers ----------
 const isoDate = (s) => typeof s === "string" && /^\d{4}-\d{2}-\d{2}$/.test(s) && !isNaN(Date.parse(s));
@@ -41,6 +45,8 @@ const numOf = (v) => { const m = String(v == null ? "" : v).match(/\d+(\.\d+)?/)
 const isNum = (v) => typeof v === "number" && isFinite(v);
 const isStr = (v) => typeof v === "string" && v.trim() !== "";
 const arr = (v) => Array.isArray(v) ? v : null;
+// 文の数（「。」で数える）。分量の規約（STEP 6.5）の目安に使う
+const sentences = (v) => (String(v || "").match(/。/g) || []).length || (isStr(v) ? 1 : 0);
 
 function extractData(html) {
   const lines = html.split("\n");
@@ -84,13 +90,16 @@ function check(html, opts = {}) {
   if (D.weekPlan && "policy" in D.weekPlan) err("廃止キー weekPlan.policy がある（aim を使う）");
   if (D.week && "remainingDays" in D.week) err("廃止キー week.remainingDays がある（2026-09-27 に週間ロードを直近7日へ変更）");
   (arr(D.axes) || []).forEach((a, i) => { if (a && "text" in a) err(`廃止キー axes[${i}].text がある（summary を使う）`); });
+  // 2026-09-30 の再構築で表示をやめたキー。書いても出ないので、書かないこと（publish は止めない）
+  if (D.tomorrow && "next" in D.tomorrow) warn("廃止キー tomorrow.next がある（2026-09-30 廃止。週プランと重複するため表示しない）");
+  if (D.meta && "note" in D.meta) warn("廃止キー meta.note がある（2026-09-30 廃止。表示されない）");
+  if (D.health && D.health.baseline && "hrvStatus" in D.health.baseline) warn("廃止キー health.baseline.hrvStatus がある（2026-09-30 廃止。表示されない）");
 
   // --- meta ---
   const m = D.meta || {};
   if (!isStr(m.generatedAt)) err("meta.generatedAt がない");
   if (!isStr(m.sourceUpdatedAt)) err("meta.sourceUpdatedAt がない");
   if (typeof m.sourceFresh !== "boolean") err("meta.sourceFresh は true/false");
-  if (!isStr(m.note)) warn("meta.note が空");
 
   // --- today ---
   const t = D.today || {};
@@ -184,11 +193,15 @@ function check(html, opts = {}) {
     if (!isStr(a.name)) err(`axes[${i}].name がない`);
     if (!AXIS_STATES.includes(a.state)) err(`axes[${i}].state "${a.state}" は good/warn/crit`);
     if (!isStr(a.summary)) err(`axes[${i}].summary がない`);
+    else if (sentences(a.summary) > 2) warn(`axes[${i}].summary が ${sentences(a.summary)} 文（1〜2文が規定）`);
   });
   for (const k of ["good", "issues"]) {
     const v = arr(D[k]);
     if (!v || !v.length) err(`${k} が空`);
-    else v.forEach((s, i) => { if (!isStr(s)) err(`${k}[${i}] が空文字`); });
+    else {
+      v.forEach((s, i) => { if (!isStr(s)) err(`${k}[${i}] が空文字`); });
+      if (v.length > 3) warn(`${k} が ${v.length} 項目（最大3項目。優先度の高いものだけ残す）`);
+    }
   }
   if (m.sourceFresh === false && !(arr(D.issues) || []).some((s) => /最新|日前|同期/.test(s))) {
     warn("sourceFresh=false なのに issues にデータ鮮度の指摘がない");
@@ -201,7 +214,7 @@ function check(html, opts = {}) {
     if (isoDate(today) && tm.date !== addDays(today, 1)) err(`tomorrow.date ${tm.date} は today+1（${addDays(today, 1)}）であること`);
     if (tm.dow !== dowOf(tm.date)) err(`tomorrow.dow "${tm.dow}" が曜日 ${dowOf(tm.date)} と違う`);
   }
-  for (const k of ["title", "headline", "why", "next"]) if (!isStr(tm[k])) err(`tomorrow.${k} がない`);
+  for (const k of ["title", "headline", "why"]) if (!isStr(tm[k])) err(`tomorrow.${k} がない`);
   const segs = arr(tm.segments);
   if (!segs || !segs.length) err("tomorrow.segments が空");
   else segs.forEach((s, i) => {
@@ -289,7 +302,6 @@ function check(html, opts = {}) {
   if (!isStr(h.label)) err("health.label がない");
   const bl = h.baseline || {};
   if (!isNum(bl.hrvLow) || !isNum(bl.hrvHigh)) err("health.baseline.hrvLow/hrvHigh は数値");
-  if (!isStr(bl.hrvStatus)) err("health.baseline.hrvStatus がない");
   const hs = arr(h.summary);
   if (!hs || !hs.length) err("health.summary が空");
   else hs.forEach((s, i) => {
@@ -333,6 +345,39 @@ function check(html, opts = {}) {
   const f = h.fitness || {};
   if (!f.race || !Object.values(f.race).some(isStr)) warn("health.fitness.race にレース予測がない");
   if (!isStr(h.read)) err("health.read がない");
+  else if (sentences(h.read) > 3) warn(`health.read が ${sentences(h.read)} 文（2〜3文が規定）`);
+
+  // --- news（今日の読みもの。2026-09-30 追加。取れなかった日は null） ---
+  if (D.news == null) {
+    warn("news がない（今日の読みものが出ない。WebSearch が使えなかった日は null でよい）");
+  } else {
+    const n = D.news;
+    const httpUrl = (u) => typeof u === "string" && /^https?:\/\/[^\s"<>]+$/i.test(u);
+    for (const k of ["title", "source", "summary", "takeaway"]) if (!isStr(n[k])) err(`news.${k} がない`);
+    if (!httpUrl(n.url)) err("news.url は http(s) の URL");
+    if (!NEWS_THEMES.includes(n.theme)) err(`news.theme "${n.theme}" は ${NEWS_THEMES.join(" / ")} のいずれか`);
+    if (!NEWS_KINDS.includes(n.kind)) err(`news.kind "${n.kind}" は ${NEWS_KINDS.join(" / ")} のいずれか`);
+    if (!/^\d{4}-\d{2}(-\d{2})?$/.test(String(n.published || ""))) err("news.published は記事の公開日 YYYY-MM-DD（日が分からなければ YYYY-MM）");
+    else if (isoDate(today)) {
+      const pub = n.published.length === 7 ? n.published + "-28" : n.published;
+      const age = daysBetween(pub, today);
+      if (age < -1) err(`news.published ${n.published} が未来の日付`);
+      else if (n.kind === "ニュース" && age > 14) warn(`news はニュースなのに ${age} 日前の記事（ニュースは14日以内）`);
+      else if (age > 400) warn(`news が ${age} 日前の記事。古すぎないか確認すること`);
+    }
+    if (isStr(n.summary) && sentences(n.summary) > 3) warn(`news.summary が ${sentences(n.summary)} 文（2〜3文）`);
+    if (isStr(n.summary) && /「[^」]{40,}」/.test(n.summary)) err("news.summary に40字以上の引用がある。記事の文章を写さず、自分の言葉で要約すること");
+    if (n.more != null) {
+      if (!arr(n.more)) err("news.more は配列");
+      else {
+        if (n.more.length > 2) warn(`news.more が ${n.more.length} 件（最大2件）`);
+        n.more.forEach((x, i) => {
+          if (!isStr(x.title) || !httpUrl(x.url)) err(`news.more[${i}] は {title, source, url}`);
+          if (x.url === n.url) err(`news.more[${i}] が本記事と同じ URL`);
+        });
+      }
+    }
+  }
 
   // --- season（splice_dashboard.js が docs/athlete_profile.md から差し込む。Routine は書かない） ---
   if (D.season != null) {
@@ -358,7 +403,7 @@ function check(html, opts = {}) {
     if (res.skipped) warn(`描画確認をスキップ: ${res.skipped}`);
     else if (res.error) err(`描画確認に失敗: ${res.error}`);
     else {
-      if (!res.dom.includes(`class="hero-date">${today}<`)) err("描画結果に today.date が出ていない（ページが真っ白か、スクリプトが落ちている）");
+      if (!res.dom.includes(`data-today="${today}"`)) err("描画結果に today.date が出ていない（ページが真っ白か、スクリプトが落ちている）");
       else info("描画確認 OK（#app に今日の日付が出ている）");
       if (opts.shot) info(`スクリーンショット: ${opts.shot}`);
     }
