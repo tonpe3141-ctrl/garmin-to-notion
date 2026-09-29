@@ -31,212 +31,206 @@
 
   ⚠ 目標レース・目標タイム・フェーズは docs/athlete_profile.md が唯一の正です。
     ここの race / phase を編集しても反映されません。プロファイルを直してください。
+
+  画面の構成（2026-09-30 に再構築）— 1つの情報は1か所にだけ出す:
+    ホーム       … カウントダウン / 今日の走り（結論と要点）/ 次のメニュー / 体調 / 現在地 / 今日の読みもの
+                   開いた時刻が翌朝なら「今日のメニュー」を先頭に出す（分析は前日12:00のものなので）
+    走りの詳細   … 全指標・ラップ・4軸の評価・週とシーズンの視点
+    予定         … シーズンの帯とフェーズ・この先1週間
+    コンディション … 健康データ
+    成長の記録   … トレーニングカレンダー（旧「過去の評価」）・Mペースの持続力・有酸素の効率・読みものの記録
   ============================================================================
 -->
 
 <script id="coach-data">
 const DATA = {
   meta: {
-    generatedAt: "2026-09-26 12:00 JST",
-    sourceUpdatedAt: "2026-09-26 10:45 JST",
-    sourceFresh: true,
-    note: "ドキュメントは 2026-09-26 10:45 JST 更新で当日分。Eジョグ10.34km は本体8kmが全km 5:42〜6:07・HR≤134 と処方どおりで○、ただし導入2km目は5:43・HR136 でまた外した。BB最低が 9/24 11・9/25 17 と2日連続で20を割ったため、プロファイルの規定どおり休養を 9/29 に1日追加する。"
+    generatedAt: "2026-09-29 12:00 JST",
+    sourceUpdatedAt: "2026-09-28 10:49 JST",
+    sourceFresh: false
+  },
+
+  // 今日の読みもの（STEP 5.8）。WebSearch で探した記事を1本、自分の言葉で紹介する
+  news: {
+    theme: "研究・科学",
+    kind: "研究",
+    title: "大気汚染が濃い日ほどマラソンの記録は遅い — 6大メジャー275万人の分析",
+    source: "Medical Xpress（Sports Medicine – Open 掲載論文の紹介）",
+    url: "https://medicalxpress.com/news/2026-09-higher-pollution-linked-slower-marathon.html",
+    published: "2026-09",
+    summary: "英レスター大のチームが、2010〜2024年の世界6大マラソン約275万人のネットタイムとレース当日の大気質を突き合わせた。二酸化窒素が高い日ほど完走タイムが遅く、影響は市民ランナーのほうがエリートより約6倍大きかった。観察研究なので因果までは言えないが、走っている時間が長いほど吸い込む量が増えるという説明と整合する。",
+    takeaway: "水戸黄門と東京は交通量の多い市街地を走る。気温・湿度と同じく、レース週は大気質の予報も確認し、悪い日はウォームアップを短めにして吸入量を減らす。",
+    more: [
+      { title: "ベルリンマラソン2026（9/27）の結果", source: "トヨタイムズスポーツ", url: "https://toyotatimes-sports.toyota/articles/article-1193/" }
+    ]
   },
 
   // race / tuneup / phase は docs/athlete_profile.md の値を反映すること。ここを正にしない。
-  race: { name: "東京マラソン（仮）", date: "2027-03-07", goal: "2:59:59", pace: "4:15 /km", daysLeft: 162 },
-  tuneup: { name: "水戸黄門漫遊マラソン", date: "2026-10-25", daysLeft: 29 },
-  phase: { name: "Phase 4 — ビルドアップ", window: "9/1〜9/27", policy: "Mペース走力の引き上げが最優先", weeklyTarget: "70〜85 km" },
+  race: { name: "東京マラソン（仮）", date: "2027-03-07", goal: "2:59:59", pace: "4:15 /km", daysLeft: 159 },
+  tuneup: { name: "水戸黄門漫遊マラソン", date: "2026-10-25", daysLeft: 26 },
+  phase: { name: "Phase 5 — マラソン特異・サブ3判定", window: "9/28〜10/11", policy: "Mペースの「1回あたりの量」を一気に伸ばす", weeklyTarget: "80〜88 km" },
 
   today: {
-    date: "2026-09-26",
-    dow: "土",
-    type: "Eジョグ（ロング前日）",
-    verdict: "○",
-    verdictLabel: "合格",
-    plan: { title: "Eジョグ 10km", km: 10 },
-    headline: "10.34km・平均HR128 で本体8kmは全km 5:42〜6:07・HR≤134 と処方を守りロング前日の役割は果たしたが、導入2km目は5:43・HR136 と「5:50より遅く・HR≤130」をまた外した（直近8日で4回目）ので○です。",
+    date: "2026-09-29",
+    dow: "火",
+    type: "休養日",
+    verdict: "—",
+    verdictLabel: "データ未取得",
+    plan: { title: "Eジョグ 8km（回復）", km: 8 },
+    headline: "Garmin の同期が認証エラー（429）で失敗し、今日の走りも今朝の HRV も取れていないため、処方 Eジョグ8km の評価は保留します。休養と判定したわけではなく、走っていれば明日の実行で後追い評価します。",
     points: [
-      { tone: "bad", label: "導入2km目", text: "5:43・HR136 で、処方 5:50〜6:10・HR≤130 をペースで7秒、心拍で6bpm 外した。9/19・9/23・9/25 に続き直近8日で4回目で、1km目（6:03・HR124）の直後に上げる癖が残っている。" },
-      { tone: "good", label: "本体8km", text: "平均5:56・HR123〜134 で、5:40 より速いkmは0本、上限138 まで最低4bpm の余裕があった。昨日の本体（平均5:30）から26秒/km 抑えられた。" },
-      { tone: "good", label: "平均心拍128", text: "今週のE4本（9/23 130・9/25 135）で最も低く、有酸素TE 2.8 も今週のEで最小。ロング前日に脚とBBを残すという狙いどおり。" },
-      { tone: "note", label: "7〜9km目の加速", text: "5:50→5:47→5:42 と下限5:40 に2秒まで寄った。HRは132 で平坦なので問題ではないが、明日のE区間で同じ上げ方をしないこと。" },
-      { tone: "note", label: "最大心拍155", text: "ラップ最高は2km目の136 で、155 は瞬間値。E上限140 をラップで超えた本は無い。" },
-      { tone: "note", label: "フォーム", text: "ピッチ180spm・接地251ms は遅いペース相応で、昨日（186spm・242ms）より落ちた。上下動7.9cm は良好域で、9/22 以降 8.1 / 7.5 / 7.9 / 7.7 / 7.9cm と0.1cm刻みで動いている。" }
+      { tone: "bad", label: "同期の失敗", text: "9/29 11:36 JST の GitHub Actions がパスワードログインで 429 を3回受けて終了し、ドライブは 9/28 10:49 JST のまま。" },
+      { tone: "note", label: "処方 E 8km", text: "走ったかどうかをこちらで確認できない。走っていれば 9/30 の実行で HR135 以下・入り2km 5:50 より遅く、の2点で後追い評価する。" },
+      { tone: "note", label: "最後の HRV 94", text: "9/27 92・9/28 94 と域97 の下が2日。今朝の値は未取得なので、9/30 朝はウォッチで HRV と安静心拍を自分で確認すること。" },
+      { tone: "note", label: "直近7日 69.07km", text: "9/29 が0km扱いの見かけの数字。E 8km を走っていれば 77.07km で、帯の下限80km まで残り 3km 弱。" },
+      { tone: "note", label: "判定走まで12日", text: "10/11 の M20km に向け、4:15 を保てた最長は5km のまま。今週の M6km×2 とロング後半M12km が土台になる。" }
     ],
-    stats: [
-      { label: "距離", value: "10.34", unit: "km", state: "ok", note: "処方10km に対し +0.34km" },
-      { label: "平均ペース", value: "5:55", unit: "/km", state: "ok", note: "GAP 5:52。E帯 5:30〜6:00 の内側" },
-      { label: "平均心拍", value: "128", unit: "bpm", state: "ok", note: "今週のE4本で最低" },
-      { label: "最大心拍", value: "155", unit: "bpm", state: "warn", note: "瞬間値。ラップ最高は136" },
-      { label: "導入 2km", value: "5:53", unit: "/km", state: "warn", note: "処方 5:50〜6:10・HR≤130。2km目 5:43・HR136" },
-      { label: "本体 8km", value: "5:56", unit: "/km", state: "ok", note: "処方 5:40〜6:00・HR≤138。HR123〜134" },
-      { label: "ピッチ", value: "180", unit: "spm", state: "ok", note: "良好域 180〜190spm の下端" },
-      { label: "接地時間", value: "251", unit: "ms", state: "ok", note: "標準域 250〜270ms。良好域まで1ms" },
-      { label: "上下動", value: "7.9", unit: "cm", state: "ok", note: "良好域 <8cm。9/22 以降の実測5本目" }
-    ],
-    effect: "ベース（有酸素TE 2.8 / 無酸素TE 0.0）",
-    laps: [
-      { n: 1, sec: 363, pace: "6:03", hr: 124 },
-      { n: 2, sec: 343, pace: "5:43", hr: 136 },
-      { n: 3, sec: 367, pace: "6:07", hr: 124 },
-      { n: 4, sec: 366, pace: "6:06", hr: 124 },
-      { n: 5, sec: 359, pace: "5:59", hr: 127 },
-      { n: 6, sec: 362, pace: "6:02", hr: 123 },
-      { n: 7, sec: 350, pace: "5:50", hr: 132 },
-      { n: 8, sec: 347, pace: "5:47", hr: 132 },
-      { n: 9, sec: 342, pace: "5:42", hr: 132 },
-      { n: 10, sec: 357, pace: "5:57", hr: 134 },
-      { n: 11, sec: 339, pace: "5:39", hr: 124 }
-    ]
+    stats: [],
+    effect: "—",
+    laps: []
   },
 
   axes: [
     {
       name: "ペース管理",
       state: "warn",
-      summary: "本体8kmは 5:42〜6:07 で5:40 より速いkmが無く、昨日の平均5:30 から処方帯へ戻した。一方で導入2km目の5:43 は「5:50より遅く」を4回連続で外しており、入りの1〜2kmで時計を見る習慣がまだ定着していない。明日のロングはE区間を抑えられるかがM区間の質を決める。"
+      summary: "4:25以内の連続は 9/24 3km・9/27 4km で、記録上の最長5km（9/15・9/17）を2週更新できていない。M走の1km目が 9/20 4:30・9/24 4:37・9/27 4:28 と3回続けて帯の外で、10/2 の M6km×2 は入りの1kmが焦点。"
     },
     {
       name: "心拍コントロール",
       state: "good",
-      summary: "本体8kmのラップHRは123〜134 で上限138 を一度も超えず、平均128 は今週のEで最低。導入の上限130 は2km目の136 で外したが、E上限140 は全ラップで守った。7〜9km目の加速でもHRは132 で平坦だった。"
+      summary: "直近のM区間はラップ最高が 9/24 167・9/27 166 で上限167 を守れている。ただし 9/27 は8kmで155→166 と+11bpm ドリフトしており、10/4 のM12km は後半に上限へ届く前提で入りを抑える。"
     },
     {
       name: "フォーム指標",
       state: "good",
-      summary: "上下動7.9cm は良好域で、実測5本（8.1〜7.5cm）が0.1cm刻みで動いているので、傾向の判定は予定どおり 9/28 以降に行う。ピッチ180spm・接地251ms は6:00 前後のペースでは相応の値で、昨日の5:30 走（186spm・242ms）との差はペース由来。"
+      summary: "9/23〜9/27 の上下動は7.5〜7.9cm と0.1刻みで動いており、ピッチ180〜187spm・接地234〜251ms。9/26 の180spm・251ms を除けば良好域で、今日の新しい値は無い。"
     },
     {
       name: "疲労・コンディション",
       state: "warn",
-      summary: "BB最低が 9/24 11・9/25 17 と2日連続で20を割り、プロファイルの「休養日を1日追加」に該当する（週平均19.2・前週比 −19%）。ほかの条件は該当しない — 準備度は 50→54 に戻り、HRV111 はバランス域97〜126 の中、安静心拍44 は平常。ロングは残し、9/28 の休養に 9/29 を足して2連休にする。"
+      summary: "過負荷のサインは HRV のバランス域下抜け（2日）だけで、安静心拍と BB最低は平常域にある。直近7日の69.07km は 9/29 が未取得による見かけの減少で、過小負荷とは判定しない。"
     }
   ],
 
   good: [
-    "今週は6日目で59.13km・質練習2本（9/22 閾値・9/24 M）を消化し、明日のロング24kmで83.1km・質3本となり、2週続けて週80km台で Phase 4 を閉じられる。",
-    "HRV の週平均は108.0（前週106.7 / +1%）、安静心拍は44.0bpm（前週43.7）と、週80km台の負荷の中でも自律神経側の指標は崩れていない。",
-    "昨日指摘した本体のペース（5:30）を今日は5:56 まで戻しており、指摘を受けて翌日に修正できている。"
+    "9/15〜9/28 の14日で167.83km、7日あたり84km 前後を2週続けて Phase 5 の帯80〜88km に入れている。",
+    "Garmin のフル予測は 9/28 取得で3:13:06 と、前回の3:14:57 から1分51秒縮んだ。",
+    "直近の閾値・M・ロングの3本すべてで、区間の心拍が各上限（T176・M167）を超えていない。"
   ],
   issues: [
-    "BB最低の20割れが 9/24（11）・9/25（17）と2日連続になり、プロファイルの「休養日を1日追加」に該当したため、9/29 を休養にして閾値走を 9/30 へ1日ずらした。",
-    "走行外の歩数が 9/24 23,303歩・9/25 18,963歩と多く、BBを削っている主因になっている。練習量ではなく日中の活動量で回復を失っている。",
-    "トレーニング準備度の週平均は52.8（前週61.6 / −14%）で、−20% の警戒ラインには届かないが2週続けて下がっている。",
-    "睡眠スコアの週平均は78.8（前週85.0 / −7%）で、9/25 は6h48m と目標7時間を割った。",
-    "4:15〜4:25 を連続で保てた最長は依然5kmで、10/11 の判定走（20km）まで15日しかない。9/20・9/24 のM1km目は4:30・4:37 と帯の外から入っている。",
-    "VO2max とトレーニングステータスは13日連続でドキュメントに出力がない。"
+    "データが 1 日前のものです。GitHub Actions の同期が失敗している可能性があります（9/29 は Garmin 認証で 429 を3回受けて終了。続くなら scripts/generate_garth_token_browser.py でトークンを取り直す）。",
+    "朝の HRV が域97 の下のまま戻ったか確認できていないため、9/30 の閾値走は朝の値を自分で見て可否を決める。",
+    "4:15 を保てた最長も4:25以内の連続の最長も5km のままで、10/11 の判定走（M20km）まで12日しかない。"
   ],
 
   tomorrow: {
-    date: "2026-09-27",
-    dow: "日",
-    title: "ロング24km（後半M8km）",
-    headline: "Phase 4 最後の質練習で、Mペースの連続最長5kmを更新できるかを測る日です。E区間はHR142 で抑え、M1km目から4:25 以内に入れてください。",
+    date: "2026-09-30",
+    dow: "水",
+    title: "閾値走 5km ＋ 3km",
+    headline: "4:00〜4:08 に入らなければ T の刺激にならないので、本数より帯を守ってください。朝の HRV が97 未満なら閾値はやめて E10km にします。",
     segments: [
-      { zone: "E", km: 15, label: "Eペース", pace: "5:30〜5:50", hr: "≤142",
-        note: "入り2kmは5:50 より遅く。導入で上げるのは直近8日で4回続いている" },
-      { zone: "M", km: 8, label: "Mペース本セット", pace: "4:15〜4:25", hr: "≤167",
-        note: "1km目から4:25 以内。HR167 を2km続けて超えたらそこでEに落とす" },
-      { zone: "E", km: 1, label: "クールダウン", pace: "5:50〜6:20", hr: "—",
-        note: "止まらずにジョグで終える" }
+      { zone: "E", km: 3, label: "ウォームアップ", pace: "5:50〜6:10", hr: "≤135", note: "入り2kmは5:50 より遅く。最後に流し2本" },
+      { zone: "T", km: 5, label: "閾値 1本目", pace: "4:00〜4:08", hr: "≤176", note: "1km目は4:08 を上限に入る。4:00 より速くしない" },
+      { zone: "E", km: 1, label: "つなぎジョグ", pace: "6:00〜6:30", hr: "—", note: "HR が140 を切るまで待ってから2本目へ" },
+      { zone: "T", km: 3, label: "閾値 2本目", pace: "4:00〜4:08", hr: "≤176", note: "2km続けて4:10 より遅ければそこで打ち切る" },
+      { zone: "E", km: 3, label: "クールダウン", pace: "5:50〜6:20", hr: "≤140", note: "上げて締めない" }
     ],
     prescription: [
-      { k: "補給", v: "E12km前後でジェル1本。M区間に入る前に取り終える" },
-      { k: "朝の値", v: "ボディバッテリー・準備度・安静心拍を確認し、下の切り替え条件に当てはめる" },
-      { k: "歩数", v: "走行外を8,000歩以内に。9/24・9/25 の歩数がBBの20割れを招いている" },
-      { k: "記録", v: "M区間の各kmのペースとHRを見て、4:25 を超えた km があれば何km目か覚えておく" }
+      { k: "朝の値", v: "起床後にウォッチで HRV（前夜平均）と安静心拍を確認する。同期が止まっているのでダッシュボードでは見られない" },
+      { k: "歩数", v: "走行外を8,000歩以内に。9/24 の23,303歩の日に BB最低が11 まで落ちた" },
+      { k: "睡眠", v: "7時間以上。9/28 の7h50m・89点を基準にする" },
+      { k: "補強", v: "走行後に股関節まわりのドリルを10分" }
     ],
-    why: "BB最低が 9/24 11・9/25 17 と2日連続で20を割り、プロファイルの「休養日を1日追加」に当たる。ただ準備度は54 に戻り、HRV111・安静心拍44 は平常で、今日のEも平均HR128 と軽く済んだので、ロングは残して休養を 9/29 に足す。これで今週は83.1km・質3本となり Phase 4 を規定どおり閉じ、10/11 の判定走（M20km）へ向けた最初の測定ができる。",
+    why: "Phase 5 の週3本のうち T/インターバル枠で、前回の閾値は 9/22（4:03〜4:09・HR175）から8日空いている。9/27 のロングから72時間後で脚は戻っている時間帯であり、Mペースの天井を上げる刺激はこの週に1本必要。HRV の戻りが確認できない点だけが不確定なので、朝の値で分岐させる。",
     alt: [
-      "痛み・違和感がある → 走らずに教えてください。ロングを1週延ばすほうが価値があります。",
-      "朝のボディバッテリーが50未満、または準備度が40未満 → Mを5kmに短縮して計21kmにします。",
-      "朝の安静心拍が49bpm 以上（平常44 から+5）→ Mを中止し、E18kmに切り替えます。",
-      "E区間でHR142 を超えるkmが3本出る → Mを5kmに短縮します。"
-    ],
-    next: "9/28・9/29 は完全休養（9/29 はBB20割れ2日連続による追加分）。9/30(水) の閾値走 5km＋3km から Phase 5 に入り、10/2(金) M 6km×2、10/4(日) ロング28km（後半M12km）へ進む。"
+      "朝の HRV が97 未満、または安静心拍49 以上 → E10km（HR ≤140）に替え、閾値は 10/1 に移して M6km×2 は 10/2 のまま行う。",
+      "9/29 の E8km を走れていない → そのまま閾値走を行ってよい（休養が1日増えただけで、脚は元気なはず）。",
+      "1本目の5km を HR ≤170・4:00〜4:05 で終えられた → 2本目を4km に伸ばしてよい。",
+      "脚に痛みや違和感がある → 走らずに部位と経過を教えてください。"
+    ]
   },
 
   weekPlan: {
-    label: "9/27(日) 〜 10/3(土)",
-    totalKm: "77",
-    aim: "Mペースを「1km目から帯に入れて8km保つ」力を測り、Phase 5 の質3本（T・M 6km×2・ロング後半M12km）へつなぐ週。BB最低の20割れが2日連続（9/24 11・9/25 17）したため休養を 9/29 に1日追加し、T以降を1日ずつ後ろへずらした。",
+    label: "9/30(水) 〜 10/6(火)",
+    totalKm: "92",
+    aim: "Mペースを「1本6km・ロング後半12km」に伸ばし、10/11 の判定走（M20km）の手前まで1回あたりの量を上げる週。7日の窓が Phase 5 の2週にまたがるため、10/6 のインターバルを含めて質は4本・92km になるが、暦週ではそれぞれ週3本・帯の中に収まる。",
     days: [
-      { d: "9/27", dow: "日", type: "M",    title: "ロング（後半M混走）", km: "24", note: "E15km HR ≤142 → M8km。M1km目から4:25 以内" },
-      { d: "9/28", dow: "月", type: "rest", title: "完全休養",            km: "0",  note: "Phase 5 初日。ロングの回復" },
-      { d: "9/29", dow: "火", type: "rest", title: "完全休養（追加）",    km: "0",  note: "BB最低20割れ2日連続による追加。歩数も8,000歩以内" },
-      { d: "9/30", dow: "水", type: "T",    title: "閾値走 5km ＋ 3km",   km: "15", note: "4:00〜4:08・HR170〜176。上限176 厳守" },
-      { d: "10/1", dow: "木", type: "E",    title: "Eジョグ",             km: "10", note: "HR ≤140。入り2kmは5:50 より遅く" },
-      { d: "10/2", dow: "金", type: "M",    title: "Mペース走 6km×2",     km: "18", note: "4:15〜4:25・HR ≤167。間は1km Eジョグ" },
-      { d: "10/3", dow: "土", type: "E",    title: "Eジョグ",             km: "10", note: "HR ≤138。10/4 のロング28km の前日" }
+      { d: "9/30", dow: "水", type: "T",    title: "閾値走 5km ＋ 3km",   km: "15", note: "4:00〜4:08・HR≤176。朝HRV<97ならE10kmにしTは10/1へ" },
+      { d: "10/1", dow: "木", type: "E",    title: "Eジョグ",             km: "10", note: "HR ≤140。T翌日なので5:40 より遅く" },
+      { d: "10/2", dow: "金", type: "M",    title: "Mペース走 6km×2",     km: "18", note: "4:15〜4:25・HR ≤167。1km目から4:25 以内" },
+      { d: "10/3", dow: "土", type: "E",    title: "Eジョグ",             km: "8",  note: "HR ≤135。ロング28km の前日" },
+      { d: "10/4", dow: "日", type: "M",    title: "ロング（後半M12km）", km: "28", note: "E16km HR≤142 → M12km 4:15〜4:25・HR≤167" },
+      { d: "10/5", dow: "月", type: "rest", title: "完全休養",            km: "0",  note: "ロング翌日（24時間以内）。走行外は8,000歩以内" },
+      { d: "10/6", dow: "火", type: "R",    title: "インターバル 1000m×6", km: "13", note: "3:45〜3:55・HR 175〜183。つなぎ400mジョグ" }
     ]
   },
 
   week: {
     // 今日を含む直近7日（今日−6日 〜 今日）。月曜始まりの暦週ではない。
     // prevKm はその前の7日（今日−13日 〜 今日−7日）の合計。
-    label: "9/20(日) 〜 9/26(土)　直近7日",
-    totalKm: 81.23,
-    prevKm: 84.26,
-    targetKm: "70〜85",
-    runs: 6,
-    monthKm: 259.87,
+    label: "9/23(水) 〜 9/29(火)　直近7日",
+    totalKm: 69.07,
+    prevKm: 85.66,
+    targetKm: "80〜88",
+    runs: 5,
+    monthKm: 284.35,
     monthTargetKm: 300,
-    monthDayCount: 26,
+    monthDayCount: 29,
     days: [
-      { d: "9/20", dow: "日", km: 22.1,  hr: 142,  type: "M" },
-      { d: "9/21", dow: "月", km: 0,     hr: null, type: "rest" },
-      { d: "9/22", dow: "火", km: 14.54, hr: 154,  type: "T" },
       { d: "9/23", dow: "水", km: 10.04, hr: 130,  type: "E" },
       { d: "9/24", dow: "木", km: 16.16, hr: 145,  type: "M" },
       { d: "9/25", dow: "金", km: 8.05,  hr: 135,  type: "E" },
-      { d: "9/26", dow: "土", km: 10.34, hr: 128,  type: "E" }
+      { d: "9/26", dow: "土", km: 10.34, hr: 128,  type: "E" },
+      { d: "9/27", dow: "日", km: 24.48, hr: 141,  type: "M" },
+      { d: "9/28", dow: "月", km: 0,     hr: null, type: "rest" },
+      { d: "9/29", dow: "火", km: 0,     hr: null, type: "rest" }
     ]
   },
 
   health: {
-    label: "9/20(日) 〜 9/26(土)",
-    baseline: { hrvLow: 97, hrvHigh: 126, hrvStatus: "域内（9/25 の111 はバランス域 97〜126 の中で、9/24 の107 から +4。7日間で下抜けは一度もない。9/26 は未取得）" },
+    label: "9/23(水) 〜 9/29(火)",
+    baseline: { hrvLow: 97, hrvHigh: 126 },
 
     summary: [
-      { label: "HRV（前夜平均）", value: 111, unit: "ms", avg: 108.0, prev: 106.7, state: "ok",
-        note: "9/26 は未取得のため 9/25 の値。バランス域(97〜126)の中で、9/24 の107 から +4" },
-      { label: "安静時心拍", value: 44, unit: "bpm", avg: 44.0, prev: 43.7, state: "ok",
-        lowerIsBetter: true, note: "週平均と同じ。+5bpm が2日続く条件には当たらない" },
-      { label: "睡眠スコア", value: 78, unit: "点", avg: 78.8, prev: 85.0, state: "warn",
-        note: "6h48m で目標7時間を12分割った。週平均は前週から −7%" },
-      { label: "トレーニング準備度", value: 54, unit: "", avg: 52.8, prev: 61.6, state: "warn",
-        note: "9/22〜9/24 の 50 / 51 / 50 から54 に戻った。週平均は前週比 −14%" },
-      { label: "ボディバッテリー最低", value: 17, unit: "", avg: 19.2, prev: 23.7, state: "crit",
-        note: "9/24 11・9/25 17 と2日連続で20割れ。休養日を1日追加する条件に該当" },
-      { label: "平均ストレス", value: 33, unit: "", avg: 29.8, prev: 30.6, state: "ok",
-        lowerIsBetter: true, note: "9/24 の39 から下がった。週平均は前週から −3%" }
+      { label: "HRV（前夜平均）", value: 94, unit: "ms", avg: 102.7, prev: 108.1, state: "warn",
+        note: "9/28 の値。9/29 は同期失敗で未取得" },
+      { label: "安静時心拍", value: 46, unit: "bpm", avg: 45.7, prev: 43.3, state: "ok",
+        lowerIsBetter: true, note: "9/28 の値。+5 の2日連続には当たらず" },
+      { label: "睡眠スコア", value: 89, unit: "点", avg: 77.8, prev: 83.4, state: "ok",
+        note: "9/28 の値。7h50m・深い87分・REM125分" },
+      { label: "トレーニング準備度", value: 59, unit: "", avg: 48.6, prev: 59.6, state: "ok",
+        note: "9/28 の走っていない朝の値。週平均の −18% は走行後の値を含む" },
+      { label: "ボディバッテリー最低", value: 23, unit: "", avg: 20.7, prev: 22.6, state: "warn",
+        note: "最後の確定値は 9/27。9/28 は途中値のまま同期が止まった" },
+      { label: "平均ストレス", value: 37, unit: "", avg: 31.0, prev: 30.7, state: "ok",
+        lowerIsBetter: true, note: "9/27 の確定値。ロング当日で高め" }
     ],
 
     sleepTargetMin: 420,
 
     days: [
-      { d: "9/20", dow: "日", hrv: 121,  rhr: 39,   sleep: 80,   sleepMin: 400,  sleepDeep: 56,   sleepRem:  78,  sleepLight: 266,  bbLow: 19,   stress: 36,   readiness: 51 },
-      { d: "9/21", dow: "月", hrv: 97,   rhr: 47,   sleep: 83,   sleepMin: 551,  sleepDeep: 56,   sleepRem: 146,  sleepLight: 349,  bbLow: 24,   stress: 23,   readiness: 61 },
-      { d: "9/22", dow: "火", hrv: 112,  rhr: 44,   sleep: 82,   sleepMin: 412,  sleepDeep: 47,   sleepRem: 107,  sleepLight: 258,  bbLow: 19,   stress: 24,   readiness: 50 },
-      { d: "9/23", dow: "水", hrv: 100,  rhr: 44,   sleep: 68,   sleepMin: 436,  sleepDeep: 58,   sleepRem:  71,  sleepLight: 307,  bbLow: 25,   stress: 24,   readiness: 51 },
-      { d: "9/24", dow: "木", hrv: 107,  rhr: 46,   sleep: 82,   sleepMin: 430,  sleepDeep: 61,   sleepRem:  76,  sleepLight: 293,  bbLow: 11,   stress: 39,   readiness: 50 },
-      { d: "9/25", dow: "金", hrv: 111,  rhr: 44,   sleep: 78,   sleepMin: 408,  sleepDeep: 52,   sleepRem:  60,  sleepLight: 296,  bbLow: 17,   stress: 33,   readiness: 54 },
-      { d: "9/26", dow: "土", hrv: null, rhr: null, sleep: null, sleepMin: null, sleepDeep: null, sleepRem: null, sleepLight: null, bbLow: null, stress: null, readiness: null }
+      { d: "9/23", dow: "水", hrv: 100,  rhr: 44,   sleep: 68,   sleepMin: 436,  sleepDeep: 58,   sleepRem:  71,  sleepLight: 307,  bbLow: 25,   stress: 24,   readiness: 51,   steps: 22049 },
+      { d: "9/24", dow: "木", hrv: 107,  rhr: 46,   sleep: 82,   sleepMin: 430,  sleepDeep: 61,   sleepRem:  76,  sleepLight: 293,  bbLow: 11,   stress: 39,   readiness: 50,   steps: 23303 },
+      { d: "9/25", dow: "金", hrv: 111,  rhr: 44,   sleep: 78,   sleepMin: 408,  sleepDeep: 52,   sleepRem:  60,  sleepLight: 296,  bbLow: 17,   stress: 33,   readiness: 54,   steps: 18963 },
+      { d: "9/26", dow: "土", hrv: 108,  rhr: 48,   sleep: null, sleepMin: null, sleepDeep: null, sleepRem: null, sleepLight: null, bbLow: 29,   stress: 29,   readiness: 50,   steps: 14998 },
+      { d: "9/27", dow: "日", hrv: 92,   rhr: 48,   sleep: 68,   sleepMin: 420,  sleepDeep: 30,   sleepRem:  48,  sleepLight: 342,  bbLow: 23,   stress: 37,   readiness: 26,   steps: 28002 },
+      { d: "9/28", dow: "月", hrv: 94,   rhr: 46,   sleep: 89,   sleepMin: 470,  sleepDeep: 87,   sleepRem: 125,  sleepLight: 258,  bbLow: null, stress: null, readiness: 59,   steps: null },
+      { d: "9/29", dow: "火", hrv: null, rhr: null, sleep: null, sleepMin: null, sleepDeep: null, sleepRem: null, sleepLight: null, bbLow: null, stress: null, readiness: null, steps: null }
     ],
 
     fitness: {
-      vo2max: null,
-      vo2maxPrev: null,
-      trainingStatus: null,
-      race: { k5: "19:09", k10: "40:25", half: "1:28:55", full: "3:14:57" }
+      vo2max: 57.1,
+      vo2maxPrev: 57.2,
+      trainingStatus: "維持",
+      race: { k5: "19:10", k10: "40:27", half: "1:29:00", full: "3:13:06" }
     },
 
-    read: "9/26 の行は全項目が未出力のため null にしてあり、VO2max とトレーニングステータスも13日連続で出ていない。9/25 は HRV111・安静心拍44bpm・準備度54 と回復側は平常域に戻ったが、BB最低は 9/24 の11 に続き17 で、2日連続の20割れとなり「休養日を1日追加」の条件に該当した。原因は走行外の歩数（9/24 23,303歩・9/25 18,963歩）と見られ、今日のEは平均HR128 と軽く済んでいるので、ロングは残して休養を 9/29 に足す。睡眠は週平均78.8 と前週の85.0 から下がっており、ロング前夜は7時間以上を確保すること。"
+    read: "9/29 の同期が Garmin 認証の 429 で失敗し、今朝の睡眠・HRV・安静心拍・準備度は取れていない。最後に取れた 9/28 は HRV94 と域97 の下が2日目だった一方、安静心拍46・睡眠89点・準備度59 と他の材料は回復方向だった。9/28 の BB最低・ストレス・歩数は途中値のまま同期が止まったので空けてあり、最後の確定値は 9/27 の BB最低23。"
   }
 };
 // docs/athlete_profile.md から splice_dashboard.js が機械的に差し込む。手で書かない。
-DATA.season = {"phases":[{"name":"Phase 4 ビルドアップ","from":"2026-09-01","to":"2026-09-27","policy":"Mペース走力の引き上げが最優先。ここは一切緩めない","km":"70〜85","quality":"週3本（Mペース1／T or インターバル1／ロング後半M混走1）","rest":"週1日"},{"name":"Phase 5 マラソン特異・サブ3判定","from":"2026-09-28","to":"2026-10-11","policy":"Mペースの「1回あたりの量」を一気に伸ばす。10/11 にサブ3判定走","km":"80〜88","quality":"週3本","rest":"週1日"},{"name":"Phase 6 移行週","from":"2026-10-12","to":"2026-10-18","policy":"まだテーパーではない。距離だけ1段落とし、質1本と中ロングは残す","km":"65〜70","quality":"週1本","rest":"週1日"},{"name":"Phase 7 短縮テーパー＋水戸黄門","from":"2026-10-19","to":"2026-10-25","policy":"落とすのは距離だけ。7日間で終える。🏁 10/25 水戸黄門","km":"35 km ＋レース","quality":"週1本（10/21 M4km×2）","rest":"週2日"},{"name":"Phase 8 回復","from":"2026-10-26","to":"2026-11-01","policy":"質ゼロ。Eジョグのみ。走らない日を2日。痛みが残れば延長","km":"30〜40","quality":"0本","rest":"週2日"},{"name":"Phase 9 冬ベース＋LT","from":"2026-11-02","to":"2026-12-06","policy":"VDOTを上げる期。T走を本当に 3:58〜4:08 で実施する","km":"78〜88","quality":"週3本（T1／インターバル1／ロング後半M1）","rest":"週1日"},{"name":"Phase 10 マラソン特異","from":"2026-12-07","to":"2027-01-03","policy":"ロング30〜32km、後半M15〜18km を常設","km":"85〜92","quality":"週3本","rest":"週1日"},{"name":"Phase 11 短縮テーパー＋指宿","from":"2027-01-04","to":"2027-01-10","policy":"Phase 7 と同じ型。🏁 1/10 指宿（4:15 リハーサル）","km":"35 km ＋レース","quality":"週1本","rest":"週2日"},{"name":"Phase 12 回復","from":"2027-01-11","to":"2027-01-17","policy":"質ゼロ。Eジョグのみ","km":"30〜40","quality":"0本","rest":"週2日"},{"name":"Phase 13 最終ビルド","from":"2027-01-18","to":"2027-02-21","policy":"最大負荷期。Mペース単発20km / ロング32km後半M20km に到達させる","km":"88〜95","quality":"週3本","rest":"週1日"},{"name":"Phase 14 本テーパー","from":"2027-02-22","to":"2027-02-28","policy":"ここではケチらない。削るのは距離だけ。質は維持","km":"60","quality":"週2本","rest":"週1日"},{"name":"Phase 15 レース週","from":"2027-03-01","to":"2027-03-07","policy":"Eのみ→最終刺激→完全休養→🏁 3/7 東京マラソン","km":"30","quality":"週1本（最終刺激のみ）","rest":"週2〜3日"}],"races":[{"name":"水戸黄門漫遊マラソン","date":"2026-10-25","aim":"サブ3挑戦＋実力測定"},{"name":"指宿なのはなマラソン","date":"2027-01-10","aim":"4:15 のリハーサル"},{"name":"東京マラソン（仮）","date":"2027-03-07","aim":"サブ3本番"}],"mTargets":[{"label":"9月","until":"2026-09-30","km":5,"text":"5〜6km"},{"label":"10/11 サブ3判定走","until":"2026-10-11","km":20,"text":"20km（4:15〜4:20）"},{"label":"12月","until":"2026-12-31","km":15,"text":"15〜18km をロング後半に"},{"label":"2月","until":"2027-02-28","km":20,"text":"単発20km / ロング32km の後半20km"}]};
+DATA.season = {"phases":[{"name":"Phase 4 ビルドアップ","from":"2026-09-01","to":"2026-09-27","policy":"Mペース走力の引き上げが最優先。ここは一切緩めない","km":"70〜85","quality":"週3本（Mペース1／T or インターバル1／ロング後半M混走1）","rest":"週0〜1日"},{"name":"Phase 5 マラソン特異・サブ3判定","from":"2026-09-28","to":"2026-10-11","policy":"Mペースの「1回あたりの量」を一気に伸ばす。10/11 にサブ3判定走","km":"80〜88","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 6 移行週","from":"2026-10-12","to":"2026-10-18","policy":"まだテーパーではない。距離だけ1段落とし、質1本と中ロングは残す","km":"65〜70","quality":"週1本","rest":"週0〜1日"},{"name":"Phase 7 短縮テーパー＋水戸黄門","from":"2026-10-19","to":"2026-10-25","policy":"落とすのは距離だけ。7日間で終える。🏁 10/25 水戸黄門","km":"35 km ＋レース","quality":"週1本（10/21 M4km×2）","rest":"週2日"},{"name":"Phase 8 回復","from":"2026-10-26","to":"2026-11-01","policy":"質ゼロ。Eジョグのみ。走らない日を2日。痛みが残れば延長","km":"30〜40","quality":"0本","rest":"週2日"},{"name":"Phase 9 冬ベース＋LT","from":"2026-11-02","to":"2026-12-06","policy":"VDOTを上げる期。T走を本当に 3:58〜4:08 で実施する","km":"78〜88","quality":"週3本（T1／インターバル1／ロング後半M1）","rest":"週0〜1日"},{"name":"Phase 10 マラソン特異","from":"2026-12-07","to":"2027-01-03","policy":"ロング30〜32km、後半M15〜18km を常設","km":"85〜92","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 11 短縮テーパー＋指宿","from":"2027-01-04","to":"2027-01-10","policy":"Phase 7 と同じ型。🏁 1/10 指宿（4:15 リハーサル）","km":"35 km ＋レース","quality":"週1本","rest":"週2日"},{"name":"Phase 12 回復","from":"2027-01-11","to":"2027-01-17","policy":"質ゼロ。Eジョグのみ","km":"30〜40","quality":"0本","rest":"週2日"},{"name":"Phase 13 最終ビルド","from":"2027-01-18","to":"2027-02-21","policy":"最大負荷期。Mペース単発20km / ロング32km後半M20km に到達させる","km":"88〜95","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 14 本テーパー","from":"2027-02-22","to":"2027-02-28","policy":"ここではケチらない。削るのは距離だけ。質は維持","km":"60","quality":"週2本","rest":"週0〜1日"},{"name":"Phase 15 レース週","from":"2027-03-01","to":"2027-03-07","policy":"Eのみ→最終刺激→完全休養→🏁 3/7 東京マラソン","km":"30","quality":"週1本（最終刺激のみ）","rest":"週2〜3日"}],"races":[{"name":"水戸黄門漫遊マラソン","date":"2026-10-25","aim":"サブ3挑戦＋実力測定"},{"name":"指宿なのはなマラソン","date":"2027-01-10","aim":"4:15 のリハーサル"},{"name":"東京マラソン（仮）","date":"2027-03-07","aim":"サブ3本番"}],"mTargets":[{"label":"9月","until":"2026-09-30","km":5,"text":"5〜6km"},{"label":"10/11 サブ3判定走","until":"2026-10-11","km":20,"text":"20km（4:15〜4:20）"},{"label":"12月","until":"2026-12-31","km":15,"text":"15〜18km をロング後半に"},{"label":"2月","until":"2027-02-28","km":20,"text":"単発20km / ロング32km の後半20km"}]};
 </script>
 
 <style>
@@ -246,19 +240,24 @@ DATA.season = {"phases":[{"name":"Phase 4 ビルドアップ","from":"2026-09-01
   color-scheme: light;
   --ground: #f2f4f3;
   --surface: #ffffff;
-  --surface-2: #e9edeb;
+  --surface-2: #eef1f0;
   --ink: #161c1a;
-  --ink-2: #5a6764;
-  --ink-3: #8b9995;
+  --ink-2: #56635f;
+  --ink-3: #87948f;
   --line: #d5dcd9;
   --line-soft: #e6ebe9;
   --accent: #0f6e5c;
   --accent-ink: #0b5245;
   --accent-soft: #dcece7;
-  --z-e: #3f8f7f;
-  --z-m: #c9932f;
-  --z-t: #bd5533;
-  --z-r: #8b3a62;
+  /* 練習ゾーン（E=緑 / M=金 / T=赤 / R=紫）。validate_palette.js で色覚・彩度・隣接差を確認済み（2026-09-30） */
+  --z-e: #149169;
+  --z-m: #c2951a;
+  --z-t: #c8432e;
+  --z-r: #7a3d93;
+  --z-e-soft: #d9efe6; --z-e-ink: #0b5a41;
+  --z-m-soft: #f6ecd0; --z-m-ink: #6f520b;
+  --z-t-soft: #f8dfd9; --z-t-ink: #8a2c1d;
+  --z-r-soft: #ece0f2; --z-r-ink: #562a6c;
   --good: #2f7d5f;
   --warn: #b3762a;
   --crit: #a83c2f;
@@ -285,133 +284,167 @@ body {
 }
 
 .wrap {
-  max-width: 1080px;
+  max-width: 960px;
   margin: 0 auto;
-  padding: 28px 20px 72px;
+  padding: 20px 20px 72px;
   display: flex;
   flex-direction: column;
-  gap: 22px;
+  gap: 18px;
 }
 
-/* ---------- status band ---------- */
-.band {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 10px 18px;
-  padding-bottom: 18px;
-  border-bottom: 2px solid var(--ink);
+/* ---------- 上端（題名・更新時刻） ---------- */
+.top { display: flex; align-items: baseline; gap: 10px 16px; flex-wrap: wrap; }
+.brand {
+  font-family: var(--num); font-weight: 900; font-size: 14px;
+  letter-spacing: .13em; margin: 0; color: var(--accent-ink);
 }
-.band-title {
-  font-family: var(--num);
-  font-weight: 900;
-  font-size: 15px;
-  letter-spacing: .13em;
-  text-transform: uppercase;
-  margin: 0;
-  color: var(--accent-ink);
-}
-.band-spacer { flex: 1 1 auto; }
-.band-meta {
-  font-family: var(--mono);
-  font-size: 11.5px;
-  color: var(--ink-3);
-  letter-spacing: .02em;
+.top-meta { margin-left: auto; font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); }
+
+/* データが古いときの帯。本文の指摘ではなく、仕組み側の状態なので上に出す */
+.stale-band {
+  background: var(--crit-soft); color: var(--crit); border: 1px solid var(--crit);
+  border-radius: 4px; padding: 8px 12px; font-size: 12.5px; font-weight: 500;
 }
 
-/* ---------- countdown ---------- */
-.counters { display: flex; gap: 8px; flex-wrap: wrap; }
-.counter {
+/* ---------- タブ（全幅で上に貼り付く） ---------- */
+.tabs {
+  position: sticky; top: 0; z-index: 5;
+  display: flex; gap: 2px;
+  background: var(--ground);
+  border-bottom: 1px solid var(--line);
+  margin: 0 -20px; padding: 0 20px;
+  overflow-x: auto; scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tab {
+  appearance: none; background: none; border: 0;
+  border-bottom: 2px solid transparent; margin-bottom: -1px;
+  padding: 11px 14px 10px;
+  font-family: var(--jp); font-size: 14px; font-weight: 700;
+  color: var(--ink-3); cursor: pointer; white-space: nowrap; flex: 0 0 auto;
+  display: flex; align-items: center; gap: 6px;
+}
+.tab:hover { color: var(--ink-2); }
+.tab[aria-selected="true"] { color: var(--accent-ink); border-bottom-color: var(--accent); }
+.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 2px; }
+.tab .dot { width: 6px; height: 6px; border-radius: 50%; background: var(--warn); }
+.tab .ts { display: none; }
+.panel { display: flex; flex-direction: column; gap: 18px; }
+.panel[hidden] { display: none; }
+.stack { display: flex; flex-direction: column; gap: 18px; }
+
+/* ---------- カード ---------- */
+.card {
   background: var(--surface);
   border: 1px solid var(--line);
-  border-radius: 3px;
-  padding: 7px 12px 6px;
-  display: flex;
-  align-items: baseline;
-  gap: 7px;
-}
-.counter .num {
-  font-family: var(--num);
-  font-weight: 900;
-  font-size: 21px;
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-.counter.primary .num { color: var(--accent); }
-.counter .lbl { font-size: 11px; color: var(--ink-2); line-height: 1.3; }
-.counter .lbl b { display: block; font-weight: 700; color: var(--ink); }
-
-/* ---------- hero ---------- */
-.hero {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 4px;
+  border-radius: 6px;
   box-shadow: var(--shadow);
   overflow: hidden;
 }
-.hero-head {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 14px;
-  padding: 20px 24px;
+.card-head {
+  padding: 14px 20px 12px;
   border-bottom: 1px solid var(--line-soft);
+  display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap;
 }
-.hero-date {
-  font-family: var(--num);
-  font-weight: 900;
-  font-size: 30px;
-  line-height: 1;
-  letter-spacing: -.02em;
-  font-variant-numeric: tabular-nums;
+.card-head h2 {
+  margin: 0; font-size: 14px; font-weight: 700; color: var(--ink); letter-spacing: .04em;
 }
-.hero-dow { font-size: 13px; color: var(--ink-2); margin-left: 4px; font-family: var(--jp); font-weight: 500; }
-.hero-type {
-  font-weight: 700;
-  font-size: 16px;
-  padding: 3px 11px;
-  border-radius: 3px;
-  background: var(--accent-soft);
+.card-head .sub { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); margin-left: auto; }
+.card-body { padding: 16px 20px 18px; display: flex; flex-direction: column; gap: 14px; }
+.kicker {
+  font-family: var(--jp); font-weight: 700; font-size: 11.5px;
+  letter-spacing: .12em; color: var(--accent);
+}
+.sub-h { font-size: 11.5px; letter-spacing: .08em; font-weight: 700; color: var(--ink-3); }
+.divider { height: 1px; background: var(--line-soft); }
+.hnote { font-size: 12px; color: var(--ink-3); margin: 0; line-height: 1.7; }
+.more {
+  appearance: none; background: none; border: 0; padding: 2px 0; cursor: pointer;
+  align-self: flex-start; font-family: var(--jp); font-size: 12.5px; font-weight: 700;
   color: var(--accent-ink);
 }
-.verdict {
-  margin-left: auto;
-  display: flex;
-  align-items: center;
-  gap: 10px;
-}
-.verdict-mark {
-  font-family: var(--num);
-  font-weight: 700;
-  font-size: 42px;
-  line-height: 1;
-  display: block;
-}
-.verdict-txt { font-weight: 700; font-size: 14px; }
-.verdict-txt span { display: block; font-weight: 400; font-size: 12px; color: var(--ink-2); }
-.v-good { color: var(--good); }
-.v-warn { color: var(--warn); }
-.v-crit { color: var(--crit); }
+.more:hover { text-decoration: underline; }
+.more:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
 
-/* ---------- コメント（要点先出し） ----------
-   数値とグラフを先に見せ、そのあとに言葉を置く。言葉は
-   「1行の結論 → 要点リスト → 全文（折りたたみ）」の3段。
-   長文をそのまま流すと読まれないので、全文は必ず details の中に入れる。 */
-.cmt {
-  padding: 16px 24px 20px;
-  border-top: 1px solid var(--line-soft);
-  display: flex; flex-direction: column; gap: 12px;
+/* ---------- ホーム: カウントダウン ---------- */
+.goal {
+  background: var(--accent-ink); color: #fff;
+  border-radius: 6px; padding: 16px 20px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px;
+  box-shadow: var(--shadow);
 }
-.cmt-h {
-  margin: 0; font-size: 15.5px; font-weight: 700; line-height: 1.7;
-  max-width: 60ch; text-wrap: balance;
+.goal-main { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
+.goal-days {
+  font-family: var(--num); font-weight: 900; font-size: 48px; line-height: 1;
+  font-variant-numeric: tabular-nums; letter-spacing: -.02em;
 }
+.goal-unit { font-size: 15px; font-weight: 700; margin-left: -6px; }
+.goal-txt { display: flex; flex-direction: column; line-height: 1.5; }
+.goal-name { font-weight: 700; font-size: 15px; }
+.goal-aim { font-size: 12.5px; opacity: .85; }
+.goal-aim b { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.goal-chips { display: flex; flex-wrap: wrap; gap: 6px; margin-left: auto; }
+.chip {
+  background: rgba(255,255,255,.13); border-radius: 99px; padding: 3px 11px;
+  font-size: 12px; line-height: 1.6; white-space: nowrap;
+}
+.chip b { font-family: var(--num); font-variant-numeric: tabular-nums; margin: 0 1px; }
+
+/* ---------- ホーム: 走りの評価 ---------- */
+.run-head {
+  display: flex; align-items: center; gap: 14px;
+  padding: 16px 20px 14px; border-bottom: 1px solid var(--line-soft);
+}
+.run-id { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.run-line { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.run-date {
+  font-family: var(--num); font-weight: 900; font-size: 24px; line-height: 1.1;
+  font-variant-numeric: tabular-nums;
+}
+.run-date em { font-style: normal; font-family: var(--jp); font-size: 13px; font-weight: 500; color: var(--ink-2); margin-left: 3px; }
+.run-type { font-weight: 700; font-size: 15px; }
+.verdict { margin-left: auto; display: flex; flex-direction: column; align-items: center; gap: 2px; flex: 0 0 auto; }
+.vm {
+  width: 54px; height: 54px; border-radius: 50%;
+  display: grid; place-items: center;
+  font-family: var(--num); font-weight: 700; font-size: 30px; line-height: 1;
+  background: var(--surface-2);
+}
+.vl { font-size: 11.5px; font-weight: 700; }
+.v-good { color: var(--good); } .v-good .vm { background: var(--good-soft); }
+.v-warn { color: var(--warn); } .v-warn .vm { background: var(--warn-soft); }
+.v-crit { color: var(--crit); } .v-crit .vm { background: var(--crit-soft); }
+.v-rest { color: var(--ink-3); }
+.headline { margin: 0; font-size: 15px; font-weight: 700; line-height: 1.75; max-width: 62ch; text-wrap: pretty; }
+.planline { font-size: 12.5px; color: var(--ink-2); }
+.planline b { color: var(--ink); font-variant-numeric: tabular-nums; }
+.planline .arrow { color: var(--ink-3); margin: 0 6px; }
+.hero-pb:empty { display: none; }
+.pb {
+  display: inline-flex; align-items: baseline; gap: 6px;
+  font-size: 12.5px; font-weight: 700; color: var(--accent-ink);
+  background: var(--accent-soft); border-radius: 4px; padding: 3px 9px;
+}
+.pb b { font-family: var(--num); font-variant-numeric: tabular-nums; }
+
+/* 主要な数値（ホームでは4つだけ。全部は「走りの詳細」） */
+.kstats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  border: 1px solid var(--line-soft); border-radius: 4px; overflow: hidden;
+}
+.kstat { padding: 9px 12px 8px; border-right: 1px solid var(--line-soft); position: relative; }
+.kstat:last-child { border-right: 0; }
+.kstat.warn::before, .kstat.crit::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
+.kstat.warn::before { background: var(--warn); } .kstat.crit::before { background: var(--crit); }
+.kstat-l { font-size: 10.5px; color: var(--ink-3); }
+.kstat-v { font-family: var(--num); font-weight: 700; font-size: 21px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.kstat-v em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.kstat-n { font-size: 10.5px; color: var(--warn); line-height: 1.45; }
 
 /* 要点リスト。○=良かった点 / △=外した点 / ・=留保 */
 .pts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
 .pt {
-  display: grid;
-  grid-template-columns: 16px minmax(7em, max-content) 1fr;
+  display: grid; grid-template-columns: 16px minmax(7em, max-content) 1fr;
   gap: 2px 11px; align-items: baseline; font-size: 13.5px; line-height: 1.75;
 }
 .pt-i { font-family: var(--num); font-weight: 700; font-size: 12px; text-align: center; }
@@ -419,598 +452,373 @@ body {
 .pt.bad  .pt-i { color: var(--warn); }
 .pt.note .pt-i { color: var(--ink-3); }
 .pt-l { font-weight: 700; color: var(--ink); }
-.pt-t { color: var(--ink-2); max-width: 58ch; }
+.pt-t { color: var(--ink-2); max-width: 60ch; }
+.extra-line { font-size: 12.5px; color: var(--ink-2); }
 
-/* ラベル付きの説明ブロック */
-.blk { display: flex; flex-direction: column; gap: 5px; }
-.blk > b {
-  font-family: var(--num); font-weight: 900; font-size: 11px;
-  letter-spacing: .09em; color: var(--ink-3); text-transform: uppercase;
+/* ---------- ホーム: 次のメニュー ---------- */
+.rx { border-top: 3px solid var(--accent); }
+.rx-top { display: flex; align-items: baseline; gap: 10px; padding: 14px 20px 0; flex-wrap: wrap; }
+.rx-date { font-family: var(--mono); font-size: 12px; color: var(--ink-2); }
+.rx-km { margin-left: auto; font-family: var(--num); font-weight: 900; font-size: 18px; font-variant-numeric: tabular-nums; }
+.rx-km em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
+.rx .card-body { padding-top: 6px; }
+.rx-title { font-family: var(--jp); font-weight: 700; font-size: 22px; line-height: 1.35; margin: 0; }
+.rx-headline {
+  font-size: 14px; font-weight: 700; color: var(--accent-ink); line-height: 1.7;
+  background: var(--accent-soft); padding: 9px 12px; border-radius: 4px; margin: 0;
 }
+.segs { display: flex; flex-direction: column; }
+.segrow {
+  display: grid; grid-template-columns: 38px 1fr 62px;
+  grid-template-areas: "type name km" "type meta meta" "type note note";
+  align-items: baseline; gap: 1px 12px;
+  padding: 9px 0; border-bottom: 1px solid var(--line-soft);
+}
+.segrow:last-child { border-bottom: none; }
+.segrow .tp { grid-area: type; align-self: start; margin-top: 2px; }
+.seg-n { grid-area: name; font-size: 13.5px; font-weight: 700; }
+.seg-k { grid-area: km; font-family: var(--num); font-weight: 700; font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.seg-k em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
+.seg-m { grid-area: meta; font-family: var(--mono); font-size: 12px; color: var(--ink); }
+.seg-o { grid-area: note; font-size: 12px; color: var(--ink-3); }
+.rx-list { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; font-size: 13px; }
+.rx-list dt { font-size: 11px; color: var(--ink-3); font-weight: 700; padding-top: 2px; }
+.rx-list dd { margin: 0; color: var(--ink); }
+.blk { display: flex; flex-direction: column; gap: 4px; }
+.blk > b { font-size: 11.5px; letter-spacing: .08em; font-weight: 700; color: var(--ink-3); }
 .lead { margin: 0; font-size: 13.5px; line-height: 1.8; color: var(--ink-2); max-width: 66ch; }
-.alts {
-  margin: 2px 0 0; padding-left: 1.4em;
-  display: flex; flex-direction: column; gap: 7px;
-  font-size: 13px; line-height: 1.8; color: var(--ink-2);
-}
-.alts li { max-width: 62ch; }
+.alts { margin: 0; padding-left: 1.4em; display: flex; flex-direction: column; gap: 6px; font-size: 13px; line-height: 1.75; color: var(--ink-2); }
+.alts li { max-width: 64ch; }
 
-/* ---------- 過去の評価 ----------
-   一覧は日付・種別・距離・総合評価だけの1行。選んだ日だけ中身を開く。 */
-.hnote { font-size: 12.5px; color: var(--ink-3); margin: 0; }
-.hlist { display: flex; flex-direction: column; }
-.hitem { border-bottom: 1px solid var(--line-soft); }
-.hitem:last-child { border-bottom: none; }
-.hitem.open { background: var(--surface-2); }
-.hbtn {
-  appearance: none; background: none; border: 0; width: 100%;
-  display: grid; grid-template-columns: 8.6em 1fr auto 1.7em;
-  align-items: baseline; gap: 3px 12px;
-  padding: 11px 4px; cursor: pointer; text-align: left;
-  font-family: var(--jp); font-size: 13.5px; color: var(--ink);
+/* 種別バッジ（週プラン・区間・カレンダーの凡例で共用） */
+.tp {
+  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
+  padding: 1px 0; border-radius: 3px; line-height: 1.7; text-align: center; display: inline-block; min-width: 30px;
 }
-.hbtn:hover { color: var(--accent-ink); }
-.hbtn:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 2px; }
-.hd {
-  font-family: var(--mono); font-size: 12.5px; color: var(--ink-2);
-  white-space: nowrap; font-variant-numeric: tabular-nums;
-}
-.hd em { font-style: normal; color: var(--ink-3); margin-left: 3px; }
-.ht { font-weight: 700; }
-.hk { font-family: var(--num); font-weight: 700; font-variant-numeric: tabular-nums; white-space: nowrap; }
-.hk em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
-.hv { font-family: var(--num); font-weight: 700; font-size: 17px; text-align: right; }
-.hbody { padding: 0 4px 18px; display: flex; flex-direction: column; gap: 12px; }
-.hbody .stats {
-  border: 1px solid var(--line-soft); border-top: 1px solid var(--line-soft);
-  border-radius: 3px; overflow: hidden; background: var(--surface);
-}
-.hbody .effect { padding: 0; }
-.hbody .chart-box { padding: 0; background: var(--surface); border-radius: 3px; }
-.hmeta {
-  font-family: var(--mono); font-size: 11.5px; color: var(--ink-3);
-  font-variant-numeric: tabular-nums;
-}
-.htoday {
-  font-family: var(--jp); font-size: 9.5px; font-weight: 700; line-height: 1.6;
-  padding: 0 4px; border-radius: 2px; margin-left: 5px;
-  background: var(--accent-soft); color: var(--accent-ink); vertical-align: 1px;
-}
+.tp.E { background: var(--z-e-soft); color: var(--z-e-ink); }
+.tp.M { background: var(--z-m-soft); color: var(--z-m-ink); }
+.tp.T { background: var(--z-t-soft); color: var(--z-t-ink); }
+.tp.R { background: var(--z-r-soft); color: var(--z-r-ink); }
+.tp.rest { background: var(--surface-2); color: var(--ink-2); }
 
-/* ---------- stat grid ---------- */
-.stats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(118px, 1fr));
-  border-top: 1px solid var(--line-soft);
+/* ---------- ホーム: 体調の信号 ---------- */
+.cchips { display: grid; grid-template-columns: repeat(6, 1fr); gap: 6px; }
+.cchip {
+  border: 1px solid var(--line-soft); border-radius: 4px; padding: 7px 10px 6px;
+  display: flex; flex-direction: column; position: relative; min-width: 0;
 }
-.stat {
-  padding: 14px 16px 13px;
-  border-right: 1px solid var(--line-soft);
-  border-bottom: 1px solid var(--line-soft);
-  position: relative;
+.cchip.warn { border-color: #e7cfa6; background: #fdf8ef; }
+.cchip.crit { border-color: #e6bdb6; background: #fcf2f0; }
+.cchip-l { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cchip-v { font-family: var(--num); font-weight: 700; font-size: 19px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.cchip-v em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.cchip-s { font-size: 10.5px; font-weight: 700; }
+.cchip.warn .cchip-s { color: var(--warn); }
+.cchip.crit .cchip-s { color: var(--crit); }
+.cchip.ok .cchip-s { color: var(--ink-3); font-weight: 500; }
+
+/* ---------- ホーム: 現在地 ---------- */
+.ktiles {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft);
+  border-radius: 4px; overflow: hidden;
 }
-.stat::before {
-  content: "";
-  position: absolute; left: 0; top: 0; bottom: 0;
-  width: 3px; background: transparent;
+.ktile { background: var(--surface); padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 2px; }
+.ktile-l { font-size: 11px; color: var(--ink-3); }
+.ktile-v { font-family: var(--num); font-weight: 700; font-size: 26px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.ktile-v em { font-style: normal; font-size: 12px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
+.ktile-n { font-size: 12px; color: var(--ink-2); line-height: 1.55; font-weight: 700; }
+.ktile-n.good { color: var(--good); } .ktile-n.warn { color: var(--warn); }
+.ktile-s { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+.meter { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 5px 0 2px; }
+.meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
+
+.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; }
+.wd { display: flex; flex-direction: column; align-items: center; gap: 4px; }
+.wd-bar { width: 100%; max-width: 46px; border-radius: 4px 4px 0 0; min-height: 3px; background: var(--z-e); }
+.wd-bar.T { background: var(--z-t); } .wd-bar.M { background: var(--z-m); } .wd-bar.R { background: var(--z-r); }
+.wd-bar.rest { background: var(--line); }
+.wd-km { font-family: var(--num); font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
+.wd-d { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); text-align: center; line-height: 1.35; }
+.tot { display: flex; flex-wrap: wrap; gap: 8px 24px; }
+.tot div { display: flex; flex-direction: column; }
+.tot .n { font-family: var(--num); font-weight: 900; font-size: 20px; font-variant-numeric: tabular-nums; line-height: 1.25; }
+.tot .n em { font-style: normal; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
+.tot .l { font-size: 11px; color: var(--ink-3); }
+.tot .n.warn { color: var(--warn); }
+.goalline { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--ink-2); }
+.goalline b { color: var(--good); }
+
+/* ---------- ホーム: 今日の読みもの ---------- */
+.news-theme {
+  font-size: 11px; font-weight: 700; color: var(--accent-ink);
+  background: var(--accent-soft); border-radius: 99px; padding: 1px 9px;
 }
+.news-title {
+  font-size: 17px; font-weight: 700; line-height: 1.55; color: var(--ink);
+  text-decoration: none; text-wrap: pretty;
+}
+.news-title:hover { text-decoration: underline; text-decoration-color: var(--accent); }
+.news-title .ext { color: var(--accent); font-size: 13px; margin-left: 4px; }
+.news-meta { font-family: var(--mono); font-size: 11.5px; color: var(--ink-3); margin-top: -8px; }
+.news-sum { margin: 0; font-size: 13.5px; line-height: 1.85; color: var(--ink-2); max-width: 66ch; }
+.news-take {
+  border-left: 3px solid var(--accent); background: var(--surface-2);
+  padding: 8px 12px; border-radius: 0 4px 4px 0; font-size: 13px; line-height: 1.75; color: var(--ink);
+}
+.news-take b { display: block; font-size: 11px; color: var(--accent-ink); letter-spacing: .06em; }
+.news-more { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
+.news-more a { color: var(--ink); }
+.news-more span { color: var(--ink-3); font-size: 11.5px; margin-left: 6px; }
+
+/* ---------- 走りの詳細 ---------- */
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); border-top: 1px solid var(--line-soft); }
+.stat { padding: 12px 14px 11px; border-right: 1px solid var(--line-soft); border-bottom: 1px solid var(--line-soft); position: relative; }
+.stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
 .stat.warn::before { background: var(--warn); }
 .stat.crit::before { background: var(--crit); }
-.stat-l {
-  font-size: 10.5px;
-  letter-spacing: .09em;
-  color: var(--ink-3);
-  font-weight: 500;
-  text-transform: none;
-}
-.stat-v {
-  font-family: var(--num);
-  font-weight: 700;
-  font-size: 25px;
-  line-height: 1.2;
-  font-variant-numeric: tabular-nums;
-}
-.stat-v em { font-style: normal; font-size: 12px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
+.stat-l { font-size: 10.5px; letter-spacing: .06em; color: var(--ink-3); }
+.stat-v { font-family: var(--num); font-weight: 700; font-size: 23px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.stat-v em { font-style: normal; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
 .stat-n { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; }
-.stat.warn .stat-n { color: var(--warn); }
+.stat.warn .stat-n, .stat.crit .stat-n { color: var(--warn); }
+.effect { padding: 10px 20px; font-size: 12px; color: var(--ink-2); font-family: var(--mono); border-bottom: 1px solid var(--line-soft); }
+.detail-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.pill { font-size: 11px; font-weight: 700; padding: 1px 9px; border-radius: 99px; line-height: 1.7; white-space: nowrap; }
+.pill.good { background: var(--good-soft); color: var(--good); }
+.pill.warn { background: var(--warn-soft); color: var(--warn); }
+.pill.crit { background: var(--crit-soft); color: var(--crit); }
+.pill.rest { background: var(--surface-2); color: var(--ink-2); }
+.axes { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 22px; }
+.axis { display: flex; flex-direction: column; gap: 3px; }
+.axis-h { display: flex; align-items: center; gap: 8px; }
+.axis-h b { font-size: 13.5px; }
+.axis p { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.75; }
+.cols { display: grid; grid-template-columns: repeat(2, 1fr); gap: 14px 24px; }
+.lst { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 8px; }
+.lst li { display: flex; gap: 9px; font-size: 13px; color: var(--ink-2); line-height: 1.75; }
+.lst li::before { content: "○"; flex: 0 0 auto; font-family: var(--num); font-weight: 700; font-size: 11px; color: var(--good); padding-top: 2px; }
+.lst.neg li::before { content: "△"; color: var(--warn); }
 
-.effect {
-  padding: 12px 24px;
-  font-size: 12.5px;
-  color: var(--ink-2);
-  font-family: var(--mono);
-}
-
-/* ---------- chart ---------- */
-.chart-box { padding: 4px 12px 18px; }
-.chart-legend {
-  display: flex; gap: 16px; flex-wrap: wrap;
-  padding: 0 12px 10px;
-  font-size: 11px; color: var(--ink-2);
-}
+/* ラップのグラフと一覧 */
+.chart-box { padding: 8px 12px 16px; }
+.chart-legend { display: flex; gap: 6px 14px; flex-wrap: wrap; padding: 0 8px 8px; font-size: 11px; color: var(--ink-2); }
 .chart-legend i { display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .chart-legend .ref { color: var(--ink-3); }
 .chart-scroll { overflow-x: auto; }
 svg.laps { display: block; min-width: 560px; width: 100%; height: auto; }
-@media (max-width: 640px) { svg.laps { min-width: 0; } }
-
-/* ---------- グラフの元データ（ラップ一覧） ----------
-   グラフだけではラップタイムが読めないので、開けば数値で確かめられるようにする。 */
-.lapdata { margin: 6px 12px 0; border-top: 1px solid var(--line-soft); }
-.lapdata > summary {
-  cursor: pointer; list-style: none;
-  padding: 10px 0 4px; font-size: 12px; color: var(--ink-2);
-}
+.lapdata { margin: 6px 8px 0; border-top: 1px solid var(--line-soft); }
+.lapdata > summary { cursor: pointer; list-style: none; padding: 10px 0 4px; font-size: 12px; color: var(--ink-2); }
 .lapdata > summary::-webkit-details-marker { display: none; }
-.lapdata > summary::before {
-  content: "▸"; display: inline-block; width: 1em; color: var(--ink-3);
-  transition: transform .15s;
-}
+.lapdata > summary::before { content: "▸"; display: inline-block; width: 1em; color: var(--ink-3); transition: transform .15s; }
 .lapdata[open] > summary::before { transform: rotate(90deg); }
 .lapdata > summary em { font-style: normal; color: var(--ink-3); margin-left: 6px; font-family: var(--mono); font-size: 11px; }
 .lapsum { display: flex; flex-wrap: wrap; gap: 4px 16px; padding: 6px 0 8px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
 .lapsum b { font-family: var(--num); font-weight: 700; color: var(--ink); }
-.laptbl {
-  width: 100%; border-collapse: collapse;
-  font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums;
-}
-.laptbl th {
-  font-weight: 400; font-size: 11px; color: var(--ink-3); text-align: right;
-  padding: 4px 8px; border-bottom: 1px solid var(--line);
-}
+.laptbl { width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 12.5px; font-variant-numeric: tabular-nums; }
+.laptbl th { font-weight: 400; font-size: 11px; color: var(--ink-3); text-align: right; padding: 4px 8px; border-bottom: 1px solid var(--line); }
 .laptbl td { text-align: right; padding: 5px 8px; border-bottom: 1px solid var(--line-soft); }
 .laptbl th:nth-child(-n+2), .laptbl td:nth-child(-n+2) { text-align: left; }
-.lapdata .zn { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
+.zn { display: inline-block; width: 8px; height: 8px; border-radius: 2px; margin-right: 6px; vertical-align: 0; }
 .laptbl td.over { color: var(--crit); font-weight: 700; }
-.laptbl td.d { color: var(--ink-3); font-size: 11.5px; }
+.laptbl td .d { color: var(--ink-3); font-size: 11.5px; font-weight: 400; }
 
-/* ---------- sections ---------- */
-.card {
-  background: var(--surface);
-  border: 1px solid var(--line);
-  border-radius: 4px;
-  box-shadow: var(--shadow);
-  overflow: hidden;
-}
-.card-head {
-  padding: 15px 20px 13px;
-  border-bottom: 1px solid var(--line-soft);
-  display: flex; align-items: baseline; gap: 10px;
-}
-.card-head h2 {
-  margin: 0;
-  font-size: 13px;
-  letter-spacing: .1em;
-  font-family: var(--num);
-  font-weight: 900;
-  text-transform: uppercase;
-  color: var(--ink);
-}
-.card-head .sub { font-size: 11.5px; color: var(--ink-3); font-family: var(--mono); margin-left: auto; }
-.card-body { padding: 18px 20px 20px; display: flex; flex-direction: column; gap: 16px; }
-
-/* axes */
-.axis { display: flex; flex-direction: column; gap: 4px; }
-.axis-h { display: flex; align-items: center; gap: 9px; }
-.axis-h b { font-size: 14px; font-weight: 700; }
-.pill {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
-  padding: 1px 8px; border-radius: 99px; line-height: 1.7;
-}
-.pill.good { background: var(--good-soft); color: var(--good); }
-.pill.warn { background: var(--warn-soft); color: var(--warn); }
-.pill.crit { background: var(--crit-soft); color: var(--crit); }
-.axis p { margin: 0; font-size: 13.5px; color: var(--ink-2); max-width: 66ch; }
-
-/* lists */
-.lst { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
-.lst li { display: flex; gap: 10px; font-size: 13.5px; color: var(--ink-2); }
-.lst li::before {
-  content: ""; flex: 0 0 auto; width: 5px; height: 5px; border-radius: 50%;
-  background: var(--accent); margin-top: 9px;
-}
-.lst.neg li::before { background: var(--warn); }
-.sub-h {
-  font-size: 11px; letter-spacing: .1em; font-weight: 700;
-  color: var(--ink-3); font-family: var(--num); text-transform: uppercase;
-}
-
-/* prescription */
-.rx { border-top: 3px solid var(--accent); }
-.rx-title {
-  font-family: var(--num); font-weight: 900; font-size: 26px;
-  line-height: 1.2; letter-spacing: -.01em; margin: 0;
-}
-.rx-headline {
-  font-size: 14.5px; font-weight: 700; color: var(--accent-ink);
-  background: var(--accent-soft); padding: 9px 12px; border-radius: 3px; margin: 0;
-}
-.rx-list { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 7px 14px; font-size: 13.5px; }
-.rx-list dt { font-size: 11px; color: var(--ink-3); font-weight: 700; letter-spacing: .05em; padding-top: 3px; }
-.rx-list dd { margin: 0; color: var(--ink); }
-.note { font-size: 12.5px; color: var(--ink-2); margin: 0; }
-.note b { color: var(--ink); }
-.divider { height: 1px; background: var(--line-soft); }
-
-/* week bars */
-.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; align-items: end; }
-.wd { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.wd-bar { width: 100%; border-radius: 2px 2px 0 0; min-height: 3px; background: var(--z-e); }
-.wd-bar.T { background: var(--z-t); }
-.wd-bar.M { background: var(--z-m); }
-.wd-bar.R { background: var(--z-r); }
-.wd-bar.rest { background: var(--line); }
-.wd-km { font-family: var(--num); font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
-.wd-d { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); text-align: center; line-height: 1.35; }
-
-.tot { display: flex; flex-wrap: wrap; gap: 22px; }
-.tot div { display: flex; flex-direction: column; }
-.tot .n { font-family: var(--num); font-weight: 900; font-size: 22px; font-variant-numeric: tabular-nums; line-height: 1.2; }
-.tot .l { font-size: 11px; color: var(--ink-3); }
-.tot .delta { font-size: 11.5px; font-weight: 700; }
-
-.meter { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; }
-.meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
-
-/* ---------- 明日のメニューの構成 ----------
-   区間ごとの行だけを出す。距離比率のバーは 2026-09-07 に廃止した
-   （下の行と同じ情報しか持たないうえ、色帯だけでは何のゾーンか読めないため）。 */
-.segs { display: flex; flex-direction: column; }
-.segrow {
-  display: grid;
-  grid-template-columns: 46px 1fr 62px;
-  grid-template-areas: "type name km" "type meta meta" "type note note";
-  align-items: baseline; gap: 2px 12px;
-  padding: 10px 0; border-bottom: 1px solid var(--line-soft);
-}
-.segrow:last-child { border-bottom: none; }
-.segrow .tp { grid-area: type; align-self: start; }
-.seg-n { grid-area: name; font-size: 13.5px; font-weight: 700; }
-.seg-k {
-  grid-area: km; font-family: var(--num); font-weight: 700; font-size: 14px;
-  text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap;
-}
-.seg-k em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
-.seg-m { grid-area: meta; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
-.seg-o { grid-area: note; font-size: 12px; color: var(--ink-3); }
-
-/* week plan */
-.plan { display: flex; flex-direction: column; }
-.plan-row {
-  display: grid;
-  grid-template-columns: 74px 46px minmax(9em, max-content) 62px 1fr;
-  align-items: baseline;
-  gap: 4px 12px;
-  padding: 9px 0;
-  border-bottom: 1px solid var(--line-soft);
-}
-.plan-row:last-child { border-bottom: none; }
-.plan-row.rest { color: var(--ink-3); }
-.plan-d { font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
-.plan-d .tm {
-  display: inline-block; margin-left: 5px; padding: 0 4px;
-  font-family: var(--jp); font-size: 9.5px; font-weight: 700; line-height: 1.6;
-  border-radius: 2px; background: var(--accent-soft); color: var(--accent-ink);
-  vertical-align: 1px;
-}
-.tp {
-  font-size: 10.5px; font-weight: 700; letter-spacing: .04em;
-  padding: 1px 0; border-radius: 3px; line-height: 1.7; text-align: center;
-}
-.tp.E    { background: #dcece7; color: #0b5245; }
-.tp.M    { background: #f6e8cf; color: #7d5312; }
-.tp.T    { background: #f8e1d8; color: #8b3b20; }
-.tp.R    { background: #f3dce7; color: #6b2a4a; }
-.tp.rest { background: var(--surface-2); color: var(--ink-2); }
-.plan-t { font-size: 13.5px; font-weight: 700; }
-.plan-row.rest .plan-t { font-weight: 500; color: var(--ink-2); }
-.plan-km {
-  font-family: var(--num); font-weight: 700; font-size: 14px;
-  font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap;
-}
-.plan-km em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
-.plan-n { font-size: 12px; color: var(--ink-3); }
-@media (max-width: 640px) {
-  .plan-row {
-    grid-template-columns: 46px 1fr auto;
-    grid-template-areas: "type day km" "type title title" "type note note";
-    gap: 1px 10px;
-  }
-  .plan-d { grid-area: day; }
-  .tp { grid-area: type; align-self: start; }
-  .plan-t { grid-area: title; }
-  .plan-km { grid-area: km; }
-  .plan-n { grid-area: note; }
-}
-
-/* tabs */
-.tabs {
-  display: flex; gap: 2px; flex-wrap: wrap;
-  border-bottom: 1px solid var(--line);
-}
-.tab {
-  appearance: none; background: none; border: 0;
-  border-bottom: 2px solid transparent;
-  margin-bottom: -1px;
-  padding: 10px 16px 9px;
-  font-family: var(--jp); font-size: 14px; font-weight: 700;
-  color: var(--ink-3); cursor: pointer;
-  display: flex; align-items: center; gap: 7px;
-  transition: color .15s;
-}
-.tab:hover { color: var(--ink-2); }
-.tab[aria-selected="true"] { color: var(--accent-ink); border-bottom-color: var(--accent); }
-.tab:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; border-radius: 2px; }
-.tab .dot {
-  width: 6px; height: 6px; border-radius: 50%;
-  background: var(--warn); flex: 0 0 auto;
-}
-.panel, .panel-inner { display: flex; flex-direction: column; gap: 22px; }
-.panel[hidden] { display: none; }
-
-/* condition (health) */
-.hstats {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
-  gap: 1px;
-  background: var(--line-soft);
-  border: 1px solid var(--line-soft);
-  border-radius: 3px;
-  overflow: hidden;
-}
-.hstat { background: var(--surface); padding: 12px 14px 11px; position: relative; }
-.hstat::before {
-  content: ""; position: absolute; left: 0; top: 0; bottom: 0;
-  width: 3px; background: transparent;
-}
-.hstat.warn::before { background: var(--warn); }
-.hstat.crit::before { background: var(--crit); }
-.hstat-l { font-size: 10.5px; letter-spacing: .07em; color: var(--ink-3); font-weight: 500; }
-.hstat-v {
-  font-family: var(--num); font-weight: 700; font-size: 23px; line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-}
-.hstat-v em { font-style: normal; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
-.hstat-cmp {
-  font-family: var(--mono); font-size: 10.5px; color: var(--ink-3);
-  display: flex; gap: 6px; align-items: baseline; flex-wrap: wrap;
-}
-.hstat-cmp .d { font-weight: 500; }
-.hstat-cmp .d.up { color: var(--good); }
-.hstat-cmp .d.down { color: var(--warn); }
-.hstat-cmp .d.flat { color: var(--ink-3); }
-.hstat-n { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; margin-top: 3px; }
-.hstat.warn .hstat-n, .hstat.crit .hstat-n { color: var(--warn); }
-
-svg.cond { display: block; min-width: 560px; width: 100%; height: auto; }
-@media (max-width: 640px) { svg.cond { min-width: 0; } }
-
-/* 凡例は必ずそのグラフの直上に置く。1ブロック = 凡例 + グラフ。 */
-.chartblock { display: flex; flex-direction: column; gap: 2px; margin-top: -8px; }
-.chartblock .chart-legend { padding: 0 0 6px; }
-.chartblock .chart-legend .ref { color: var(--ink-3); }
-
-.htab-scroll { overflow-x: auto; }
-table.htab {
-  width: 100%; min-width: 560px; border-collapse: collapse;
-  font-family: var(--mono); font-size: 11.5px;
-  font-variant-numeric: tabular-nums;
-}
-table.htab th, table.htab td {
-  padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line-soft);
-  white-space: nowrap;
-}
-table.htab th {
-  font-weight: 500; color: var(--ink-3); font-size: 10.5px;
-  letter-spacing: .04em; border-bottom-color: var(--line);
-}
-table.htab th:first-child, table.htab td:first-child { text-align: left; color: var(--ink-2); }
-table.htab td { color: var(--ink); }
-table.htab td.lo { color: var(--warn); font-weight: 500; }
-table.htab tr:last-child td { border-bottom: none; }
-
-.fitrow { display: flex; flex-wrap: wrap; gap: 22px; align-items: flex-start; }
-.fitrow > div { display: flex; flex-direction: column; }
-.fitrow .n {
-  font-family: var(--num); font-weight: 900; font-size: 21px; line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-}
-.fitrow .n em { font-style: normal; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-left: 4px; }
-.fitrow .l { font-size: 11px; color: var(--ink-3); }
-
-/* glossary */
-.gloss { margin: 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
-@media (max-width: 560px) { .gloss { grid-template-columns: 1fr; gap: 2px 0; } }
-.gloss dt {
-  font-size: 11.5px; font-weight: 700; color: var(--ink-2);
-  white-space: nowrap; padding-top: 1px;
-}
-.gloss dd { margin: 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.65; }
-@media (max-width: 560px) { .gloss dd { margin-bottom: 8px; } }
-.racelist { display: flex; gap: 16px; flex-wrap: wrap; }
-.racelist div { display: flex; flex-direction: column; }
-.racelist .t {
-  font-family: var(--mono); font-weight: 500; font-size: 15px;
-  font-variant-numeric: tabular-nums; line-height: 1.4;
-}
-.racelist .l { font-size: 10.5px; color: var(--ink-3); }
-
-/* 処方と実走の対比（ヒーロー内の1行） */
-.hero-plan { flex-basis: 100%; font-size: 12.5px; color: var(--ink-2); margin-top: -4px; }
-.hero-plan b { color: var(--ink); font-weight: 700; font-variant-numeric: tabular-nums; }
-.hero-plan .arrow { color: var(--ink-3); margin: 0 6px; }
-
-/* データが古いときの帯。本文の指摘（alerts は廃止）ではなく、仕組み側の状態なので上に出す */
-.stale-band {
-  background: var(--crit-soft); color: var(--crit); border: 1px solid var(--crit);
-  border-radius: 3px; padding: 8px 12px; font-size: 12.5px; font-weight: 500;
-}
-
-/* この先1週間の要約行（予定合計・質練習本数・休養日） */
-.plan-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
-.plan-sum b { font-family: var(--num); font-weight: 700; color: var(--ink); font-size: 13px; }
-
-/* 過去の評価: 総合評価の凡例 */
-.hlegend { font-size: 11px; color: var(--ink-3); font-family: var(--mono); display: flex; gap: 12px; flex-wrap: wrap; }
-.hlegend b { font-family: var(--num); font-weight: 700; }
-.v-rest { color: var(--ink-3); }
-
-/* 自己ベスト更新などの事実ベースの印（ヒーロー内の1行）。db の履歴を読めたときだけ出る */
-.hero-pb:empty { display: none; }
-.hero-pb { flex-basis: 100%; margin-top: -4px; }
-.pb {
-  display: inline-flex; align-items: baseline; gap: 6px;
-  font-size: 12.5px; font-weight: 700; color: var(--accent-ink);
-  background: var(--accent-soft); border-radius: 3px; padding: 3px 9px;
-}
-.pb b { font-family: var(--num); font-variant-numeric: tabular-nums; }
-
-/* 過去の評価: さらに表示 */
-.hmore {
-  appearance: none; border: 1px solid var(--line); background: var(--surface);
-  border-radius: 3px; padding: 7px 14px; margin-top: 10px; cursor: pointer;
-  font-family: var(--jp); font-size: 12.5px; color: var(--ink-2); align-self: center;
-}
-.hmore:hover { color: var(--accent-ink); border-color: var(--accent); }
-
-/* ---------- 進捗タブ ----------
-   db の履歴と DATA.season（プロファイルから機械的に差し込む）だけで描く。
-   Routine が毎日書く DATA には何も足していない。 */
-.ktiles {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-  gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft);
-  border-radius: 3px; overflow: hidden;
-}
-.ktile { background: var(--surface); padding: 12px 14px 11px; display: flex; flex-direction: column; gap: 1px; }
-.ktile-l { font-size: 10.5px; letter-spacing: .07em; color: var(--ink-3); font-weight: 500; }
-.ktile-v {
-  font-family: var(--num); font-weight: 700; font-size: 23px; line-height: 1.25;
-  font-variant-numeric: tabular-nums;
-}
-.ktile-v em { font-style: normal; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
-.ktile-n { font-size: 11px; color: var(--ink-2); line-height: 1.5; }
-.ktile-n.good { color: var(--good); } .ktile-n.warn { color: var(--warn); }
-.take { margin: 0; font-size: 13.5px; font-weight: 700; line-height: 1.7; max-width: 66ch; }
-.take .n { font-family: var(--num); font-variant-numeric: tabular-nums; }
+/* ---------- 予定 ---------- */
 svg.prog { display: block; width: 100%; height: auto; }
 .phase-now { display: grid; grid-template-columns: max-content 1fr; gap: 4px 14px; margin: 0; font-size: 13px; }
 .phase-now dt { font-size: 11px; color: var(--ink-3); font-weight: 700; padding-top: 2px; }
 .phase-now dd { margin: 0; color: var(--ink); }
-.steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 7px; }
-.steps li {
-  display: grid; grid-template-columns: 1.4em 11em 1fr; gap: 2px 10px;
-  align-items: baseline; font-size: 13px; color: var(--ink-2);
+.plan { display: flex; flex-direction: column; }
+.plan-row {
+  display: grid; grid-template-columns: 78px 38px minmax(9em, max-content) 58px 1fr;
+  align-items: baseline; gap: 4px 12px; padding: 9px 0; border-bottom: 1px solid var(--line-soft);
 }
+.plan-row:last-child { border-bottom: none; }
+.plan-row.rest .plan-t { font-weight: 500; color: var(--ink-2); }
+.plan-d { font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: nowrap; }
+.tm {
+  display: inline-block; margin-left: 5px; padding: 0 4px;
+  font-family: var(--jp); font-size: 9.5px; font-weight: 700; line-height: 1.6;
+  border-radius: 2px; background: var(--accent-soft); color: var(--accent-ink); vertical-align: 1px;
+}
+.plan-t { font-size: 13.5px; font-weight: 700; }
+.plan-km { font-family: var(--num); font-weight: 700; font-size: 14px; font-variant-numeric: tabular-nums; text-align: right; white-space: nowrap; }
+.plan-km em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
+.plan-n { font-size: 12px; color: var(--ink-3); }
+.plan-sum { display: flex; flex-wrap: wrap; gap: 6px 18px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2); }
+.plan-sum b { font-family: var(--num); font-weight: 700; color: var(--ink); font-size: 13px; }
+
+/* ---------- コンディション ---------- */
+.hstats {
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft); border-radius: 4px; overflow: hidden;
+}
+.hstat { background: var(--surface); padding: 11px 13px 10px; position: relative; }
+.hstat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
+.hstat.warn::before { background: var(--warn); }
+.hstat.crit::before { background: var(--crit); }
+.hstat-l { font-size: 10.5px; color: var(--ink-3); }
+.hstat-v { font-family: var(--num); font-weight: 700; font-size: 22px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.hstat-v em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
+.hstat-cmp { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); display: flex; gap: 6px; flex-wrap: wrap; }
+.hstat-cmp .d.up { color: var(--good); } .hstat-cmp .d.down { color: var(--warn); }
+.hstat-n { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; margin-top: 3px; }
+.hstat.warn .hstat-n, .hstat.crit .hstat-n { color: var(--warn); }
+svg.cond { display: block; min-width: 560px; width: 100%; height: auto; }
+.chartblock { display: flex; flex-direction: column; gap: 2px; margin-top: -6px; }
+.chartblock .chart-legend { padding: 0 0 6px; }
+.htab-scroll { overflow-x: auto; }
+table.htab { width: 100%; min-width: 560px; border-collapse: collapse; font-family: var(--mono); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+table.htab th, table.htab td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line-soft); white-space: nowrap; }
+table.htab th { font-weight: 500; color: var(--ink-3); font-size: 10.5px; border-bottom-color: var(--line); }
+table.htab th:first-child, table.htab td:first-child { text-align: left; color: var(--ink-2); }
+table.htab td.lo { color: var(--warn); font-weight: 500; }
+table.htab tr:last-child td { border-bottom: none; }
+.fitrow { display: flex; flex-wrap: wrap; gap: 14px 26px; align-items: flex-start; }
+.fitrow > div { display: flex; flex-direction: column; }
+.fitrow .n { font-family: var(--num); font-weight: 900; font-size: 20px; line-height: 1.25; font-variant-numeric: tabular-nums; }
+.fitrow .l { font-size: 11px; color: var(--ink-3); }
+.racelist { display: flex; gap: 16px; flex-wrap: wrap; }
+.racelist div { display: flex; flex-direction: column; }
+.racelist .t { font-family: var(--mono); font-weight: 500; font-size: 15px; font-variant-numeric: tabular-nums; line-height: 1.4; }
+.racelist .l { font-size: 10.5px; color: var(--ink-3); }
+.gloss-box > summary { cursor: pointer; font-size: 12px; font-weight: 700; color: var(--ink-2); }
+.gloss { margin: 10px 0 0; display: grid; grid-template-columns: max-content 1fr; gap: 6px 14px; }
+.gloss dt { font-size: 11.5px; font-weight: 700; color: var(--ink-2); white-space: nowrap; }
+.gloss dd { margin: 0; font-size: 11.5px; color: var(--ink-3); line-height: 1.65; }
+
+/* ---------- 成長の記録: トレーニングカレンダー ---------- */
+.take { margin: 0; font-size: 13.5px; font-weight: 700; line-height: 1.7; max-width: 66ch; }
+.take .n { font-family: var(--num); font-variant-numeric: tabular-nums; }
+.cal-legend { display: flex; flex-wrap: wrap; gap: 6px 12px; font-size: 11px; color: var(--ink-2); align-items: center; }
+.cal-legend .lg { display: inline-flex; align-items: center; gap: 5px; white-space: nowrap; }
+.cal-legend .lg:last-child { color: var(--ink-3); }
+.cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)) 70px; gap: 4px; }
+.cal-h { font-size: 10.5px; color: var(--ink-3); text-align: center; padding-bottom: 2px; }
+.cday {
+  appearance: none; border: 0; margin: 0; font: inherit; color: var(--ink);
+  border-radius: 5px; min-height: 54px; padding: 4px 6px 5px;
+  display: flex; flex-direction: column; justify-content: space-between; align-items: stretch;
+  text-align: left; position: relative; background: var(--surface-2);
+}
+button.cday { cursor: pointer; }
+button.cday:hover { filter: brightness(.96); }
+button.cday:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cday.E { background: var(--z-e-soft); } .cday.M { background: var(--z-m-soft); }
+.cday.T { background: var(--z-t-soft); } .cday.R { background: var(--z-r-soft); }
+.cday.rest { background: #f7f8f8; color: var(--ink-3); }
+.cday.fut, .cday.none { background: transparent; border: 1px dashed var(--line-soft); color: var(--ink-3); }
+.cday.today { box-shadow: inset 0 0 0 2px var(--accent); }
+.cday.sel { box-shadow: inset 0 0 0 2px var(--ink); }
+.cd { font-family: var(--mono); font-size: 10px; color: var(--ink-3); line-height: 1.2; }
+.cv { position: absolute; top: 3px; right: 5px; font-family: var(--num); font-weight: 700; font-size: 12px; line-height: 1.2; }
+.ck { font-family: var(--num); font-weight: 700; font-size: 14px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.cday.rest .ck { font-family: var(--jp); font-weight: 500; font-size: 11px; }
+.cwk { display: flex; flex-direction: column; justify-content: center; padding: 2px 4px 2px 8px; border-left: 1px solid var(--line-soft); }
+.cwk b { font-family: var(--num); font-size: 15px; line-height: 1.2; font-variant-numeric: tabular-nums; }
+.cwk b em { font-style: normal; font-size: 10px; font-weight: 400; color: var(--ink-3); margin-left: 1px; }
+.cwk .cm { display: block; height: 4px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 3px 0 2px; }
+.cwk .cm i { display: block; height: 100%; background: var(--accent); }
+.cwk.short .cm i { background: var(--warn); }
+.cwk .cl { font-size: 9.5px; color: var(--ink-3); line-height: 1.3; white-space: nowrap; }
+.cal-detail { grid-column: 1 / -1; background: var(--surface-2); border-radius: 6px; padding: 12px 14px; margin: 2px 0 6px; display: flex; flex-direction: column; gap: 12px; }
+.cal-detail .run1 { display: flex; flex-direction: column; gap: 10px; }
+.cal-detail .run1 + .run1 { border-top: 1px solid var(--line); padding-top: 12px; }
+.cal-detail .stats { border: 1px solid var(--line-soft); border-radius: 4px; overflow: hidden; background: var(--surface); }
+.cal-detail .effect { padding: 0; border: 0; }
+.cal-detail .chart-box { padding: 6px 4px 10px; background: var(--surface); border-radius: 4px; }
+.cal-more {
+  appearance: none; border: 1px solid var(--line); background: var(--surface);
+  border-radius: 4px; padding: 7px 14px; cursor: pointer; align-self: center;
+  font-family: var(--jp); font-size: 12.5px; color: var(--ink-2);
+}
+.cal-more:hover { color: var(--accent-ink); border-color: var(--accent); }
+.steps { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 6px; }
+.steps li { display: grid; grid-template-columns: 1.4em 11em 1fr; gap: 2px 10px; align-items: baseline; font-size: 13px; color: var(--ink-2); }
 .steps .ic { font-family: var(--num); font-weight: 700; text-align: center; color: var(--ink-3); }
 .steps li.done .ic { color: var(--good); }
 .steps li.now .ic { color: var(--accent); }
 .steps li.now { color: var(--ink); }
 .steps .w { font-family: var(--mono); font-size: 12px; white-space: nowrap; }
-@media (max-width: 640px) {
-  .steps li { grid-template-columns: 1.4em 1fr; }
-  .steps .x { grid-column: 2; }
-  .phase-now { grid-template-columns: 1fr; gap: 0; }
-  .phase-now dt { padding-top: 6px; }
-  .ktiles { grid-template-columns: repeat(2, 1fr); }
-  .ktile-v { font-size: 20px; }
-}
+.arch { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.arch li { display: grid; grid-template-columns: 3.6em 1fr; gap: 1px 10px; padding: 8px 0; border-bottom: 1px solid var(--line-soft); }
+.arch li:last-child { border-bottom: 0; }
+.arch .ad { font-family: var(--mono); font-size: 12px; color: var(--ink-3); }
+.arch a { color: var(--ink); font-weight: 700; font-size: 13px; text-decoration: none; }
+.arch a:hover { text-decoration: underline; }
+.arch .as { grid-column: 2; font-size: 11px; color: var(--ink-3); }
 
-/* タブの短い名前（スマホ用） */
-.tab .ts { display: none; }
-@media (max-width: 640px) { .tab .tl { display: none; } .tab .ts { display: inline; } }
-
-/* footer */
 footer {
   font-size: 11.5px; color: var(--ink-3); font-family: var(--mono);
-  border-top: 1px solid var(--line); padding-top: 14px;
+  border-top: 1px solid var(--line); padding-top: 12px;
   display: flex; flex-wrap: wrap; gap: 6px 18px;
 }
 .stale { color: var(--crit); font-weight: 500; }
 
-/* ---------- mobile ----------
-   スマホでは横スクロールを起こさず、余白を詰めて情報量を確保する。 */
+/* ---------- スマホ ----------
+   横スクロールを起こさず、余白を詰めて1画面の情報量を確保する。 */
 @media (max-width: 640px) {
   body { font-size: 14.5px; }
-  .wrap { padding: 18px 12px 56px; gap: 16px; }
-
-  .band { padding-bottom: 12px; }
-  .band-title { font-size: 13.5px; }
-  .band-meta { font-size: 10.5px; }
-  .counters { gap: 6px; }
-  .counter { padding: 6px 10px 5px; }
-
-  /* タブは上に貼り付けて、長いページでも切り替えられるようにする。
-     3つあるので狭い画面では折り返さず1行に固定し、入り切らない機種では横スクロールさせる。 */
-  .tabs {
-    position: sticky; top: 0; z-index: 5;
-    background: var(--ground);
-    margin: 0 -12px; padding: 0 12px;
-    box-shadow: 0 6px 12px -10px rgba(22,28,26,.5);
-    flex-wrap: nowrap; overflow-x: auto;
-    scrollbar-width: none; -ms-overflow-style: none;
-  }
-  .tabs::-webkit-scrollbar { display: none; }
-  .tab { padding: 10px 6px 9px; font-size: 12px; gap: 4px; white-space: nowrap; flex: 0 0 auto; }
-  .panel, .panel-inner { gap: 16px; }
-
-  /* 日付と総合評価を1行目に、種別バッジを2行目に落とす。
-     素の折り返しだと評価の左に大きな余白ができてしまう。 */
-  .hero-head { padding: 14px 14px; gap: 8px 10px; }
-  .hero-date { order: 1; }
-  .verdict   { order: 2; margin-left: auto; }
-  .hero-type { order: 3; flex-basis: 100%; }
-  .hero-plan { order: 4; font-size: 12px; margin-top: -2px; }
-  .hero-date { font-size: 25px; }
-  .hero-type { font-size: 14px; padding: 2px 9px; }
-  .verdict-mark { font-size: 34px; }
-  .cmt { padding: 14px 14px 16px; gap: 10px; }
-  .cmt-h { font-size: 14.5px; }
-  /* 狭い画面では ○ とラベルを1行目、本文を2行目に落とす */
-  .pt {
-    grid-template-columns: 15px 1fr;
-    grid-template-areas: "i l" ". t";
-    gap: 1px 8px; font-size: 13px;
-  }
+  .wrap { padding: 14px 12px 56px; gap: 14px; }
+  .tabs { margin: 0 -12px; padding: 0 6px; box-shadow: 0 6px 12px -10px rgba(22,28,26,.5); }
+  .tab { padding: 11px 9px 10px; font-size: 13px; }
+  .tab .tl { display: none; } .tab .ts { display: inline; }
+  .panel, .stack { gap: 14px; }
+  .card-head { padding: 12px 14px 10px; }
+  .card-body { padding: 13px 14px 15px; gap: 12px; }
+  .goal { padding: 14px 16px; gap: 10px; }
+  .goal-days { font-size: 42px; }
+  .goal-chips { margin-left: 0; }
+  .run-head { padding: 13px 14px 11px; gap: 10px; }
+  .run-date { font-size: 21px; }
+  .run-type { font-size: 14px; }
+  .vm { width: 46px; height: 46px; font-size: 26px; }
+  .headline { font-size: 14.5px; }
+  .kstats { grid-template-columns: repeat(2, 1fr); }
+  .kstat:nth-child(2n) { border-right: 0; }
+  .kstat:nth-child(-n+2) { border-bottom: 1px solid var(--line-soft); }
+  .pt { grid-template-columns: 15px 1fr; grid-template-areas: "i l" ". t"; gap: 1px 8px; font-size: 13px; }
   .pt-i { grid-area: i; } .pt-l { grid-area: l; } .pt-t { grid-area: t; }
-  .hbtn {
-    grid-template-columns: 1fr auto 1.5em;
-    grid-template-areas: "d k v" "t t v";
-    gap: 2px 10px; padding: 10px 2px;
-  }
-  .hd { grid-area: d; } .ht { grid-area: t; } .hk { grid-area: k; }
-  .hv { grid-area: v; align-self: center; }
-  .effect { padding: 10px 14px; font-size: 11.5px; }
-  .chart-box { padding: 4px 4px 14px; }
-  .chart-legend { padding: 0 4px 8px; gap: 6px 12px; font-size: 10.5px; }
-
-  .stats { grid-template-columns: repeat(2, 1fr); }
-  .stat { padding: 11px 12px 10px; }
-  .stat-v { font-size: 22px; }
-
-  .card-head { padding: 13px 14px 11px; }
-  .card-head h2 { font-size: 12.5px; }
-  .card-head .sub { font-size: 10.5px; }
-  .card-body { padding: 14px 14px 16px; gap: 14px; }
-
-  .axis p, .lst li { font-size: 13px; }
-  .rx-title { font-size: 22px; }
-  .rx-list { grid-template-columns: 1fr; gap: 1px; }
+  .rx-top { padding: 12px 14px 0; }
+  .rx-title { font-size: 19px; }
+  .rx-list { grid-template-columns: 1fr; gap: 0; }
   .rx-list dt { padding-top: 6px; }
-  .rx-list dd { padding-bottom: 4px; }
-
-  /* 日次データは8列。フォントと余白を詰めて画面内に収める */
+  .cchips { grid-template-columns: repeat(3, 1fr); }
+  .axes, .cols { grid-template-columns: 1fr; }
+  .stats { grid-template-columns: repeat(2, 1fr); }
+  .stat-v { font-size: 21px; }
+  .effect { padding: 9px 14px; font-size: 11.5px; }
+  .chart-box { padding: 4px 4px 12px; }
+  .chart-legend { padding: 0 4px 8px; gap: 5px 10px; font-size: 10.5px; }
+  svg.laps, svg.cond { min-width: 0; }
+  .plan-row { grid-template-columns: 38px 1fr auto; grid-template-areas: "type day km" "type title title" "type note note"; gap: 1px 10px; }
+  .plan-d { grid-area: day; } .plan-row .tp { grid-area: type; align-self: start; margin-top: 3px; }
+  .plan-t { grid-area: title; } .plan-km { grid-area: km; } .plan-n { grid-area: note; }
+  .phase-now { grid-template-columns: 1fr; gap: 0; }
+  .phase-now dt { padding-top: 6px; }
   table.htab { min-width: 0; font-size: 10px; }
   table.htab th, table.htab td { padding: 5px 2px; }
   table.htab th { font-size: 9px; }
-
-  .tot { gap: 14px; }
-  .tot .n { font-size: 19px; }
+  .gloss { grid-template-columns: 1fr; gap: 2px 0; }
+  .gloss dd { margin-bottom: 8px; }
+  .cal { grid-template-columns: repeat(7, minmax(0, 1fr)) 46px; gap: 3px; }
+  .cday { min-height: 46px; padding: 3px 4px 4px; }
+  .ck { font-size: 12.5px; }
+  .cv { font-size: 10.5px; right: 3px; }
+  .cwk { padding: 2px 0 2px 5px; }
+  .cwk b { font-size: 13px; }
+  .cal-detail { padding: 10px; }
+  .steps li { grid-template-columns: 1.4em 1fr; }
+  .steps .x { grid-column: 2; }
+  .tot { gap: 6px 18px; }
+  .tot .n { font-size: 18px; }
   footer { font-size: 10.5px; gap: 4px 12px; }
 }
 
 @media (prefers-reduced-motion: no-preference) {
-  .hero, .card { animation: rise .5s cubic-bezier(.2,.7,.3,1) backwards; }
-  .card:nth-of-type(2) { animation-delay: .05s; }
+  .panel:not([hidden]) > * { animation: rise .45s cubic-bezier(.2,.7,.3,1) backwards; }
+  .panel:not([hidden]) > *:nth-child(2) { animation-delay: .04s; }
+  .panel:not([hidden]) > *:nth-child(3) { animation-delay: .08s; }
   @keyframes rise { from { opacity: 0; transform: translateY(6px); } }
 }
 </style>
@@ -1020,12 +828,14 @@ footer {
 <script>
 (function () {
   const D = DATA;
-  const esc = (s) => String(s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
+  const esc = (s) => String(s == null ? "" : s).replace(/[&<>"]/g, c => ({ "&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;" }[c]));
   const vClass = { "◎": "v-good", "○": "v-good", "△": "v-warn", "✕": "v-crit" };
+  // 休養日の "—" は警告色ではなく薄い字で出す
+  const vcls = (v) => vClass[v] || (v === "—" || !v ? "v-rest" : "v-warn");
+  const JUDGED = ["◎", "○", "△", "✕"];
   const stateName = { good: "良好", ok: "良好", warn: "要調整", crit: "要注意" };
   const toneMark = { good: "○", bad: "△", note: "・" };
-  // 休養日の "—" は警告色ではなく薄い字で出す
-  const vcls = (v) => vClass[v] || (v === "—" ? "v-rest" : "v-warn");
+  const DOW = ["日", "月", "火", "水", "木", "金", "土"];
 
   /* ---------- ペース帯・心拍上限（docs/athlete_profile.md のペースゾーン定義から） ----------
      R 3:35〜3:45 / T 3:58〜4:08 / M 4:15〜4:25 / E 5:30〜6:00。
@@ -1035,55 +845,68 @@ footer {
   const ZONE_EDGE = { r: 232, t: 252, m: 298 };
   const zoneOf = (sec) => sec <= ZONE_EDGE.r ? "z-r" : sec <= ZONE_EDGE.t ? "z-t" : sec <= ZONE_EDGE.m ? "z-m" : "z-e";
   const HR_CAPS = [{ hr: 167, label: "M上限" }, { hr: 176, label: "T上限" }];
+  /* 持続力 … 4:25/km（Mペース帯の上限）以内のラップが何本続いたか。ラップは1kmなので本数≒km。
+               3:20/km より速いラップは流し・短いレペなので数えない（連続も切る）。
+     有酸素の効率 … Eだけの日の、E帯（5:30〜6:00/km）のラップの平均心拍。1本目（アップ）は除く。 */
+  const M_EDGE = 265, STRIDE_EDGE = 200, E_BAND = [330, 360];
 
-  // race.daysLeft が無いときは meta.generatedAt の日付から数える（Routine の書き忘れに備える）
+  // ---------- 日付と数値の小道具 ----------
   const dateOf = (s) => { const m = String(s || "").match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : null; };
-  const daysLeftOf = (x) => {
-    if (!x) return "—";
-    if (Number.isInteger(x.daysLeft)) return x.daysLeft;
-    const base = dateOf(D.meta && D.meta.generatedAt);
-    return (x.date && base) ? Math.round((Date.parse(x.date) - Date.parse(base)) / 86400000) : "—";
-  };
+  const isoAdd = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
+  const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
+  const mondayOf = (iso) => isoAdd(iso, -((new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7));
+  const dowOf = (iso) => DOW[new Date(iso + "T00:00:00Z").getUTCDay()];
+  const mdOf = (iso) => `${+iso.slice(5, 7)}/${+iso.slice(8, 10)}`;
+  const numOf = (v) => { const m = String(v == null ? "" : v).match(/\d+(\.\d+)?/); return m ? Number(m[0]) : null; };
+  const numsOf = (v) => (String(v == null ? "" : v).match(/\d+(\.\d+)?/g) || []).map(Number);
+  const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+  const secOf = (s) => { const p = String(s || "").split(":").map(Number); return p.length > 1 && p.every(isFinite) ? p.reduce((a, v) => a * 60 + v, 0) : null; };
+  const hmsOf = (s) => `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
+  const mmssOf = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
+  const gapOf = (s) => `${Math.floor(s / 60)}分${String(s % 60).padStart(2, "0")}秒`;
+  const kmFmt = (v) => (Math.round(v * 10) / 10).toFixed(1);
 
-  /* ---------- 長文の扱い ----------
-     折りたたみは廃止した（読まれないうえに、毎日その全文を生成するのが
-     そのまま無駄なコストになるため）。DATA 側は要点だけを持ち、
-     箇条書きは先頭の1文を太字にして拾い読みできるようにする。 */
-  function splitLead(v) {
-    const t = String(v == null ? "" : v).trim();
-    const m = t.match(/^[\s\S]{1,120}?。/);
-    if (!m) return { lead: t, rest: "" };
-    return { lead: m[0], rest: t.slice(m[0].length).trim() };
-  }
-  // ラベル付きの説明ブロック（「なぜこの内容か」「読み取り」など）
-  function prose(label, v) {
-    const t = String(v == null ? "" : v).trim();
-    if (!t) return "";
-    return `<div class="blk"><b>${esc(label)}</b><p class="lead">${esc(t)}</p></div>`;
-  }
-  // 箇条書きは先頭の1文を太字にして拾い読みできるようにする
-  function bullet(v) {
-    const { lead, rest } = splitLead(v);
-    return `<b>${esc(lead)}</b>${rest ? " " + esc(rest) : ""}`;
-  }
+  const dataDay = (D.today && D.today.date) || dateOf(D.meta && D.meta.generatedAt);
+  // 閲覧時点の JST の日付（時計が分析日より前なら分析日に合わせる）
+  const viewDay = (() => {
+    const now = new Date(Date.now() + 9 * 3600e3).toISOString().slice(0, 10);
+    return dataDay && now < dataDay ? dataDay : now;
+  })();
+  /* 分析は毎日12:00に作られる。翌朝（tomorrow.date の日）に開いたときは、
+     「明日のメニュー」が今日これから走る練習になるので、ホームの先頭に出して呼び方も変える。
+       same    … 分析した日のうちに見ている
+       morning … 翌日（tomorrow.date）に見ている
+       stale   … それより後。更新が止まっている */
+  const MODE = (() => {
+    const tm = D.tomorrow && D.tomorrow.date;
+    if (!tm || viewDay < tm) return "same";
+    return viewDay === tm ? "morning" : "stale";
+  })();
+  const daysTo = (iso) => (iso ? Math.max(0, dayDiff(viewDay, iso)) : "—");
+
+  // 長いレース名をチップ用に縮める（例: 水戸黄門漫遊マラソン → 水戸黄門）
+  const shortRace = (n) => String(n || "").replace(/[（(][^）)]*[）)]/g, "").replace(/(漫遊)?マラソン.*$/, "").replace(/なのはな$/, "").trim() || n;
 
   // スマホでは横スクロールさせずに1画面へ収める。viewBox を狭くして
   // その分だけ SVG 内の文字を大きめの単位で描く（描画後の実寸は約10〜11px）。
   const narrowMQ = window.matchMedia("(max-width: 640px)");
   let NARROW = narrowMQ.matches;
-  // SVG 内フォントの基準サイズ（viewBox 単位）
   const fs = (desktop, mobile) => NARROW ? mobile : desktop;
 
-  /* ---------- lap profile chart ---------- */
+  const prose = (label, v) => {
+    const t = String(v == null ? "" : v).trim();
+    return t ? `<div class="blk"><b>${esc(label)}</b><p class="lead">${esc(t)}</p></div>` : "";
+  };
+
+  /* ---------- ラップのグラフ ---------- */
   function lapChart(laps) {
     if (!laps || !laps.length) return "";
-    const W = NARROW ? 360 : 900, H = NARROW ? 230 : 260;
+    const W = NARROW ? 360 : 900, H = NARROW ? 230 : 250;
     const padL = NARROW ? 26 : 44, padR = NARROW ? 16 : 46;
-    const padT = 16, padB = NARROW ? 34 : 40;
+    const padT = 16, padB = NARROW ? 34 : 38;
     const iw = W - padL - padR, ih = H - padT - padB;
     // 本数が多いとラベルが潰れるので、狭い画面では間引く
     const stride = Math.max(1, Math.ceil(laps.length / (NARROW ? 6 : 24)));
-
     const secs = laps.map(l => l.sec);
     const hrs = laps.map(l => l.hr).filter(h => h != null);
     const sMin = Math.min(...secs), sMax = Math.max(...secs);
@@ -1091,16 +914,12 @@ footer {
     const sHi = sMax + (sMax - sMin) * 0.12 + 6;
     const hLo = hrs.length ? Math.min(...hrs) - 12 : 0;
     const hHi = hrs.length ? Math.max(...hrs) + 12 : 1;
-
     const bw = iw / laps.length;
     const barW = Math.min(bw * 0.62, 42);
-
     const labelled = (i) => i % stride === 0 || i === laps.length - 1;
     // 心拍ラベルのY座標を先に出しておく（ペースラベルとの衝突判定に使う）
-    const hrY = laps.map(l => l.hr == null ? null
-      : padT + ih - ((l.hr - hLo) / (hHi - hLo)) * ih);
-
-    // pace bars: faster (smaller sec) = taller
+    const hrY = laps.map(l => l.hr == null ? null : padT + ih - ((l.hr - hLo) / (hHi - hLo)) * ih);
+    // ペースのバー（速いほど高い）
     const bars = laps.map((l, i) => {
       const t = (sHi - l.sec) / (sHi - sLo);
       const h = Math.max(3, t * ih);
@@ -1110,30 +929,22 @@ footer {
       // 心拍ラベルと重なる位置ならペースは出さない（バーの高さが残るので情報は失われない）
       const clash = hrY[i] != null && labelled(i) && Math.abs((y - 6) - (hrY[i] - 10)) < (NARROW ? 16 : 14);
       const show = labelled(i) && !clash;
-      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="var(--${zone})" opacity=".85"><title>Lap ${l.n} — ${esc(l.pace)}/km, HR ${l.hr ?? "-"}</title></rect>
+      return `<rect x="${x.toFixed(1)}" y="${y.toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="var(--${zone})" opacity=".88"><title>Lap ${l.n} — ${esc(l.pace)}/km, HR ${l.hr ?? "-"}</title></rect>
         ${show ? `<text x="${(x + barW / 2).toFixed(1)}" y="${(y - 6).toFixed(1)}" class="c-pace">${esc(l.pace)}</text>` : ""}`;
     }).join("");
-
-    // hr line
-    const pts = laps.map((l, i) => hrY[i] == null ? null
-      : [padL + bw * i + bw / 2, hrY[i], l.hr, i]).filter(Boolean);
+    const pts = laps.map((l, i) => hrY[i] == null ? null : [padL + bw * i + bw / 2, hrY[i], l.hr, i]).filter(Boolean);
     const path = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
     const dots = pts.map(p =>
-      `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${NARROW ? 2.6 : 3.4}" fill="var(--surface)" stroke="var(--crit)" stroke-width="2"/>
-       ${labelled(p[3])
-         ? `<text x="${p[0].toFixed(1)}" y="${(p[1] - 10).toFixed(1)}" class="c-hr">${p[2]}</text>` : ""}`).join("");
-
+      `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="${NARROW ? 2.8 : 3.6}" fill="var(--surface)" stroke="var(--crit)" stroke-width="2"/>
+       ${labelled(p[3]) ? `<text x="${p[0].toFixed(1)}" y="${(p[1] - 10).toFixed(1)}" class="c-hr">${p[2]}</text>` : ""}`).join("");
     const xlab = laps.map((l, i) => labelled(i)
       ? `<text x="${(padL + bw * i + bw / 2).toFixed(1)}" y="${H - (NARROW ? 12 : 14)}" class="c-ax">${l.n}</text>` : "").join("");
-
     // 心拍の上限線（M上限167 / T上限176）。描画範囲に入るときだけ引き、超えた本が一目で分かるようにする
     const hrRef = hrs.length ? HR_CAPS.filter(c => c.hr > hLo && c.hr < hHi).map(c => {
       const y = padT + ih - ((c.hr - hLo) / (hHi - hLo)) * ih;
-      return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}"
-                stroke="var(--crit)" stroke-width="1" stroke-dasharray="3 4" opacity=".45"/>
+      return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--crit)" stroke-width="1" stroke-dasharray="3 4" opacity=".45"/>
         <text x="${W - padR}" y="${(y - 3).toFixed(1)}" class="c-ref">${c.label} ${c.hr}</text>`;
     }).join("") : "";
-
     const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     return `<div class="chart-legend">
         <span><i style="background:var(--z-r)"></i>R域 〜${mmss(ZONE_EDGE.r)}</span>
@@ -1154,215 +965,142 @@ footer {
         <line x1="${padL}" y1="${padT + ih}" x2="${W - padR}" y2="${padT + ih}" stroke="var(--line)" stroke-width="1"/>
         <text x="${NARROW ? 2 : 6}" y="${padT + 10}" class="c-side">速い</text>
         <text x="${NARROW ? 2 : 6}" y="${padT + ih}" class="c-side">遅い</text>
-        ${bars}
-        ${hrRef}
+        ${bars}${hrRef}
         <path d="${path}" fill="none" stroke="var(--crit)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".75"/>
-        ${dots}
-        ${xlab}
+        ${dots}${xlab}
       </svg></div>`;
   }
 
   /* ---------- グラフの元データ（ラップ一覧） ----------
      グラフのラベルは間引かれるうえ、バーの高さだけではラップタイムが読めない。
-     グラフ直下に開閉式の表を置き、全ラップのペースと心拍を数値で出す。
      開閉状態は key ごとに覚えておき、画面幅の切り替えによる再描画でも閉じないようにする。 */
   const lapOpen = new Set();
-  const ZONES = [
-    { cls: "z-r", name: "R" }, { cls: "z-t", name: "T" },
-    { cls: "z-m", name: "M" }, { cls: "z-e", name: "E" }
-  ];
+  const ZONES = [{ cls: "z-r", name: "R" }, { cls: "z-t", name: "T" }, { cls: "z-m", name: "M" }, { cls: "z-e", name: "E" }];
   // 域ごとの心拍上限（M上限167 / T上限176）。超えたラップの心拍を赤字にする
   const capOf = { "z-m": HR_CAPS[0].hr, "z-t": HR_CAPS[1].hr };
-  const mmssOf = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
-
   function lapTable(laps, key) {
     if (!laps || !laps.length) return "";
     const zoneName = (cls) => ZONES.find(z => z.cls === cls).name;
-    // 域ごとの本数・平均ペース・平均心拍。メインの区間がどのペースだったかを一行で読めるようにする
     const sum = ZONES.map(z => {
       const ls = laps.filter(l => zoneOf(l.sec) === z.cls);
       if (!ls.length) return "";
       const hs = ls.map(l => l.hr).filter(h => h != null);
       const avgSec = ls.reduce((a, l) => a + l.sec, 0) / ls.length;
-      const avgHr = hs.length ? Math.round(hs.reduce((a, h) => a + h, 0) / hs.length) : null;
-      return `<span><i class="zn" style="background:var(--${z.cls})"></i>${z.name}域 ${ls.length}本
-        平均 <b>${mmssOf(avgSec)}</b>/km${avgHr != null ? ` ／ HR <b>${avgHr}</b>` : ""}</span>`;
+      const avgHr = hs.length ? Math.round(avg(hs)) : null;
+      return `<span><i class="zn" style="background:var(--${z.cls})"></i>${z.name}域 ${ls.length}本 平均 <b>${mmssOf(avgSec)}</b>/km${avgHr != null ? ` ／ HR <b>${avgHr}</b>` : ""}</span>`;
     }).join("");
     const rows = laps.map(l => {
       const z = zoneOf(l.sec);
       const over = l.hr != null && capOf[z] != null && l.hr > capOf[z];
-      return `<tr>
-        <td>${esc(l.n)}</td>
-        <td><i class="zn" style="background:var(--${z})"></i>${zoneName(z)}</td>
+      return `<tr><td>${esc(l.n)}</td><td><i class="zn" style="background:var(--${z})"></i>${zoneName(z)}</td>
         <td>${esc(l.pace || mmssOf(l.sec))}</td>
-        <td class="${over ? "over" : ""}">${l.hr ?? "—"}${over ? ` <span class="d">&gt;${capOf[z]}</span>` : ""}</td>
-      </tr>`;
+        <td class="${over ? "over" : ""}">${l.hr ?? "—"}${over ? ` <span class="d">&gt;${capOf[z]}</span>` : ""}</td></tr>`;
     }).join("");
     return `<details class="lapdata" data-lap="${esc(key)}" ${lapOpen.has(key) ? "open" : ""}>
         <summary>ラップ一覧（ペース・心拍）<em>${laps.length}本</em></summary>
         <div class="lapsum">${sum}</div>
-        <table class="laptbl">
-          <thead><tr><th>Lap</th><th>域</th><th>ペース /km</th><th>心拍 bpm</th></tr></thead>
-          <tbody>${rows}</tbody>
-        </table>
+        <table class="laptbl"><thead><tr><th>Lap</th><th>域</th><th>ペース /km</th><th>心拍 bpm</th></tr></thead><tbody>${rows}</tbody></table>
       </details>`;
   }
 
-  /* ---------- condition charts ----------
-     睡眠と HRV は別々のグラフにする。1枚に重ねると凡例がどちらの系列のものか
-     分かりにくくなるため、それぞれの凡例をそのグラフの直上に置く。
-     トレーニング準備度は睡眠とHRVの合成スコアなのでグラフにはしない
-     （同じ情報を二重に数えることになる）。タイルと表には残す。 */
-
+  /* ---------- コンディションのグラフ ----------
+     睡眠と HRV は別々のグラフにする。1枚に重ねると凡例がどちらの系列のものか分かりにくくなる。
+     トレーニング準備度は睡眠とHRVの合成スコアなのでグラフにはしない（同じ情報を二重に数える）。 */
   const chartCss = () => `
     .k-sl{font-family:var(--mono);font-size:${fs(10.5, 12)}px;fill:var(--ink-2);text-anchor:middle}
     .k-sl.short{fill:var(--warn);font-weight:500}
-    .k-hrv{font-family:var(--mono);font-size:${fs(10.5, 12)}px;fill:var(--z-t);text-anchor:middle;font-weight:500}
+    .k-hrv{font-family:var(--mono);font-size:${fs(10.5, 12)}px;fill:var(--ink);text-anchor:middle;font-weight:500}
     .k-ax{font-family:var(--mono);font-size:${fs(10, 11)}px;fill:var(--ink-3);text-anchor:middle}
-    .k-band{font-family:var(--mono);font-size:${fs(9.5, 10.5)}px;fill:var(--ink-3);text-anchor:end}
-    .k-band.start{text-anchor:start}`;
-
+    .k-band{font-family:var(--mono);font-size:${fs(9.5, 10.5)}px;fill:var(--ink-3);text-anchor:end}`;
   const hhmm = (m) => `${Math.floor(m / 60)}h${String(Math.round(m % 60)).padStart(2, "0")}m`;
   // スマホでは「7h13m」だと幅が足りないので「7:13」に縮める
-  const hshort = (m) => NARROW
-    ? `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, "0")}`
-    : hhmm(m);
-  // X軸ラベル。スマホは「22(土)」、デスクトップは「8/22(土)」
-  const dayLabel = (d) => NARROW
-    ? `${String(d.d).split("/").pop()}(${d.dow})`
-    : `${d.d}(${d.dow})`;
+  const hshort = (m) => NARROW ? `${Math.floor(m / 60)}:${String(Math.round(m % 60)).padStart(2, "0")}` : hhmm(m);
+  const dayLabel = (d) => NARROW ? `${String(d.d).split("/").pop()}(${d.dow})` : `${d.d}(${d.dow})`;
 
-  /* 睡眠: 深い / REM / 浅い の積み上げ。濃いほど深い眠り。 */
   function sleepChart(h) {
     const days = (h && h.days) || [];
     if (!days.some(d => d.sleepMin != null)) return "";
-
-    const W = NARROW ? 360 : 900, H = NARROW ? 200 : 212;
-    const padL = NARROW ? 30 : 42, padR = NARROW ? 8 : 26;
-    const padT = 22, padB = NARROW ? 26 : 30;
-    const iw = W - padL - padR, ih = H - padT - padB;
-    const base = padT + ih;
-
+    const W = NARROW ? 360 : 900, H = NARROW ? 200 : 206;
+    const padL = NARROW ? 30 : 42, padR = NARROW ? 8 : 26, padT = 22, padB = NARROW ? 26 : 30;
+    const iw = W - padL - padR, ih = H - padT - padB, base = padT + ih;
     const target = h.sleepTargetMin ?? 420;
     const max = Math.max(...days.map(d => d.sleepMin || 0), target) * 1.14;
     const y = (m) => base - (m / max) * ih;
-
-    const bw = iw / days.length;
-    const barW = Math.min(bw * 0.5, 36);
-
-    const layers = [
-      { key: "sleepDeep",  label: "深い", op: 1 },
-      { key: "sleepRem",   label: "REM",  op: .58 },
-      { key: "sleepLight", label: "浅い", op: .26 }
-    ];
-
+    const bw = iw / days.length, barW = Math.min(bw * 0.5, 36);
+    const layers = [{ key: "sleepDeep", label: "深い", op: 1 }, { key: "sleepRem", label: "REM", op: .58 }, { key: "sleepLight", label: "浅い", op: .26 }];
     const bars = days.map((d, i) => {
       const total = d.sleepMin;
       if (total == null) return "";
       const x = padL + bw * i + (bw - barW) / 2;
       const parts = layers.filter(l => d[l.key] != null);
       let acc = 0;
-      // 内訳が取れていなければ合計だけの単色バーにする
       const segs = (parts.length ? parts : [{ key: null, label: "睡眠", op: .7 }]).map(l => {
         const v = l.key ? d[l.key] : total;
-        const yTop = y(acc + v), hgt = Math.max(1, y(acc) - yTop);
+        const yTop = y(acc + v), hgt = Math.max(1, y(acc) - yTop - 1);
         acc += v;
-        return `<rect x="${x.toFixed(1)}" y="${yTop.toFixed(1)}" width="${barW.toFixed(1)}"
-                  height="${hgt.toFixed(1)}" fill="var(--accent)" opacity="${l.op}">
-                  <title>${esc(d.d)} ${l.label} ${hhmm(v)}</title></rect>`;
+        return `<rect x="${x.toFixed(1)}" y="${yTop.toFixed(1)}" width="${barW.toFixed(1)}" height="${hgt.toFixed(1)}" fill="var(--accent)" opacity="${l.op}"><title>${esc(d.d)} ${l.label} ${hhmm(v)}</title></rect>`;
       }).join("");
-      const short = total < target;
-      return segs + `<text x="${(x + barW / 2).toFixed(1)}" y="${(y(total) - 6).toFixed(1)}"
-        class="k-sl${short ? " short" : ""}">${hshort(total)}</text>`;
+      return segs + `<text x="${(x + barW / 2).toFixed(1)}" y="${(y(total) - 6).toFixed(1)}" class="k-sl${total < target ? " short" : ""}">${hshort(total)}</text>`;
     }).join("");
-
-    const xlab = days.map((d, i) =>
-      `<text x="${(padL + bw * i + bw / 2).toFixed(1)}" y="${H - (NARROW ? 8 : 10)}" class="k-ax">${esc(dayLabel(d))}</text>`).join("");
-
+    const xlab = days.map((d, i) => `<text x="${(padL + bw * i + bw / 2).toFixed(1)}" y="${H - (NARROW ? 8 : 10)}" class="k-ax">${esc(dayLabel(d))}</text>`).join("");
     return `<div class="chartblock"><div class="chart-legend">
         <span><i style="background:var(--accent)"></i>深い睡眠</span>
         <span><i style="background:var(--accent);opacity:.58"></i>REM睡眠</span>
         <span><i style="background:var(--accent);opacity:.26"></i>浅い睡眠</span>
         <span class="ref">破線 = 目標 ${hhmm(target)}</span>
       </div>
-      <div class="chart-scroll"><svg class="cond" viewBox="0 0 ${W} ${H}" role="img"
-        aria-label="直近7日の睡眠時間と内訳">
+      <div class="chart-scroll"><svg class="cond" viewBox="0 0 ${W} ${H}" role="img" aria-label="直近7日の睡眠時間と内訳">
         <style>${chartCss()}</style>
         <line x1="${padL}" y1="${base}" x2="${W - padR}" y2="${base}" stroke="var(--line)" stroke-width="1"/>
-        <line x1="${padL}" y1="${y(target).toFixed(1)}" x2="${W - padR}" y2="${y(target).toFixed(1)}"
-              stroke="var(--warn)" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/>
+        <line x1="${padL}" y1="${y(target).toFixed(1)}" x2="${W - padR}" y2="${y(target).toFixed(1)}" stroke="var(--warn)" stroke-width="1" stroke-dasharray="3 4" opacity=".55"/>
         <text x="${padL - 5}" y="${(y(target) + 3).toFixed(1)}" class="k-band">${hshort(target)}</text>
-        ${bars}
-        ${xlab}
+        ${bars}${xlab}
       </svg></div></div>`;
   }
 
-  /* HRV: バランス域の帯 + 前夜平均のライン */
   function hrvChart(h) {
     const days = (h && h.days) || [];
     const hrvs = days.map(d => d.hrv).filter(v => v != null);
     if (!hrvs.length) return "";
-
     const W = NARROW ? 360 : 900, H = NARROW ? 142 : 150;
-    const padL = NARROW ? 30 : 42, padR = NARROW ? 8 : 26;
-    const padT = 20, padB = NARROW ? 24 : 28;
+    const padL = NARROW ? 30 : 42, padR = NARROW ? 8 : 26, padT = 20, padB = NARROW ? 24 : 28;
     const iw = W - padL - padR, ih = H - padT - padB;
-
     const bl = h.baseline || {};
     const lo = Math.min(...hrvs, bl.hrvLow ?? Infinity) - 8;
     const hi = Math.max(...hrvs, bl.hrvHigh ?? -Infinity) + 8;
     const y = (v) => padT + ih - ((v - lo) / (hi - lo)) * ih;
-
     const bw = iw / days.length;
-
     const band = (bl.hrvLow != null && bl.hrvHigh != null)
-      ? `<rect x="${padL}" y="${y(bl.hrvHigh).toFixed(1)}" width="${iw}"
-           height="${(y(bl.hrvLow) - y(bl.hrvHigh)).toFixed(1)}"
-           fill="var(--accent)" opacity=".08"/>
+      ? `<rect x="${padL}" y="${y(bl.hrvHigh).toFixed(1)}" width="${iw}" height="${(y(bl.hrvLow) - y(bl.hrvHigh)).toFixed(1)}" fill="var(--accent)" opacity=".08"/>
          <text x="${padL - 5}" y="${(y(bl.hrvHigh) + 4).toFixed(1)}" class="k-band">${bl.hrvHigh}</text>
-         <text x="${padL - 5}" y="${(y(bl.hrvLow) + 4).toFixed(1)}" class="k-band">${bl.hrvLow}</text>`
-      : "";
-
-    const pts = days.map((d, i) => d.hrv == null ? null
-      : [padL + bw * i + bw / 2, y(d.hrv), d.hrv]).filter(Boolean);
+         <text x="${padL - 5}" y="${(y(bl.hrvLow) + 4).toFixed(1)}" class="k-band">${bl.hrvLow}</text>` : "";
+    const pts = days.map((d, i) => d.hrv == null ? null : [padL + bw * i + bw / 2, y(d.hrv), d.hrv]).filter(Boolean);
     const path = pts.map((p, i) => `${i ? "L" : "M"}${p[0].toFixed(1)},${p[1].toFixed(1)}`).join(" ");
-    const dots = pts.map(p =>
-      `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="3.2" fill="var(--surface)" stroke="var(--z-t)" stroke-width="2"/>
+    const low = (v) => bl.hrvLow != null && v < bl.hrvLow;
+    const dots = pts.map(p => `<circle cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="4" fill="var(--surface)" stroke="${low(p[2]) ? "var(--warn)" : "var(--accent)"}" stroke-width="2"/>
        <text x="${p[0].toFixed(1)}" y="${(p[1] - 9).toFixed(1)}" class="k-hrv">${p[2]}</text>`).join("");
-
-    const xlab = days.map((d, i) =>
-      `<text x="${(padL + bw * i + bw / 2).toFixed(1)}" y="${H - (NARROW ? 7 : 9)}" class="k-ax">${esc(dayLabel(d))}</text>`).join("");
-
+    const xlab = days.map((d, i) => `<text x="${(padL + bw * i + bw / 2).toFixed(1)}" y="${H - (NARROW ? 7 : 9)}" class="k-ax">${esc(dayLabel(d))}</text>`).join("");
     return `<div class="chartblock"><div class="chart-legend">
-        <span><i style="background:var(--z-t);border-radius:50%"></i>HRV 前夜平均 ms</span>
-        ${bl.hrvLow != null ? `<span class="ref">帯 = バランス域 ${bl.hrvLow}–${bl.hrvHigh}（ここを下抜けしたら要注意）</span>` : ""}
+        <span><i style="background:var(--accent);border-radius:50%"></i>HRV 前夜平均 ms</span>
+        ${bl.hrvLow != null ? `<span class="ref">帯 = バランス域 ${bl.hrvLow}–${bl.hrvHigh}（下抜けた点は橙）</span>` : ""}
       </div>
-      <div class="chart-scroll"><svg class="cond" viewBox="0 0 ${W} ${H}" role="img"
-        aria-label="直近7日のHRVの推移">
+      <div class="chart-scroll"><svg class="cond" viewBox="0 0 ${W} ${H}" role="img" aria-label="直近7日のHRVの推移">
         <style>${chartCss()}</style>
         ${band}
         <line x1="${padL}" y1="${padT + ih}" x2="${W - padR}" y2="${padT + ih}" stroke="var(--line)" stroke-width="1"/>
-        <path d="${path}" fill="none" stroke="var(--z-t)" stroke-width="2"
-              stroke-linejoin="round" stroke-linecap="round" opacity=".75"/>
-        ${dots}
-        ${xlab}
+        <path d="${path}" fill="none" stroke="var(--accent)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" opacity=".6"/>
+        ${dots}${xlab}
       </svg></div></div>`;
   }
 
-  /* ---------- condition table ---------- */
-  // 歩数はこの値以上の日を色で立てる（走行込み）。9/9・9/10・9/24 のように 19,000〜23,000歩の日に
-  // BB最低が 11〜14 まで落ちており、回復を削る主因になっていたため。
+  // 歩数はこの値以上の日を色で立てる（走行込み）。19,000〜23,000歩の日に BB最低が 11〜14 まで落ちていたため
   const STEPS_HIGH = 18000;
-
   function condTable(days, bl) {
-    const num = (v, suffix) => v == null ? "—" : `${v}${suffix || ""}`;
+    const num = (v) => v == null ? "—" : `${v}`;
     const hm = (m) => m == null ? "—" : `${Math.floor(m / 60)}h${String(m % 60).padStart(2, "0")}m`;
-    // 狭い画面では 20,145 → 20.1k に縮める（9列を1画面に収めるため）
     const stepsOf = (v) => v == null ? "—" : NARROW ? `${(v / 1000).toFixed(1)}k` : Number(v).toLocaleString("en-US");
     const lowHrv = bl && bl.hrvLow != null ? bl.hrvLow : null;
-    // 警戒側の値を色で立てる: 睡眠<目標 / HRV<バランス域下限 / BB最低<20 / 準備度<50 / 歩数≥18,000
     const target = (bl && bl.sleepTargetMin) || 420;
-    // 歩数は Routine が書いたときだけ列を出す（古い DATA には無い）
     const hasSteps = days.some(d => d.steps != null);
     const rows = days.map(d => `<tr>
         <td>${esc(d.d)}(${esc(d.dow)})</td>
@@ -1376,104 +1114,15 @@ footer {
         ${hasSteps ? `<td class="${d.steps != null && d.steps >= STEPS_HIGH ? "lo" : ""}">${stepsOf(d.steps)}</td>` : ""}
       </tr>`).join("");
     return `<div class="htab-scroll"><table class="htab">
-      <thead><tr>
-        <th>日付</th><th>睡眠</th><th>睡眠時間</th><th>HRV</th>
-        <th>安静心拍</th><th>BB最低</th><th>ストレス</th><th>準備度</th>${hasSteps ? "<th>歩数</th>" : ""}
-      </tr></thead>
-      <tbody>${rows}</tbody>
-    </table></div>`;
+      <thead><tr><th>日付</th><th>睡眠</th><th>睡眠時間</th><th>HRV</th><th>安静心拍</th><th>BB最低</th><th>ストレス</th><th>準備度</th>${hasSteps ? "<th>歩数</th>" : ""}</tr></thead>
+      <tbody>${rows}</tbody></table></div>`;
   }
 
-  /* ---------- condition card ---------- */
-  function condCard(h) {
-    if (!h || !h.days || !h.days.length) return "";
-    const cmp = (s) => {
-      if (s.avg == null) return "";
-      const bits = [`週平均 ${s.avg}`];
-      if (s.prev != null) {
-        const pct = s.prev !== 0 ? Math.round((s.avg / s.prev - 1) * 100) : 0;
-        const arrow = Math.abs(pct) < 3 ? "→" : (pct > 0 ? "▲" : "▼");
-        // 安静時心拍やストレスは上がるほど悪い。矢印の向きではなく良し悪しで色を決める。
-        const better = s.lowerIsBetter ? pct < 0 : pct > 0;
-        const dir = Math.abs(pct) < 3 ? "flat" : (better ? "up" : "down");
-        bits.push(`<span class="d ${dir}">${arrow} 前週 ${s.prev}${pct !== 0 ? `（${pct > 0 ? "+" : ""}${pct}%）` : ""}</span>`);
-      }
-      return `<div class="hstat-cmp">${bits.join(" ")}</div>`;
-    };
-    const f = h.fitness || {};
-    const r = f.race || {};
-    const vo2delta = (f.vo2max != null && f.vo2maxPrev != null)
-      ? (f.vo2max - f.vo2maxPrev).toFixed(1) : null;
-    const races = [["5K", r.k5], ["10K", r.k10], ["ハーフ", r.half], ["フル", r.full]]
-      .filter(x => x[1])
-      .map(x => `<div><span class="t">${esc(x[1])}</span><span class="l">${esc(x[0])}</span></div>`).join("");
-
-    return `<section class="card">
-      <div class="card-head"><h2>健康データ</h2><span class="sub">${esc(h.label || "")}</span></div>
-      <div class="card-body">
-        <div class="hstats">
-          ${h.summary.map(s => `<div class="hstat ${s.state === "ok" ? "" : esc(s.state)}">
-            <div class="hstat-l">${esc(s.label)}</div>
-            <div class="hstat-v">${s.value == null ? "—" : esc(s.value)}${s.unit ? `<em>${esc(s.unit)}</em>` : ""}</div>
-            ${cmp(s)}
-            <div class="hstat-n">${s.note ? esc(s.note) : "&nbsp;"}</div>
-          </div>`).join("")}
-        </div>
-        ${prose("読み取り", h.read)}
-        <div class="divider"></div>
-        <div class="sub-h">睡眠</div>
-        ${sleepChart(h)}
-        <div class="sub-h">HRV（心拍変動）</div>
-        ${hrvChart(h)}
-        <div class="sub-h">日次データ</div>
-        ${condTable(h.days, { ...(h.baseline || {}), sleepTargetMin: h.sleepTargetMin })}
-        <p class="hnote">色付きの値は警戒側（睡眠が目標未満・HRV がバランス域の下・BB最低 20 未満・準備度 50 未満${h.days.some(d => d.steps != null) ? `・歩数 ${STEPS_HIGH.toLocaleString("en-US")} 以上` : ""}）。「—」は Garmin から取れていない日（当日の BB最低・ストレス・歩数は一日が終わるまで確定しないので空けてある）。</p>
-        ${(f.vo2max != null || races) ? `<div class="divider"></div>
-        <div class="fitrow">
-          ${f.vo2max != null ? `<div><span class="n">${f.vo2max}</span>
-            <span class="l">VO2max${vo2delta !== null
-              ? `（週初 ${f.vo2maxPrev} → ${vo2delta >= 0 ? "+" : ""}${vo2delta}）` : ""}</span></div>` : ""}
-          ${f.trainingStatus ? `<div><span class="n">${esc(f.trainingStatus)}</span>
-            <span class="l">トレーニングステータス</span></div>` : ""}
-          ${races ? `<div><div class="racelist">${races}</div>
-            <span class="l" style="margin-top:4px">Garmin レース予測タイム</span></div>` : ""}
-        </div>` : ""}
-        <div class="divider"></div>
-        <div class="sub-h">指標の見かた</div>
-        <dl class="gloss">
-          <dt>HRV（心拍変動）</dt>
-          <dd>拍と拍の間隔のゆらぎ（ms）。睡眠中に測る。回復モード（副交感神経）が優位なほど高い。
-            疲労・ストレス・暑熱・飲酒で下がる。個人差が大きいので絶対値ではなく、
-            Garmin が直近3週間から作る「バランス域」との相対で見る。下抜けが続いたら要注意。</dd>
-          <dt>安静時心拍</dt>
-          <dd>睡眠中の最も低い心拍。平常より +3bpm 以上の日が続くときは、疲労か体調不良を疑う。</dd>
-          <dt>睡眠の内訳</dt>
-          <dd>深い睡眠は身体の回復（成長ホルモン分泌）、REM睡眠は神経系の回復に効く。
-            合計時間が足りていても深い睡眠が短い夜が続くと、脚の回復が追いつかない。</dd>
-          <dt>ボディバッテリー</dt>
-          <dd>HRV・ストレス・活動量から算出する 0〜100 の残量計。最低値が 20 を切る日が続くのは
-            使い切っているサイン。</dd>
-          <dt>トレーニング準備度</dt>
-          <dd>睡眠・睡眠負債・HRV・直近の練習負荷・ストレスをまとめた 0〜100 の合成スコア。
-            上の各指標の要約なので、グラフではなくこの数値だけを見れば足りる。</dd>
-        </dl>
-      </div>
-    </section>`;
-  }
-
-  /* ---------- 明日のメニューの構成 ----------
-     segments[] は { zone, km, label, pace, hr, note }。
-     zone は週プランと同じ E / M / T / R / rest。 */
-  const numOf = (v) => {
-    const m = String(v == null ? "" : v).match(/\d+(\.\d+)?/);
-    return m ? Number(m[0]) : null;
-  };
-
+  /* ---------- 共通の部品 ---------- */
   function segTable(segs) {
     if (!segs || !segs.length) return "";
     return `<div class="segs">${segs.map(x => {
-      const meta = [x.pace ? `ペース ${x.pace}` : null, x.hr ? `HR ${x.hr}` : null]
-        .filter(Boolean).join("　／　");
+      const meta = [x.pace && x.pace !== "—" ? `${x.pace} /km` : null, x.hr && x.hr !== "—" ? `HR ${x.hr}` : null].filter(Boolean).join("　");
       return `<div class="segrow">
         <span class="tp ${esc(x.zone || "E")}">${x.zone === "rest" ? "休" : esc(x.zone || "E")}</span>
         <span class="seg-n">${esc(x.label || "")}</span>
@@ -1482,50 +1131,6 @@ footer {
         ${x.note ? `<span class="seg-o">${esc(x.note)}</span>` : ""}
       </div>`;
     }).join("")}</div>`;
-  }
-
-  /* ---------- week plan（明日から1週間・要点だけ） ---------- */
-  function planCard(p) {
-    if (!p || !p.days || !p.days.length) return "";
-    const rows = p.days.map((d, i) => `<div class="plan-row ${d.type === "rest" ? "rest" : ""}">
-        <span class="plan-d">${esc(d.d)}(${esc(d.dow)})${i === 0 ? `<span class="tm">明日</span>` : ""}</span>
-        <span class="tp ${esc(d.type)}">${d.type === "rest" ? "休" : esc(d.type)}</span>
-        <span class="plan-t">${esc(d.title)}</span>
-        <span class="plan-km">${d.km == null || d.km === "0" ? "—" : `${esc(d.km)}<em>km</em>`}</span>
-        <span class="plan-n">${d.note ? esc(d.note) : ""}</span>
-      </div>`).join("");
-    // 要約行。手順書の自己チェック（質練習の本数・休養日・週間距離）がそのまま目で確認できるようにする
-    const sumKm = p.days.reduce((a, d) => a + (numOf(d.km) || 0), 0);
-    const quality = p.days.filter(d => ["M", "T", "R"].includes(d.type)).length;
-    const restDays = p.days.filter(d => d.type === "rest").length;
-    const summary = `<div class="plan-sum">
-        <span>予定 <b>${esc(p.totalKm || sumKm)}</b> km</span>
-        <span>質練習 <b>${quality}</b> 本</span>
-        <span>走る日 <b>${p.days.length - restDays}</b> 日</span>
-        <span>休養 <b>${restDays}</b> 日</span>
-      </div>`;
-    return `<section class="card">
-      <div class="card-head"><h2>この先1週間</h2><span class="sub">${esc(p.label || "")}</span></div>
-      <div class="card-body">
-        ${p.aim || p.policy ? `<div class="blk"><b>ねらい</b><p class="lead">${esc(p.aim || p.policy)}</p></div>` : ""}
-        ${summary}
-        <div class="plan">${rows}</div>
-      </div>
-    </section>`;
-  }
-
-  /* ---------- week bars ---------- */
-  function weekBars(w) {
-    const max = Math.max(...w.days.map(d => d.km), 1);
-    return w.days.map(d => {
-      const h = d.km > 0 ? Math.max(4, (d.km / max) * 74) : 4;
-      const cls = d.km > 0 ? d.type : "rest";
-      return `<div class="wd">
-        <span class="wd-km">${d.km > 0 ? d.km.toFixed(1) : "—"}</span>
-        <span class="wd-bar ${cls}" style="height:${h.toFixed(0)}px" title="${esc(d.d)} ${d.km}km${d.hr ? " HR" + d.hr : ""}"></span>
-        <span class="wd-d">${esc(d.d)}<br>${esc(d.dow)}</span>
-      </div>`;
-    }).join("");
   }
 
   function statsGrid(stats) {
@@ -1537,24 +1142,6 @@ footer {
       </div>`).join("")}</div>`;
   }
 
-  // 履歴のラップは "sec:hr,sec:hr,…" の1行で持つ。
-  // ペースは秒から復元できるので保存しない（保存量をおよそ1/4にするため）。
-  function expandLaps(v) {
-    if (Array.isArray(v)) return v;
-    if (typeof v !== "string" || !v) return [];
-    return v.split(",").map((pair, i) => {
-      const parts = pair.split(":");
-      const sec = Number(parts[0]);
-      if (!isFinite(sec) || sec <= 0) return null;
-      const hr = parts[1] === "" || parts[1] == null ? null : Number(parts[1]);
-      return {
-        n: i + 1, sec,
-        pace: `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`,
-        hr: isFinite(hr) ? hr : null
-      };
-    }).filter(Boolean);
-  }
-
   function pointsList(pts) {
     if (!pts || !pts.length) return "";
     return `<ul class="pts">${pts.map(p => `<li class="pt ${esc(p.tone || "note")}">
@@ -1564,139 +1151,59 @@ footer {
       </li>`).join("")}</ul>`;
   }
 
-  /* ---------- 過去の評価 ----------
-     過去分は DATA に持たせない。持たせると Routine が毎日その全部を
-     書き直すことになり、日を追うごとに生成コストが増え続けるため。
-     代わりに Artifact の db に 1日1件だけ書き、ページ側が開いたときに読む。
-     したがって DATA の大きさは何日経っても変わらない。 */
-  // 読む件数。「進捗」タブの推移（週間距離・持続力）にも使うので約5か月分読む。
-  // 一覧に出すのは HIST_PAGE 件ずつ（「さらに表示」で増やす）。
+  // 履歴のラップは "sec:hr,sec:hr,…" の1行で持つ。ペースは秒から復元できるので保存しない
+  function expandLaps(v) {
+    if (Array.isArray(v)) return v;
+    if (typeof v !== "string" || !v) return [];
+    return v.split(",").map((pair, i) => {
+      const parts = pair.split(":");
+      const sec = Number(parts[0]);
+      if (!isFinite(sec) || sec <= 0) return null;
+      const hr = parts[1] === "" || parts[1] == null ? null : Number(parts[1]);
+      return { n: i + 1, sec, pace: `${Math.floor(sec / 60)}:${String(sec % 60).padStart(2, "0")}`, hr: isFinite(hr) ? hr : null };
+    }).filter(Boolean);
+  }
+
+  /* ---------- 履歴（Artifact の db） ----------
+     過去分は DATA に持たせない。持たせると Routine が毎日その全部を書き直すことになり、
+     日を追うごとに生成コストが増え続けるため。db に1日1件だけ書き、ページ側が開いたときに読む。 */
   const HIST_DAYS = 150;
-  const HIST_PAGE = 30;
   let histRows = null;            // db から読んだ過去エントリ
   let histState = "loading";      // loading / ready / off / error
-  let histSel = null;             // 開いている日付
-  let histShow = HIST_PAGE;       // 一覧に出している件数
+  let calSel = null;              // カレンダーで開いている日付
+  let calWeeks = 6;               // カレンダーに出している週数
+  let archShow = 8;               // 読みものの記録に出している件数
 
-  // 履歴1件の識別子。同じ日の2本目以降は seq を持つ（doc_id は "2026-09-09-2"）
-  const rowKey = (h) => (h.seq > 1 ? `${h.d}-${h.seq}` : h.d);
-  // 新しい日を上に、同じ日は1本目から順に
-  const sortRows = (rows) => rows.sort((a, b) => String(b.d).localeCompare(String(a.d)) || (a.seq || 1) - (b.seq || 1));
-
-  // 今日の分は db への書き込みを待たずに DATA から組み立てて先頭に出す。
-  // 同じ日に2本以上走った日は today.extra[] に2本目以降が入っている。
+  // 今日の分は db への書き込みを待たずに DATA から組み立てる。同じ日の2本目以降は today.extra[]
   function todayRows() {
     const t = D.today || {};
+    if (!t.date) return [];
     const toRow = (run, seq) => {
-      const pick = (label) => {
-        const s = (run.stats || []).find(x => x.label === label);
-        return s ? s.value : null;
-      };
+      const pick = (label) => { const s = (run.stats || []).find(x => x.label === label); return s ? s.value : null; };
       return {
         d: t.date, dow: t.dow, seq, type: run.type, verdict: run.verdict, verdictLabel: run.verdictLabel,
         km: pick("距離"), pace: pick("平均ペース"), hr: pick("平均心拍"),
-        headline: run.headline, points: run.points || [],
-        stats: run.stats || [], effect: run.effect || "", laps: run.laps || [],
-        pred: ((D.health || {}).fitness || {}).race ? D.health.fitness.race.full || null : null
+        headline: run.headline, points: run.points || [], stats: run.stats || [], effect: run.effect || "", laps: run.laps || [],
+        pred: seq === 1 && fit().race ? fit().race.full || null : null
       };
     };
-    if (!t.date) return [];
     return [toRow(t, 1)].concat((Array.isArray(t.extra) ? t.extra : []).map((r, i) => toRow(r, i + 2)));
   }
+  const fit = () => (D.health && D.health.fitness) || {};
 
   async function loadHistory() {
     try {
       const use = window.claude && window.claude.use;
       const db = use ? await window.claude.use("db") : null;
-      if (!db) { histState = "off"; paintHistory(); return; }
+      if (!db) { histState = "off"; paintAsync(); return; }
       const snap = await db.collection("runs").orderBy("d", "desc").limit(HIST_DAYS).get();
-      histRows = sortRows(snap.docs.map(x => x.data()).filter(Boolean));
+      histRows = snap.docs.map(x => x.data()).filter(Boolean);
       histState = "ready";
     } catch (e) {
       histState = "error";
     }
-    paintHistory();
+    paintAsync();
   }
-
-  function histHtml() {
-    const todays = todayRows();
-    const todayD = todays.length ? todays[0].d : null;
-    const past = (histRows || []).filter(h => h && h.d && h.d !== todayD);
-    const rows = todays.concat(past);
-
-    let note = "";
-    if (histState === "loading") note = `<p class="hnote">過去の評価を読み込んでいます…</p>`;
-    else if (histState === "off") note = `<p class="hnote">この画面では保存済みの履歴を読み出せません。今日の分だけ表示しています。</p>`;
-    else if (histState === "error") note = `<p class="hnote">履歴の読み込みに失敗しました。再読み込みしてください。今日の分だけ表示しています。</p>`;
-    else if (!past.length) note = `<p class="hnote">保存済みの過去データはまだありません。毎日 12:00 JST の更新で1日ぶんずつ積み上がります。</p>`;
-
-    // 直近の記録を横に並べるストリップは 2026-09-15 に付けてすぐ外した
-    // （下の一覧と同じ情報で、日付が増えると横スクロールが面倒になるため）。凡例だけ残す。
-    const legend = `<div class="hlegend">
-        <span><b class="v-good">◎</b> 完璧</span><span><b class="v-good">○</b> 合格</span>
-        <span><b class="v-warn">△</b> 要調整</span><span><b class="v-crit">✕</b> 中止</span>
-        <span><b class="v-rest">—</b> 休養</span>
-      </div>`;
-
-    const list = rows.slice(0, histShow).map(h => {
-      const key = rowKey(h);
-      const open = histSel === key;
-      const meta = [
-        h.pace ? `平均ペース ${h.pace}/km` : null,
-        h.hr ? `平均心拍 ${h.hr}bpm` : null,
-        h.verdictLabel ? `総合評価 ${h.verdict || ""} ${h.verdictLabel}` : null
-      ].filter(Boolean).join("　／　");
-      return `<div class="hitem ${open ? "open" : ""}">
-        <button class="hbtn" type="button" data-d="${esc(key)}" aria-expanded="${open}">
-          <span class="hd">${esc(h.d)}${h.dow ? `<em>(${esc(h.dow)})</em>` : ""}${h.d === todayD ? `<span class="htoday">今日</span>` : ""}${h.seq > 1 ? `<span class="htoday">${h.seq}本目</span>` : ""}</span>
-          <span class="ht">${esc(h.type || "")}</span>
-          <span class="hk">${h.km != null && h.km !== "" ? `${esc(h.km)}<em>km</em>` : ""}</span>
-          <span class="hv ${vcls(h.verdict)}">${esc(h.verdict || "")}</span>
-        </button>
-        ${open ? `<div class="hbody">
-          ${statsGrid(h.stats)}
-          ${h.effect ? `<div class="effect">トレーニング効果: ${esc(h.effect)}</div>` : ""}
-          ${(() => { const lp = expandLaps(h.laps); return lp.length ? `<div class="chart-box">${lapChart(lp)}${lapTable(lp, "h:" + key)}</div>` : ""; })()}
-          ${h.headline ? `<p class="cmt-h">${esc(h.headline)}</p>` : ""}
-          ${pointsList(h.points)}
-          ${meta ? `<div class="hmeta">${esc(meta)}</div>` : ""}
-        </div>` : ""}
-      </div>`;
-    }).join("");
-
-    const more = rows.length > histShow
-      ? `<button class="hmore" type="button" data-more="1">さらに表示（残り ${rows.length - histShow} 件）</button>` : "";
-    return `${note}${legend}<div class="hlist">${list}</div>${more}`;
-  }
-
-  function paintHistory() {
-    const el = document.getElementById("hist");
-    if (el) el.innerHTML = histHtml();
-    const pr = document.getElementById("prog");
-    if (pr) pr.innerHTML = progressHtml();
-    const pb = document.getElementById("pb");
-    if (pb) pb.innerHTML = pbHtml();
-  }
-
-  /* ---------- 進捗（シーズンの現在地と走力の推移） ----------
-     すべて db の履歴（ラップ込み）と DATA.season から計算する。
-     Routine に書き起こさせる値は増やしていない（毎日の生成コストを増やさないため）。
-
-     指標の定義（docs/athlete_profile.md のペースゾーンから）:
-       - 持続力 … 4:25/km（Mペース帯の上限）以内のラップが何本続いたか。ラップは1kmなので本数≒km。
-                   3:20/km より速いラップは流し・短いレペなので数えない（連続も切る）。
-                   「4:15 を保てた最長」をラップから機械的に数えたもの。
-       - 有酸素の効率 … Eだけの日の、E帯（5:30〜6:00/km）のラップの平均心拍。1本目（アップ）は除く。
-                   M以上のラップがある日は、本セット後に心拍が高止まりするので数えない。
-                   同じ帯を低い心拍で走れるようになっていれば有酸素の土台が伸びている。 */
-  const M_EDGE = 265, STRIDE_EDGE = 200, E_BAND = [330, 360];
-  const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
-  const isoAdd = (iso, n) => { const d = new Date(iso + "T00:00:00Z"); d.setUTCDate(d.getUTCDate() + n); return d.toISOString().slice(0, 10); };
-  const dayDiff = (a, b) => Math.round((Date.parse(b) - Date.parse(a)) / 86400000);
-  const mondayOf = (iso) => isoAdd(iso, -((new Date(iso + "T00:00:00Z").getUTCDay() + 6) % 7));
-  const mdOf = (iso) => `${+iso.slice(5, 7)}/${+iso.slice(8, 10)}`;
-  const secOf = (s) => { const p = String(s || "").split(":").map(Number); return p.length > 1 && p.every(isFinite) ? p.reduce((a, v) => a * 60 + v, 0) : null; };
-  const hmsOf = (s) => `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}`;
 
   function streakOf(laps) {
     let best = null, cur = [];
@@ -1717,6 +1224,17 @@ footer {
     const ls = laps.slice(1).filter(l => l.sec >= E_BAND[0] && l.sec <= E_BAND[1] && l.hr != null);
     return ls.length >= 3 ? { hr: Math.round(avg(ls.map(l => l.hr)) * 10) / 10, sec: Math.round(avg(ls.map(l => l.sec))), n: ls.length } : null;
   }
+  // 練習種別 → ゾーン。履歴の type は自由記述なので文字で判定し、決め手がなければラップから推す
+  function zoneOfType(type, laps) {
+    const s = String(type || "");
+    if (/^休養/.test(s)) return "rest";
+    if (/閾値|Tペース|（T）|テンポ/.test(s)) return "T";
+    if (/インターバル|レペ|Rペース/.test(s)) return "R";
+    if (/M|マラソン|ロング.*後半/.test(s)) return "M";
+    const st = laps && laps.length ? streakOf(laps) : null;
+    if (st && st.km >= 2) return st.sec <= ZONE_EDGE.t ? "T" : "M";
+    return "E";
+  }
 
   // 今日（DATA）と履歴（db）を合わせた走行記録。古い順。
   function allRuns() {
@@ -1726,13 +1244,28 @@ footer {
     return rows.map(h => {
       const laps = expandLaps(h.laps);
       return { d: h.d, seq: h.seq || 1, km: Number(h.km) || 0, verdict: h.verdict, type: h.type || "",
-        pred: secOf(h.pred), laps, streak: laps.length ? streakOf(laps) : null, eff: laps.length ? eEffOf(laps) : null };
+        pred: secOf(h.pred), laps, streak: laps.length ? streakOf(laps) : null, eff: laps.length ? eEffOf(laps) : null, raw: h };
     }).sort((a, b) => a.d.localeCompare(b.d) || a.seq - b.seq);
   }
 
   const phaseAt = (iso) => ((D.season && D.season.phases) || []).find(p => p.from <= iso && iso <= p.to) || null;
 
-  // ヒーローに出す「記録上の最長を更新」。事実だけを出す（評価を甘くしない）。
+  // Mペースの持続力: 記録上の最長と、いま狙う到達目標
+  function mStatus(runs, today) {
+    const withStreak = runs.filter(r => r.streak && r.streak.km >= 2);
+    // 同じ長さなら 4:15 に近いほう（閾値走より M 走を代表にする）、それも同じなら新しいほう
+    const best = withStreak.slice().sort((a, b) => b.streak.km - a.streak.km
+      || Math.abs(a.streak.sec - 255) - Math.abs(b.streak.sec - 255) || (a.d < b.d ? 1 : -1))[0] || null;
+    const targets = (D.season && D.season.mTargets) || [];
+    const bestBy = (iso) => Math.max(0, ...withStreak.filter(r => r.d <= iso).map(r => r.streak.km));
+    const curT = targets.find(t => t.until >= today) || null;
+    const nextT = curT ? targets[targets.indexOf(curT) + 1] || null : null;
+    const aimT = curT && bestBy(today) >= curT.km ? (nextT || curT) : curT;
+    const recent = withStreak.filter(r => dayDiff(r.d, today) < 14);
+    return { withStreak, best, targets, bestBy, curT, aimT, recentBest: recent.length ? Math.max(...recent.map(r => r.streak.km)) : 0 };
+  }
+
+  // ヒーローに出す「記録上の最長を更新」。事実だけを出す（評価を甘くしない）
   function pbHtml() {
     if (histState !== "ready" || !D.today || !D.today.date) return "";
     const runs = allRuns();
@@ -1742,9 +1275,250 @@ footer {
     if (!s || s.km < 3 || !before.length) return "";
     const prev = Math.max(...before.map(r => r.streak.km));
     if (s.km < prev) return "";
-    return `<span class="pb">${s.km > prev ? "記録上の最長を更新" : "記録上の最長に並んだ"}：4:25以内を <b>${s.km}km</b> 連続（平均 ${mmssOf(s.sec)}${s.hr ? `・HR${s.hr}` : ""}）</span>`;
+    return `<span class="pb">🏅 ${s.km > prev ? "記録上の最長を更新" : "記録上の最長に並んだ"}：4:25以内を <b>${s.km}km</b> 連続（平均 ${mmssOf(s.sec)}${s.hr ? `・HR${s.hr}` : ""}）</span>`;
   }
 
+  /* ======================================================================
+     ホーム
+     ====================================================================== */
+  function goalBlock() {
+    const r = D.race;
+    if (!r) return "";
+    const ph = phaseAt(viewDay);
+    const phName = ph ? ph.name : (D.phase && D.phase.name) || "";
+    const phLeft = ph ? dayDiff(viewDay, ph.to) + 1 : null;
+    return `<section class="goal" aria-label="目標レースまで">
+      <div class="goal-main">
+        <span class="goal-days">${daysTo(r.date)}</span><span class="goal-unit">日</span>
+        <div class="goal-txt"><span class="goal-name">${esc(r.name)}まで</span>
+          <span class="goal-aim">目標 <b>${esc(r.goal)}</b>（${esc(r.pace)}）・${esc(r.date)}</span></div>
+      </div>
+      <div class="goal-chips">
+        ${D.tuneup && D.tuneup.name ? `<span class="chip">🏁 ${esc(shortRace(D.tuneup.name))} あと<b>${daysTo(D.tuneup.date)}</b>日</span>` : ""}
+        ${phName ? `<span class="chip">${esc(phName.replace(/—/g, "").replace(/\s+/g, " "))}${phLeft ? `・残り<b>${phLeft}</b>日` : ""}</span>` : ""}
+      </div>
+    </section>`;
+  }
+
+  // ホームに出す主要な数値は4つ。距離・ペース・心拍に、警告の付いた指標を1つ足す（無ければ4番目）
+  function keyStats(stats) {
+    if (!stats || !stats.length) return [];
+    const base = ["距離", "平均ペース", "平均心拍"].map(l => stats.find(s => s.label === l)).filter(Boolean);
+    const rest = stats.filter(s => !base.includes(s));
+    const flag = rest.find(s => s.state === "crit") || rest.find(s => s.state === "warn") || rest[0];
+    return base.concat(flag ? [flag] : []).slice(0, 4);
+  }
+
+  function runCard() {
+    const t = D.today;
+    if (!t || !t.date) return "";
+    const kicker = MODE === "same" ? "今日の走り" : MODE === "morning" ? "昨日の走り" : `${mdOf(t.date)} の走り`;
+    const ks = keyStats(t.stats);
+    const kmStat = (t.stats || []).find(s => s.label === "距離");
+    const extras = Array.isArray(t.extra) ? t.extra : [];
+    return `<section class="card run" data-today="${esc(t.date)}">
+      <div class="run-head">
+        <div class="run-id">
+          <span class="kicker">${esc(kicker)}</span>
+          <div class="run-line"><span class="run-date">${mdOf(t.date)}<em>(${esc(t.dow)})</em></span><span class="run-type">${esc(t.type)}</span></div>
+        </div>
+        <div class="verdict ${vcls(t.verdict)}" aria-label="総合評価 ${esc(t.verdict)} ${esc(t.verdictLabel)}"><span class="vm">${esc(t.verdict)}</span><span class="vl">${esc(t.verdictLabel)}</span></div>
+      </div>
+      <div class="card-body">
+        <p class="headline">${esc(t.headline)}</p>
+        ${t.plan && t.plan.title ? `<div class="planline">処方 <b>${esc(t.plan.title)}</b>${numOf(t.plan.km) && !/km/.test(t.plan.title) ? `（${esc(t.plan.km)}km）` : ""}<span class="arrow">→</span>実走 <b>${kmStat ? esc(kmStat.value) + "km" : "なし"}</b></div>` : ""}
+        <span class="hero-pb" id="pb">${pbHtml()}</span>
+        ${ks.length ? `<div class="kstats">${ks.map(s => `<div class="kstat ${s.state === "ok" ? "" : esc(s.state)}">
+            <div class="kstat-l">${esc(s.label)}</div>
+            <div class="kstat-v">${esc(s.value)}${s.unit ? `<em>${esc(s.unit)}</em>` : ""}</div>
+            ${s.state !== "ok" && s.note ? `<div class="kstat-n">${esc(s.note)}</div>` : ""}
+          </div>`).join("")}</div>` : ""}
+        ${pointsList(t.points)}
+        ${extras.length ? `<div class="extra-line">同じ日のほかの記録: ${extras.map(x => `${esc(x.type)} ${esc(x.verdict || "")}`).join(" ／ ")}</div>` : ""}
+        <button class="more" type="button" data-go="run">ラップ・全指標・4軸の評価 →</button>
+      </div>
+    </section>`;
+  }
+
+  function menuCard() {
+    const tm = D.tomorrow;
+    if (!tm || !tm.title) return "";
+    const kicker = MODE === "same" ? "明日のメニュー" : MODE === "morning" ? "今日のメニュー" : `${mdOf(tm.date)} のメニュー`;
+    const km = (tm.segments || []).reduce((a, s) => a + (Number(s.km) || 0), 0);
+    return `<section class="card rx">
+      <div class="rx-top"><span class="kicker">${esc(kicker)}</span><span class="rx-date">${mdOf(tm.date)}(${esc(tm.dow)})</span>
+        ${km ? `<span class="rx-km">${Math.round(km * 10) / 10}<em>km</em></span>` : ""}</div>
+      <div class="card-body">
+        <h3 class="rx-title">${esc(tm.title)}</h3>
+        ${tm.headline ? `<p class="rx-headline">${esc(tm.headline)}</p>` : ""}
+        ${segTable(tm.segments)}
+        ${(tm.prescription || []).length ? `<dl class="rx-list">${tm.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}</dl>` : ""}
+        ${Array.isArray(tm.alt) && tm.alt.length
+          ? `<div class="blk"><b>当日の状態で切り替える</b><ol class="alts">${tm.alt.map(x => `<li>${esc(x)}</li>`).join("")}</ol></div>`
+          : prose("当日の状態で切り替える", tm.alt)}
+        ${prose("なぜこの内容か", tm.why)}
+        <button class="more" type="button" data-go="plan">この先1週間とフェーズ →</button>
+      </div>
+    </section>`;
+  }
+
+  const CHIP_LABEL = { "HRV（前夜平均）": "HRV", "安静時心拍": "安静心拍", "睡眠スコア": "睡眠", "トレーニング準備度": "準備度", "ボディバッテリー最低": "BB最低", "平均ストレス": "ストレス" };
+  function condMini() {
+    const h = D.health;
+    if (!h || !h.summary || !h.summary.length) return "";
+    const latest = (h.days || []).slice().reverse().find(d => d.hrv != null || d.rhr != null || d.sleep != null);
+    const chips = h.summary.map(s => {
+      const st = s.state === "crit" ? "crit" : s.state === "warn" ? "warn" : "ok";
+      return `<div class="cchip ${st}" title="${esc(s.label)}：${esc(s.note || "")}">
+        <span class="cchip-l">${esc(CHIP_LABEL[s.label] || String(s.label).replace(/（.*?）/g, ""))}</span>
+        <span class="cchip-v">${s.value == null ? "—" : esc(s.value)}${s.unit && s.value != null ? `<em>${esc(s.unit)}</em>` : ""}</span>
+        <span class="cchip-s">${st === "ok" ? "平常" : stateName[st]}</span>
+      </div>`;
+    }).join("");
+    return `<section class="card">
+      <div class="card-head"><h2>体調</h2><span class="sub">${latest ? `${esc(latest.d)} の値` : ""}</span></div>
+      <div class="card-body">
+        <div class="cchips">${chips}</div>
+        ${MODE !== "same" ? `<p class="hnote">今朝の HRV と安静心拍はウォッチで確かめ、メニューの「切り替える」条件に当てはめる。</p>` : ""}
+        <button class="more" type="button" data-go="health">睡眠・HRV の推移と読み取り →</button>
+      </div>
+    </section>`;
+  }
+
+  function weekBars(w) {
+    const max = Math.max(...w.days.map(d => d.km), 1);
+    return w.days.map(d => {
+      const h = d.km > 0 ? Math.max(4, (d.km / max) * 70) : 4;
+      const cls = d.km > 0 ? d.type : "rest";
+      return `<div class="wd">
+        <span class="wd-km">${d.km > 0 ? d.km.toFixed(1) : "—"}</span>
+        <span class="wd-bar ${esc(cls)}" style="height:${h.toFixed(0)}px" title="${esc(d.d)} ${d.km}km${d.hr ? " HR" + d.hr : ""}"></span>
+        <span class="wd-d">${esc(d.d)}<br>${esc(d.dow)}</span>
+      </div>`;
+    }).join("");
+  }
+
+  // 現在地: 目標に対する位置（予測・Mペース持続力）と直近7日。履歴が読めたら描き直す
+  function kpiHtml() {
+    const today = dataDay;
+    const runs = allRuns();
+    const haveHist = histState === "ready";
+    const tiles = [];
+    const tile = (l, v, unit, n, cls, s, pct) => `<div class="ktile"><span class="ktile-l">${esc(l)}</span>
+        <span class="ktile-v">${v}${unit ? `<em>${esc(unit)}</em>` : ""}</span>
+        ${pct != null ? `<span class="meter"><i style="width:${Math.max(2, Math.min(100, pct)).toFixed(0)}%"></i></span>` : ""}
+        ${n ? `<span class="ktile-n ${cls || ""}">${n}</span>` : ""}
+        ${s ? `<span class="ktile-s">${s}</span>` : ""}</div>`;
+    const goalSec = secOf(D.race && D.race.goal);
+    const predNow = secOf(fit().race && fit().race.full);
+    if (predNow && goalSec) {
+      const gap = predNow - goalSec;
+      // 4週間前の予測と比べる（毎日の数秒の揺れより、流れのほうが意味がある）
+      const base = runs.filter(r => r.pred && r.d < today && dayDiff(r.d, today) <= 28)[0];
+      const trend = base && base.pred !== predNow
+        ? `${mdOf(base.d)} の ${hmsOf(base.pred)} から ${predNow < base.pred ? "−" : "+"}${mmssOf(Math.abs(predNow - base.pred))}` : "";
+      tiles.push(tile("Garmin フル予測", esc(hmsOf(predNow)), "",
+        gap > 0 ? `サブ3まで あと ${gapOf(gap)}` : "目標タイムを上回っている", gap > 0 ? "warn" : "good", esc(trend)));
+    }
+    if (haveHist) {
+      const m = mStatus(runs, today);
+      const bestKm = m.best ? m.best.streak.km : 0;
+      tiles.push(tile("Mペース（4:25以内）の連続 最長", m.best ? bestKm : "—", "km",
+        m.aimT ? `次の目標 ${m.aimT.km}km（${esc(m.aimT.label)}・あと${dayDiff(today, m.aimT.until)}日）` : "", "",
+        m.best ? `${mdOf(m.best.d)}・平均 ${mmssOf(m.best.streak.sec)}${m.best.streak.hr ? `・HR${m.best.streak.hr}` : ""}　／　直近2週の最長 ${m.recentBest}km` : "",
+        m.aimT ? (bestKm / m.aimT.km) * 100 : null));
+    } else {
+      tiles.push(tile("Mペース（4:25以内）の連続 最長", "…", "", "", "", histState === "loading" ? "履歴を読み込んでいます" : "この画面では履歴を読めません"));
+    }
+
+    let week = "";
+    const wk = D.week;
+    if (wk && Array.isArray(wk.days) && wk.days.length) {
+      const low = numOf(wk.targetKm);
+      const delta = wk.prevKm > 0 ? Math.round((wk.totalKm / wk.prevKm - 1) * 100) : null;
+      // 急な跳ね上がり（前の7日比 +30% 超）だけを色で立てる。+10% ルールは根拠が弱いので使わない（プロファイル）
+      week = `<div class="sub-h">直近7日（${esc(String(wk.label || "").replace(/\s*直近7日\s*$/, ""))}）</div>
+        <div class="week-grid">${weekBars(wk)}</div>
+        <div class="tot">
+          <div><span class="n">${kmFmt(wk.totalKm)}<em>km</em></span><span class="l">目標 ${esc(wk.targetKm)} km</span></div>
+          <div><span class="n">${esc(wk.runs)}<em>日</em></span><span class="l">走った日</span></div>
+          ${delta !== null ? `<div><span class="n ${delta > 30 ? "warn" : ""}">${delta > 0 ? "+" : ""}${delta}<em>%</em></span><span class="l">前の7日（${kmFmt(wk.prevKm)}km）比</span></div>` : ""}
+          ${wk.monthKm != null ? `<div><span class="n">${kmFmt(wk.monthKm)}<em>km</em></span><span class="l">今月（${esc(wk.monthDayCount)}日経過）</span></div>` : ""}
+        </div>
+        ${low ? `<div><div class="meter"><i style="width:${Math.min(100, wk.totalKm / low * 100).toFixed(1)}%"></i></div>
+          <div class="goalline"><span>週の下限 ${low}km</span>${wk.totalKm >= low ? `<b>到達 ✓</b>` : `<span>あと ${kmFmt(low - wk.totalKm)}km</span>`}</div></div>` : ""}`;
+    }
+    return `${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}${week}`;
+  }
+
+  function kpiCard() {
+    return `<section class="card">
+      <div class="card-head"><h2>現在地</h2><span class="sub">サブ3に向けて</span></div>
+      <div class="card-body"><div class="stack" id="kpi" style="gap:14px">${kpiHtml()}</div>
+        <button class="more" type="button" data-go="grow">カレンダーと推移 →</button></div>
+    </section>`;
+  }
+
+  const safeUrl = (u) => /^https?:\/\/[^\s"<>]+$/i.test(String(u || "")) ? String(u) : null;
+  function newsCard() {
+    const n = D.news;
+    if (!n || !n.title) return "";
+    const url = safeUrl(n.url);
+    const more = (Array.isArray(n.more) ? n.more : []).filter(x => x && x.title && safeUrl(x.url)).slice(0, 2);
+    return `<section class="card news">
+      <div class="card-head"><h2>今日の読みもの</h2>${n.theme ? `<span class="news-theme">${esc(n.theme)}</span>` : ""}<span class="sub">${esc(n.kind || "")}</span></div>
+      <div class="card-body">
+        ${url ? `<a class="news-title" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(n.title)}<span class="ext" aria-hidden="true">↗</span></a>`
+              : `<span class="news-title">${esc(n.title)}</span>`}
+        <div class="news-meta">${esc(n.source || "")}${n.published ? `　${esc(n.published)}` : ""}</div>
+        ${n.summary ? `<p class="news-sum">${esc(n.summary)}</p>` : ""}
+        ${n.takeaway ? `<div class="news-take"><b>いまの練習に引きつけると</b>${esc(n.takeaway)}</div>` : ""}
+        ${more.length ? `<div class="blk"><b>ほかの話題</b><ul class="news-more">${more.map(x => `<li><a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><span>${esc(x.source || "")}</span></li>`).join("")}</ul></div>` : ""}
+      </div>
+    </section>`;
+  }
+
+  /* ======================================================================
+     走りの詳細
+     ====================================================================== */
+  function runDetailCard(run, date, dow, label) {
+    const rest = run.verdict === "—" && !(run.stats || []).length;
+    const laps = expandLaps(run.laps);
+    return `<section class="card">
+      <div class="card-head"><h2>${esc(label)}</h2><span class="sub">${mdOf(date)}(${esc(dow)}) ${esc(run.type || "")}</span>
+        <span class="pill ${run.verdict === "—" ? "rest" : vcls(run.verdict).replace("v-", "")}">${esc(run.verdict || "")} ${esc(run.verdictLabel || "")}</span></div>
+      ${rest ? `<div class="card-body"><p class="hnote">走行データはありません。</p></div>` : `
+        ${statsGrid(run.stats)}
+        ${run.effect ? `<div class="effect">トレーニング効果: ${esc(run.effect)}</div>` : ""}
+        ${laps.length ? `<div class="chart-box">${lapChart(laps)}${lapTable(laps, "run:" + date + ":" + label)}</div>` : ""}`}
+    </section>`;
+  }
+
+  function runPanel() {
+    const t = D.today || {};
+    const extras = Array.isArray(t.extra) ? t.extra : [];
+    // 2本目以降は結論と要点もここにしか出ない（ホームは1本目だけ）
+    const extraCards = extras.map((x, i) => runDetailCard(x, t.date, t.dow, `${i + 2}本目`).replace("</section>",
+      `<div class="card-body">${x.headline ? `<p class="headline">${esc(x.headline)}</p>` : ""}${pointsList(x.points)}</div></section>`)).join("");
+    const axes = (D.axes || []).length ? `<section class="card">
+      <div class="card-head"><h2>4軸の評価</h2><span class="sub">総合評価はホーム</span></div>
+      <div class="card-body"><div class="axes">${D.axes.map(a => `<div class="axis">
+          <div class="axis-h"><b>${esc(a.name)}</b><span class="pill ${esc(a.state)}">${esc(stateName[a.state] || a.state)}</span></div>
+          <p>${esc(a.summary || a.text || "")}</p></div>`).join("")}</div></div>
+    </section>` : "";
+    const view = ((D.good || []).length || (D.issues || []).length) ? `<section class="card">
+      <div class="card-head"><h2>週とシーズンの視点</h2></div>
+      <div class="card-body"><div class="cols">
+        ${(D.good || []).length ? `<div class="blk"><b>手応え</b><ul class="lst">${D.good.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}
+        ${(D.issues || []).length ? `<div class="blk"><b>課題</b><ul class="lst neg">${D.issues.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}
+      </div></div>
+    </section>` : "";
+    return runDetailCard(t, t.date, t.dow, extras.length ? "1本目" : "走りのデータ") + extraCards + axes + view;
+  }
+
+  /* ======================================================================
+     予定
+     ====================================================================== */
   /* シーズンの帯。フェーズを期間に比例した幅で並べ、レースと今日を印で示す。 */
   function seasonChart(season, today) {
     const ph = season.phases;
@@ -1756,17 +1530,17 @@ footer {
     const kind = (p) => /回復/.test(p.name) ? "rec" : /テーパー|レース週/.test(p.name) ? "tap" : /特異|最終ビルド/.test(p.name) ? "spec" : "base";
     const fill = { base: "var(--z-e)", spec: "var(--z-m)", tap: "var(--accent-soft)", rec: "var(--surface-2)" };
     const rects = ph.map(p => {
-      const x0 = x(p.from), x1 = x(isoAdd(p.to, 1)), w = Math.max(1, x1 - x0 - 1);
+      const x0 = x(p.from), x1 = x(isoAdd(p.to, 1)), w = Math.max(1, x1 - x0 - 2);
       const num = (p.name.match(/Phase\s*(\d+)/) || [])[1];
       const done = p.to < today;
-      return `<rect x="${x0.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${bh}" rx="2" fill="${fill[kind(p)]}" opacity="${done ? .45 : .95}"><title>${esc(p.name)} ${mdOf(p.from)}〜${mdOf(p.to)} ／ 週 ${esc(p.km)}km</title></rect>
+      return `<rect x="${x0.toFixed(1)}" y="${top}" width="${w.toFixed(1)}" height="${bh}" rx="3" fill="${fill[kind(p)]}" opacity="${done ? .4 : .95}"><title>${esc(p.name)} ${mdOf(p.from)}〜${mdOf(p.to)} ／ 週 ${esc(p.km)}km</title></rect>
         ${num && w >= (NARROW ? 13 : 20) ? `<text x="${(x0 + w / 2).toFixed(1)}" y="${top + bh / 2 + 4}" class="s-ph${kind(p) === "tap" || kind(p) === "rec" ? " dark" : ""}">${NARROW ? num : "P" + num}</text>` : ""}`;
     }).join("");
-    const races = season.races.map((r, i) => {
+    const races = season.races.map(r => {
       const rx = x(r.date);
       const anchor = rx > W * 0.8 ? "end" : rx < W * 0.2 ? "start" : "middle";
       return `<line x1="${rx.toFixed(1)}" y1="${top - 4}" x2="${rx.toFixed(1)}" y2="${top + bh + 4}" stroke="var(--ink)" stroke-width="1.5"/>
-        <text x="${rx.toFixed(1)}" y="${top - 8}" class="s-race" text-anchor="${anchor}">🏁 ${esc(r.name.replace(/マラソン.*$/, ""))}</text>`;
+        <text x="${rx.toFixed(1)}" y="${top - 8}" class="s-race" text-anchor="${anchor}">🏁 ${esc(shortRace(r.name))}</text>`;
     }).join("");
     const months = [];
     for (let d = start.slice(0, 8) + "01"; d <= end; d = isoAdd(d.slice(0, 8) + "28", 4).slice(0, 8) + "01") {
@@ -1785,7 +1559,7 @@ footer {
       </div>
       <svg class="prog" viewBox="0 0 ${W} ${H}" role="img" aria-label="シーズンのフェーズと現在地">
         <style>
-          .s-ph{font-family:var(--num);font-weight:700;font-size:${fs(11, 11)}px;fill:#fff;text-anchor:middle}
+          .s-ph{font-family:var(--num);font-weight:700;font-size:11px;fill:#fff;text-anchor:middle}
           .s-ph.dark{fill:var(--ink-2)}
           .s-race{font-family:var(--jp);font-weight:700;font-size:${fs(11, 11.5)}px;fill:var(--ink)}
           .s-ax{font-family:var(--mono);font-size:${fs(10, 11)}px;fill:var(--ink-3)}
@@ -1794,22 +1568,238 @@ footer {
       </svg>`;
   }
 
-  /* 棒グラフ（週間距離・持続力で共用）。bars: [{ label, v, cls, ref, tip, top }]。
-     ref は棒ごとの基準線（週の下限など）、line は全体に引く横線。 */
+  function seasonCard() {
+    const season = D.season && D.season.phases && D.season.phases.length ? D.season : null;
+    const today = viewDay;
+    if (!season) {
+      const p = D.phase || {};
+      return p.name ? `<section class="card"><div class="card-head"><h2>いまのフェーズ</h2><span class="sub">${esc(p.window || "")}</span></div>
+        <div class="card-body"><dl class="phase-now"><dt>いま</dt><dd><b>${esc(p.name)}</b></dd><dt>方針</dt><dd>${esc(p.policy || "")}</dd><dt>週間距離</dt><dd>${esc(p.weeklyTarget || "")}</dd></dl>
+        <p class="hnote">シーズンの骨格（docs/athlete_profile.md のロードマップ表）を読めなかったため、帯は表示していません。</p></div></section>` : "";
+    }
+    const ph = phaseAt(today);
+    const idx = ph ? season.phases.indexOf(ph) : -1;
+    const nx = idx >= 0 ? season.phases[idx + 1] : season.phases.find(p => p.from > today);
+    const nextRace = season.races.find(r => r.date >= today);
+    return `<section class="card">
+      <div class="card-head"><h2>シーズン</h2><span class="sub">${esc(season.races.map(r => shortRace(r.name)).join(" → "))}</span></div>
+      <div class="card-body">
+        ${seasonChart(season, today)}
+        ${ph ? `<dl class="phase-now">
+          <dt>いま</dt><dd><b>${esc(ph.name)}</b>（${mdOf(ph.from)}〜${mdOf(ph.to)}・残り ${dayDiff(today, ph.to) + 1}日）</dd>
+          <dt>方針</dt><dd>${esc(ph.policy)}</dd>
+          <dt>規定</dt><dd>週 ${esc(ph.km)}${/km/.test(ph.km) ? "" : " km"} ／ 質練習 ${esc(ph.quality)} ／ 休養 ${esc(ph.rest)}</dd>
+          ${nx ? `<dt>次</dt><dd>${esc(nx.name)}（${mdOf(nx.from)}〜・あと ${dayDiff(today, nx.from)}日）— ${esc(nx.policy)}</dd>` : ""}
+          ${nextRace ? `<dt>次のレース</dt><dd>${esc(nextRace.name)}（${mdOf(nextRace.date)}・あと ${dayDiff(today, nextRace.date)}日）— ${esc(nextRace.aim)}</dd>` : ""}
+        </dl>` : ""}
+      </div>
+    </section>`;
+  }
+
+  function planCard() {
+    const p = D.weekPlan;
+    if (!p || !p.days || !p.days.length) return "";
+    const tag = MODE === "same" ? "明日" : "今日";
+    const firstIso = D.tomorrow && D.tomorrow.date;
+    const rows = p.days.map((d, i) => `<div class="plan-row ${d.type === "rest" ? "rest" : ""}">
+        <span class="plan-d">${esc(d.d)}(${esc(d.dow)})${i === 0 && MODE !== "stale" ? `<span class="tm">${tag}</span>` : ""}${i === 1 && MODE === "morning" ? `<span class="tm">明日</span>` : ""}</span>
+        <span class="tp ${esc(d.type)}">${d.type === "rest" ? "休" : esc(d.type)}</span>
+        <span class="plan-t">${esc(d.title)}</span>
+        <span class="plan-km">${d.km == null || d.km === "0" ? "—" : `${esc(d.km)}<em>km</em>`}</span>
+        <span class="plan-n">${d.note ? esc(d.note) : ""}</span>
+      </div>`).join("");
+    // 要約行。手順書の自己チェック（質練習の本数・休養日・週間距離）がそのまま目で確認できるようにする
+    const sumKm = p.days.reduce((a, d) => a + (numOf(d.km) || 0), 0);
+    const quality = p.days.filter(d => ["M", "T", "R"].includes(d.type)).length;
+    const restDays = p.days.filter(d => d.type === "rest").length;
+    return `<section class="card">
+      <div class="card-head"><h2>この先1週間</h2><span class="sub">${esc(p.label || (firstIso ? mdOf(firstIso) + "〜" : ""))}</span></div>
+      <div class="card-body">
+        ${p.aim ? prose("この週のねらい", p.aim) : ""}
+        <div class="plan-sum"><span>予定 <b>${esc(p.totalKm || sumKm)}</b> km</span><span>質練習 <b>${quality}</b> 本</span><span>走る日 <b>${p.days.length - restDays}</b> 日</span><span>休養 <b>${restDays}</b> 日</span></div>
+        <div class="plan">${rows}</div>
+      </div>
+    </section>`;
+  }
+
+  /* ======================================================================
+     コンディション
+     ====================================================================== */
+  function condCard() {
+    const h = D.health;
+    if (!h || !h.days || !h.days.length) return "";
+    const cmp = (s) => {
+      if (s.avg == null) return "";
+      const bits = [`週平均 ${s.avg}`];
+      if (s.prev != null) {
+        const pct = s.prev !== 0 ? Math.round((s.avg / s.prev - 1) * 100) : 0;
+        const arrow = Math.abs(pct) < 3 ? "→" : (pct > 0 ? "▲" : "▼");
+        // 安静時心拍やストレスは上がるほど悪い。矢印の向きではなく良し悪しで色を決める
+        const better = s.lowerIsBetter ? pct < 0 : pct > 0;
+        const dir = Math.abs(pct) < 3 ? "flat" : (better ? "up" : "down");
+        bits.push(`<span class="d ${dir}">${arrow} 前週 ${s.prev}${pct !== 0 ? `（${pct > 0 ? "+" : ""}${pct}%）` : ""}</span>`);
+      }
+      return `<div class="hstat-cmp">${bits.join(" ")}</div>`;
+    };
+    const f = h.fitness || {};
+    const r = f.race || {};
+    const vo2delta = (f.vo2max != null && f.vo2maxPrev != null) ? (f.vo2max - f.vo2maxPrev).toFixed(1) : null;
+    const races = [["5K", r.k5], ["10K", r.k10], ["ハーフ", r.half], ["フル", r.full]].filter(x => x[1])
+      .map(x => `<div><span class="t">${esc(x[1])}</span><span class="l">${esc(x[0])}</span></div>`).join("");
+    return `<section class="card">
+      <div class="card-head"><h2>健康データ</h2><span class="sub">${esc(h.label || "")}</span></div>
+      <div class="card-body">
+        <div class="hstats">${(h.summary || []).map(s => `<div class="hstat ${s.state === "ok" ? "" : esc(s.state)}">
+            <div class="hstat-l">${esc(s.label)}</div>
+            <div class="hstat-v">${s.value == null ? "—" : esc(s.value)}${s.unit ? `<em>${esc(s.unit)}</em>` : ""}</div>
+            ${cmp(s)}
+            <div class="hstat-n">${s.note ? esc(s.note) : "&nbsp;"}</div>
+          </div>`).join("")}</div>
+        ${prose("読み取り", h.read)}
+        <div class="divider"></div>
+        <div class="sub-h">睡眠</div>
+        ${sleepChart(h)}
+        <div class="sub-h">HRV（心拍変動）</div>
+        ${hrvChart(h)}
+        <div class="sub-h">日次データ</div>
+        ${condTable(h.days, { ...(h.baseline || {}), sleepTargetMin: h.sleepTargetMin })}
+        <p class="hnote">色付きの値は警戒側（睡眠が目標未満・HRV がバランス域の下・BB最低 20 未満・準備度 50 未満${h.days.some(d => d.steps != null) ? `・歩数 ${STEPS_HIGH.toLocaleString("en-US")} 以上` : ""}）。「—」は取れていない日（当日の BB最低・ストレス・歩数は一日が終わるまで確定しないので空けてある）。</p>
+        ${(f.vo2max != null || races) ? `<div class="divider"></div>
+        <div class="fitrow">
+          ${f.vo2max != null ? `<div><span class="n">${esc(f.vo2max)}</span><span class="l">VO2max${vo2delta !== null ? `（週初 ${esc(f.vo2maxPrev)} → ${vo2delta >= 0 ? "+" : ""}${vo2delta}）` : ""}</span></div>` : ""}
+          ${f.trainingStatus ? `<div><span class="n">${esc(f.trainingStatus)}</span><span class="l">トレーニングステータス</span></div>` : ""}
+          ${races ? `<div><div class="racelist">${races}</div><span class="l" style="margin-top:4px">Garmin レース予測タイム</span></div>` : ""}
+        </div>` : ""}
+        <div class="divider"></div>
+        <details class="gloss-box"><summary>指標の見かた</summary>
+          <dl class="gloss">
+            <dt>HRV（心拍変動）</dt><dd>拍と拍の間隔のゆらぎ（ms）。睡眠中に測る。回復モード（副交感神経）が優位なほど高い。疲労・ストレス・暑熱・飲酒で下がる。個人差が大きいので絶対値ではなく、Garmin が直近3週間から作る「バランス域」との相対で見る。</dd>
+            <dt>安静時心拍</dt><dd>睡眠中の最も低い心拍。平常より +5bpm 以上の日が続くときは、疲労か体調不良を疑う。</dd>
+            <dt>睡眠の内訳</dt><dd>深い睡眠は身体の回復（成長ホルモン分泌）、REM睡眠は神経系の回復に効く。</dd>
+            <dt>ボディバッテリー</dt><dd>HRV・ストレス・活動量から算出する 0〜100 の残量計。最低値が 20 を切る日が続くのは使い切っているサイン。</dd>
+            <dt>トレーニング準備度</dt><dd>睡眠・HRV・直近の練習負荷・ストレスをまとめた 0〜100 の合成スコア。走った日は走行後の値が入るので低く出る。</dd>
+          </dl>
+        </details>
+      </div>
+    </section>`;
+  }
+
+  /* ======================================================================
+     成長の記録
+     ====================================================================== */
+  // カレンダーの1本ぶんの中身（数値・ラップ・結論・要点）
+  function runBody(h, key) {
+    const laps = expandLaps(h.laps);
+    return `<div class="run1">
+      <div class="detail-head"><b>${mdOf(h.d)}(${esc(h.dow || dowOf(h.d))})${h.seq > 1 ? ` ${h.seq}本目` : ""}</b><span>${esc(h.type || "")}</span>
+        <span class="pill ${h.verdict === "—" || !h.verdict ? "rest" : vcls(h.verdict).replace("v-", "")}">${esc(h.verdict || "")} ${esc(h.verdictLabel || "")}</span></div>
+      ${h.headline ? `<p class="headline" style="font-size:14px">${esc(h.headline)}</p>` : ""}
+      ${statsGrid(h.stats)}
+      ${h.effect && h.effect !== "—" ? `<div class="effect">トレーニング効果: ${esc(h.effect)}</div>` : ""}
+      ${laps.length ? `<div class="chart-box">${lapChart(laps)}${lapTable(laps, "cal:" + key)}</div>` : ""}
+      ${pointsList(h.points)}
+    </div>`;
+  }
+
+  /* トレーニングカレンダー。1マス＝1日（色＝練習の種類、右上＝総合評価、数字＝距離）、右端＝その週の合計。
+     マスを押すとその日の評価が週の下に開く。旧「過去の評価」の一覧と「週間距離の推移」をこれ1つにまとめた。 */
+  function calendarHtml() {
+    const today = dataDay;
+    if (!today) return "";
+    const runs = allRuns();
+    const haveHist = histState === "ready";
+    const byDay = new Map();
+    runs.forEach(r => { if (!byDay.has(r.d)) byDay.set(r.d, []); byDay.get(r.d).push(r); });
+    // 直近7日は DATA.week が正（type が E/M/T/R/rest で入っている）
+    const wk = new Map();
+    if (D.week && Array.isArray(D.week.days) && D.week.days.length === 7) {
+      D.week.days.forEach((x, i) => wk.set(isoAdd(today, i - 6), x));
+    }
+    const start = haveHist && runs.length ? runs[0].d < isoAdd(today, -6) ? runs[0].d : isoAdd(today, -6) : isoAdd(today, -6);
+    const dayInfo = (iso) => {
+      const rs = byDay.get(iso) || [];
+      const ran = rs.filter(r => r.km > 0);
+      const w = wk.get(iso);
+      const km = ran.length ? ran.reduce((a, r) => a + r.km, 0) : (w ? Number(w.km) || 0 : 0);
+      const zone = km <= 0 ? "rest" : (w && w.km > 0 && w.type !== "rest" ? w.type : zoneOfType(ran[0] && ran[0].type, ran[0] && ran[0].laps));
+      return { rs, km, zone, main: rs[0] || null };
+    };
+    const cell = (iso) => {
+      const dd = +iso.slice(8, 10);
+      const first = dd === 1 ? `${+iso.slice(5, 7)}/1` : dd;
+      if (iso > today) return `<div class="cday fut"><span class="cd">${first}</span></div>`;
+      if (iso < start) return `<div class="cday none"><span class="cd">${first}</span></div>`;
+      const { km, zone, main } = dayInfo(iso);
+      const v = main && JUDGED.includes(main.verdict) ? main.verdict : "";
+      const label = `${mdOf(iso)}(${dowOf(iso)}) ${main ? main.type : km > 0 ? "" : "休養"}${km > 0 ? ` ${kmFmt(km)}km` : ""}${v ? ` 評価${v}` : ""}`;
+      return `<button type="button" class="cday ${esc(zone)}${iso === today ? " today" : ""}${calSel === iso ? " sel" : ""}" data-day="${iso}" aria-pressed="${calSel === iso}" aria-label="${esc(label)}">
+          <span class="cd">${first}</span>${v ? `<span class="cv ${vcls(v)}">${v}</span>` : ""}
+          <span class="ck">${km > 0 ? kmFmt(km) : "休"}</span></button>`;
+    };
+    const weekCell = (mon) => {
+      let km = 0;
+      for (let i = 0; i < 7; i++) { const iso = isoAdd(mon, i); if (iso > today) break; km += dayInfo(iso).km; }
+      const ph = phaseAt(isoAdd(mon, 3)) || phaseAt(mon);
+      const nums = ph ? numsOf(ph.km) : [];
+      // 回復週・テーパー週・レース週の距離は下限ではなく上限（プロファイル）
+      const cap = ph && /回復|テーパー|レース週/.test(ph.name);
+      const ref = nums.length ? (cap ? nums[nums.length - 1] : nums[0]) : null;
+      const live = mon === mondayOf(today);
+      const partial = mon < start;
+      const short = ref && !cap && !live && !partial && km < ref;
+      const lab = live ? "進行中" : partial ? "途中から" : ref ? `${cap ? "上限" : "下限"} ${ref}` : "";
+      return `<div class="cwk${short ? " short" : ""}" title="${mdOf(mon)}〜 ${kmFmt(km)}km${ref ? `（${cap ? "上限" : "下限"} ${ref}km）` : ""}">
+        <b>${Math.round(km)}<em>km</em></b>${ref ? `<span class="cm"><i style="width:${Math.min(100, km / ref * 100).toFixed(0)}%"></i></span>` : ""}<span class="cl">${esc(lab)}</span></div>`;
+    };
+    const detail = (iso) => {
+      const { rs, km } = dayInfo(iso);
+      if (!rs.length) return `<div class="cal-detail"><p class="hnote">${mdOf(iso)}(${dowOf(iso)}) — ${km > 0 ? `${kmFmt(km)}km（評価の記録なし）` : "休養（記録なし）"}</p></div>`;
+      return `<div class="cal-detail">${rs.map(r => runBody(r.raw, iso + "-" + r.seq)).join("")}</div>`;
+    };
+    const thisMon = mondayOf(today);
+    const totalWeeks = Math.floor(dayDiff(mondayOf(start), thisMon) / 7) + 1;
+    const n = Math.min(calWeeks, totalWeeks);
+    let grid = ["月", "火", "水", "木", "金", "土", "日"].map(d => `<div class="cal-h">${d}</div>`).join("") + `<div class="cal-h">週計</div>`;
+    for (let w = 0; w < n; w++) {
+      const mon = isoAdd(thisMon, -7 * w);
+      for (let i = 0; i < 7; i++) grid += cell(isoAdd(mon, i));
+      grid += weekCell(mon);
+      if (calSel && calSel >= mon && calSel <= isoAdd(mon, 6)) grid += detail(calSel);
+    }
+
+    // 直近30日の総合評価（事実の集計。甘くしない）
+    const judged = runs.filter(r => JUDGED.includes(r.verdict) && dayDiff(r.d, today) < 30);
+    const ok = judged.filter(r => r.verdict === "◎" || r.verdict === "○").length;
+    let streakOk = 0;
+    for (let i = judged.length - 1; i >= 0 && (judged[i].verdict === "◎" || judged[i].verdict === "○"); i--) streakOk++;
+    const cnt = (v) => judged.filter(r => r.verdict === v).length;
+    const take = haveHist && judged.length
+      ? `<p class="take">直近30日の評価は ${JUDGED.filter(v => cnt(v)).map(v => `${v}${cnt(v)}`).join("・")}（○以上 <span class="n">${ok}/${judged.length}</span> 本）。${streakOk >= 2 ? `いま <span class="n">${streakOk}</span> 本続けて○以上。` : ""}</p>` : "";
+    const note = histState === "loading" ? `<p class="hnote">履歴を読み込んでいます…</p>`
+      : histState === "ready" ? "" : `<p class="hnote">この画面では保存済みの履歴を読み出せないため、直近7日だけを表示しています。</p>`;
+    return `${take}${note}
+      <div class="cal-legend">
+        ${[["E", "ジョグ"], ["M", "Mペース"], ["T", "閾値"], ["R", "インターバル"], ["rest", "休養"]].map(([z, l]) => `<span class="lg"><span class="tp ${z}">${z === "rest" ? "休" : z}</span>${l}</span>`).join("")}
+        <span class="lg">右上＝総合評価・マスを押すと評価が開く</span>
+      </div>
+      <div class="cal" role="group" aria-label="トレーニングカレンダー">${grid}</div>
+      ${n < totalWeeks ? `<button class="cal-more" type="button" data-cal-more="1">さらに前の週を表示</button>` : ""}`;
+  }
+
+  /* 棒グラフ（持続力）。bars: [{ label, v, fill, op, tip, top }] */
   function barChart(bars, o) {
     if (!bars.length) return "";
     const W = NARROW ? 360 : 900, H = NARROW ? 190 : 200;
     const padL = NARROW ? 8 : 12, padR = NARROW ? 8 : 12, padT = 22, padB = 26;
     const iw = W - padL - padR, ih = H - padT - padB;
-    const max = Math.max(...bars.map(b => Math.max(b.v, b.ref || 0)), o.line ? o.line.v : 0, 1) * 1.1;
+    const max = Math.max(...bars.map(b => b.v), o.line ? o.line.v : 0, 1) * 1.1;
     const y = (v) => padT + ih - (v / max) * ih;
     const bw = iw / bars.length, barW = Math.min(bw * 0.62, 46);
     const body = bars.map((b, i) => {
       const cx = padL + bw * i + bw / 2, x0 = cx - barW / 2;
       const h = Math.max(b.v > 0 ? 2 : 0, padT + ih - y(b.v));
-      return `<rect x="${x0.toFixed(1)}" y="${(padT + ih - h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="2" fill="${b.fill}" opacity="${b.op ?? .9}"><title>${esc(b.tip || "")}</title></rect>
-        ${b.ref ? `<line x1="${(x0 - 3).toFixed(1)}" x2="${(x0 + barW + 3).toFixed(1)}" y1="${y(b.ref).toFixed(1)}" y2="${y(b.ref).toFixed(1)}" stroke="var(--ink)" stroke-width="1.5" stroke-dasharray="3 2"/>` : ""}
-        ${b.top != null ? `<text x="${cx.toFixed(1)}" y="${(Math.min(padT + ih - h, b.ref ? y(b.ref) : Infinity) - 5).toFixed(1)}" class="b-v">${esc(b.top)}</text>` : ""}
+      return `<rect x="${x0.toFixed(1)}" y="${(padT + ih - h).toFixed(1)}" width="${barW.toFixed(1)}" height="${h.toFixed(1)}" rx="3" fill="${b.fill}" opacity="${b.op ?? .9}"><title>${esc(b.tip || "")}</title></rect>
+        ${b.top != null ? `<text x="${cx.toFixed(1)}" y="${(padT + ih - h - 5).toFixed(1)}" class="b-v">${esc(b.top)}</text>` : ""}
         ${(NARROW && bars.length > 8 && i % 2 && i !== bars.length - 1) ? "" : `<text x="${cx.toFixed(1)}" y="${H - 8}" class="b-ax">${esc(b.label)}</text>`}`;
     }).join("");
     const line = o.line ? `<line x1="${padL}" x2="${W - padR}" y1="${y(o.line.v).toFixed(1)}" y2="${y(o.line.v).toFixed(1)}" stroke="var(--crit)" stroke-width="1" stroke-dasharray="4 4" opacity=".6"/>
@@ -1825,7 +1815,7 @@ footer {
       </svg>`;
   }
 
-  /* 折れ線（有酸素の効率・フル予測で共用）。pts: [{ label, v, tip }]。lower=true なら低いほど良い。 */
+  /* 折れ線（有酸素の効率・フル予測で共用）。pts: [{ label, v, tip }] */
   function lineChart(pts, o) {
     if (pts.length < 2) return "";
     const W = NARROW ? 360 : 900, H = NARROW ? 160 : 170;
@@ -1834,19 +1824,19 @@ footer {
     const vs = pts.map(p => p.v).concat(o.line ? [o.line.v] : []);
     const lo = Math.min(...vs), hi = Math.max(...vs), span = Math.max(hi - lo, o.minSpan || 1);
     const y = (v) => padT + ih - ((v - (lo - span * .15)) / (span * 1.3)) * ih;
-    const x = (i) => padL + (pts.length === 1 ? iw / 2 : (i / (pts.length - 1)) * iw);
+    const x = (i) => padL + (i / (pts.length - 1)) * iw;
     const path = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
     const stride = Math.max(1, Math.ceil(pts.length / (NARROW ? 6 : 14)));
     // 両端のラベルは内側へ寄せる（中央揃えだと画面の外にはみ出す）
     const edge = (i) => i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle";
-    const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="3.2" fill="var(--surface)" stroke="${o.color}" stroke-width="2"><title>${esc(p.tip || "")}</title></circle>
+    const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="4" fill="var(--surface)" stroke="${o.color}" stroke-width="2"><title>${esc(p.tip || "")}</title></circle>
       ${(i % stride === 0 || i === pts.length - 1) ? `<text x="${x(i).toFixed(1)}" y="${(y(p.v) - 10).toFixed(1)}" class="l-v" text-anchor="${edge(i)}">${esc(o.fmt ? o.fmt(p.v) : p.v)}</text>
       <text x="${x(i).toFixed(1)}" y="${H - 8}" class="l-ax" text-anchor="${edge(i)}">${esc(p.label)}</text>` : ""}`).join("");
     const line = o.line ? `<line x1="${padL}" x2="${W - padR}" y1="${y(o.line.v).toFixed(1)}" y2="${y(o.line.v).toFixed(1)}" stroke="var(--crit)" stroke-width="1" stroke-dasharray="4 4" opacity=".6"/>
       <text x="${W - padR}" y="${(y(o.line.v) - 4).toFixed(1)}" class="b-ref">${esc(o.line.label)}</text>` : "";
     return `<svg class="prog" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">
         <style>
-          .l-v{font-family:var(--mono);font-size:${fs(10.5, 11.5)}px;fill:${o.color};font-weight:500}
+          .l-v{font-family:var(--mono);font-size:${fs(10.5, 11.5)}px;fill:var(--ink);font-weight:500}
           .l-ax{font-family:var(--mono);font-size:${fs(10, 10.5)}px;fill:var(--ink-3)}
           .b-ref{font-family:var(--mono);font-size:${fs(10, 10.5)}px;fill:var(--crit);text-anchor:end}
         </style>
@@ -1858,154 +1848,41 @@ footer {
   }
 
   function progressHtml() {
-    const today = (D.today && D.today.date) || dateOf(D.meta && D.meta.generatedAt);
-    const season = D.season && D.season.phases && D.season.phases.length ? D.season : null;
+    const today = dataDay;
+    if (histState !== "ready") return "";
     const runs = allRuns();
-    const haveHist = histState === "ready";
     const out = [];
-    const tile = (l, v, unit, n, cls) => `<div class="ktile"><span class="ktile-l">${esc(l)}</span>
-        <span class="ktile-v">${v}${unit ? `<em>${esc(unit)}</em>` : ""}</span>
-        ${n ? `<span class="ktile-n ${cls || ""}">${n}</span>` : ""}</div>`;
-
-    // ---- 持続力（4:25以内の連続）----
-    const withStreak = runs.filter(r => r.streak && r.streak.km >= 2);
-    // 同じ長さなら 4:15 に近いほう（閾値走より M 走を代表にする）、それも同じなら新しいほう
-    const best = withStreak.slice().sort((a, b) => b.streak.km - a.streak.km
-      || Math.abs(a.streak.sec - 255) - Math.abs(b.streak.sec - 255) || (a.d < b.d ? 1 : -1))[0] || null;
-    const recent = withStreak.filter(r => dayDiff(r.d, today) < 14);
-    const recentBest = recent.length ? Math.max(...recent.map(r => r.streak.km)) : 0;
-    const targets = (season && season.mTargets) || [];
-    const curT = targets.find(t => t.until >= today) || null;
-    const nextT = curT ? targets[targets.indexOf(curT) + 1] || null : null;
-    const bestBy = (iso) => Math.max(0, ...withStreak.filter(r => r.d <= iso).map(r => r.streak.km));
-
-    // ---- 週間距離 ----
-    const weeks = new Map();
-    runs.forEach(r => { const m = mondayOf(r.d); weeks.set(m, (weeks.get(m) || 0) + r.km); });
-    const thisMon = mondayOf(today);
-    // 今週（月〜今日）は DATA の値が正。DATA.week は「今日を含む直近7日」なので、
-    // そのうち今週の月曜以降の日だけを足す（days[6] が今日）
-    if (D.week && Array.isArray(D.week.days) && D.week.days.length === 7) {
-      weeks.set(thisMon, D.week.days.reduce((s, d, i) =>
-        isoAdd(today, i - 6) >= thisMon ? s + (Number(d.km) || 0) : s, 0));
-    }
-    const first = runs.length ? runs[0].d : today;
-    const wlist = [...weeks.keys()].sort().slice(-10).map(m => {
-      const ph = phaseAt(m);
-      return { mon: m, km: Math.round(weeks.get(m) * 10) / 10, low: ph ? numOf(ph.km) : null,
-        partial: m < first && haveHist ? true : false, live: m === thisMon };
-    });
-
-    // ---- フル予測 ----
-    const preds = runs.filter(r => r.pred).reduce((a, r) => { a.set(r.d, r.pred); return a; }, new Map());
-    const goalSec = secOf(D.race && D.race.goal);
-    const predNow = secOf(((D.health || {}).fitness || {}).race && D.health.fitness.race.full);
-
-    // ---- 評価の記録（直近30日）----
-    const judged = runs.filter(r => ["◎", "○", "△", "✕"].includes(r.verdict) && dayDiff(r.d, today) < 30);
-    const okRuns = judged.filter(r => r.verdict === "◎" || r.verdict === "○").length;
-    let streakOk = 0;
-    for (let i = judged.length - 1; i >= 0 && (judged[i].verdict === "◎" || judged[i].verdict === "○"); i--) streakOk++;
-
-    // ===== 1. サブ3への道（要点タイル + シーズンの帯）=====
-    const tiles = [];
-    if (predNow && goalSec) {
-      const gap = predNow - goalSec;
-      tiles.push(tile("Garmin フル予測", esc(hmsOf(predNow)), "", gap > 0 ? `目標 ${esc(D.race.goal)} まで −${Math.floor(gap / 60)}分${String(gap % 60).padStart(2, "0")}秒` : "目標タイムを上回っている", gap > 0 ? "warn" : "good"));
-    }
-    if (haveHist) {
-      tiles.push(tile("4:25以内の連続 最長", best ? best.streak.km : "—", "km",
-        curT ? `今の目標 ${esc(curT.text.replace(/（.*$/, ""))}（${esc(curT.label)}）${bestBy(today) >= curT.km ? " ✓" : ""}` : "", curT && bestBy(today) >= curT.km ? "good" : ""));
-    }
-    if (D.week) {
-      const low = numOf(D.week.targetKm);
-      tiles.push(tile("直近7日の距離", Number(D.week.totalKm).toFixed(1), "km",
-        low ? (D.week.totalKm >= low ? `下限 ${low}km に到達 ✓` : `下限 ${low}km まで あと ${(low - D.week.totalKm).toFixed(1)}km`) : "",
-        low && D.week.totalKm >= low ? "good" : ""));
-    }
-    if (haveHist && judged.length) {
-      tiles.push(tile("直近30日の評価", `${okRuns}<em>/ ${judged.length} 本</em>`, "",
-        `○以上。${streakOk >= 2 ? `いま ${streakOk} 本連続で○以上` : `◎${judged.filter(r => r.verdict === "◎").length}・○${judged.filter(r => r.verdict === "○").length}・△${judged.filter(r => r.verdict === "△").length}・✕${judged.filter(r => r.verdict === "✕").length}`}`, ""));
-    }
-
-    let seasonBlock = "";
-    if (season) {
-      const ph = phaseAt(today);
-      const idx = ph ? season.phases.indexOf(ph) : -1;
-      const nx = idx >= 0 ? season.phases[idx + 1] : season.phases.find(p => p.from > today);
-      const nextRace = season.races.find(r => r.date >= today);
-      seasonBlock = `${seasonChart(season, today)}
-        ${ph ? `<dl class="phase-now">
-          <dt>いま</dt><dd><b>${esc(ph.name)}</b>（${mdOf(ph.from)}〜${mdOf(ph.to)}・残り ${dayDiff(today, ph.to) + 1}日）</dd>
-          <dt>方針</dt><dd>${esc(ph.policy)}</dd>
-          <dt>規定</dt><dd>週 ${esc(ph.km)}${/km/.test(ph.km) ? "" : " km"} ／ 質練習 ${esc(ph.quality)} ／ 休養 ${esc(ph.rest)}</dd>
-          ${nx ? `<dt>次</dt><dd>${esc(nx.name)}（${mdOf(nx.from)}〜・あと ${dayDiff(today, nx.from)}日）— ${esc(nx.policy)}</dd>` : ""}
-          ${nextRace ? `<dt>次のレース</dt><dd>${esc(nextRace.name)}（${mdOf(nextRace.date)}・あと ${dayDiff(today, nextRace.date)}日）— ${esc(nextRace.aim)}</dd>` : ""}
-        </dl>` : ""}`;
-    }
-    out.push(`<section class="card">
-      <div class="card-head"><h2>サブ3への道</h2><span class="sub">${D.race ? `${esc(D.race.name)}まで ${daysLeftOf(D.race)}日` : ""}</span></div>
-      <div class="card-body">
-        ${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}
-        ${seasonBlock || `<p class="hnote">シーズンの骨格（docs/athlete_profile.md のロードマップ表）を読めなかったため、帯は表示していません。</p>`}
-      </div>
-    </section>`);
-
-    if (!haveHist) {
-      out.push(`<p class="hnote">${histState === "loading" ? "履歴を読み込んでいます…" : "保存済みの履歴を読み出せないため、推移のグラフは表示できません。"}</p>`);
-      return out.join("");
-    }
-
-    // ===== 2. Mペースの持続力 =====
-    const sBars = withStreak.slice(-16).map(r => ({
+    // ===== Mペースの持続力 =====
+    const m = mStatus(runs, today);
+    const sBars = m.withStreak.slice(-16).map(r => ({
       label: mdOf(r.d), v: r.streak.km, top: `${r.streak.km}`,
-      fill: r === best ? "var(--accent)" : "var(--z-m)", op: r === best ? 1 : .8,
+      fill: r === m.best ? "var(--accent)" : "var(--z-m)", op: r === m.best ? 1 : .85,
       tip: `${r.d} ${r.type} — 4:25以内 ${r.streak.km}km 連続（平均 ${mmssOf(r.streak.sec)}${r.streak.hr ? `・HR${r.streak.hr}` : ""}）`
     }));
-    const aimT = curT && bestBy(today) >= curT.km ? (nextT || curT) : curT;
     let take = "";
-    if (best) {
-      take = `記録上の最長は <span class="n">${best.streak.km}km</span>（${mdOf(best.d)}・平均 ${mmssOf(best.streak.sec)}${best.streak.hr ? `・HR${best.streak.hr}` : ""}）。直近2週の最長は <span class="n">${recentBest}km</span>。`;
-      if (aimT) take += ` 次の目標は <span class="n">${aimT.km}km</span>（${esc(aimT.label)}・あと ${dayDiff(today, aimT.until)}日）で、あと <span class="n">${Math.max(0, aimT.km - best.streak.km)}km</span> 伸ばす。`;
+    if (m.best) {
+      take = `記録上の最長は <span class="n">${m.best.streak.km}km</span>（${mdOf(m.best.d)}）、直近2週の最長は <span class="n">${m.recentBest}km</span>。`;
+      if (m.aimT) take += ` 次の目標 <span class="n">${m.aimT.km}km</span>（${esc(m.aimT.label)}）まで、あと <span class="n">${Math.max(0, m.aimT.km - m.best.streak.km)}km</span> 伸ばす。`;
     }
     // 到達目標の一覧。期限を過ぎたものは達成/未達、いまの目標は達成済みか進行中かを出す
-    const steps = targets.map(t => {
+    const steps = m.targets.map(t => {
       let cls = "", icon = "・";
-      if (t.until < today) { const ok = bestBy(t.until) >= t.km; cls = ok ? "done" : ""; icon = ok ? "✓" : "✕"; }
-      else if (t === curT) { const ok = bestBy(today) >= t.km; cls = ok ? "done" : "now"; icon = ok ? "✓" : "▶"; }
-      else if (t === aimT) { cls = "now"; icon = "▶"; }
+      if (t.until < today) { const ok = m.bestBy(t.until) >= t.km; cls = ok ? "done" : ""; icon = ok ? "✓" : "✕"; }
+      else if (t === m.curT) { const ok = m.bestBy(today) >= t.km; cls = ok ? "done" : "now"; icon = ok ? "✓" : "▶"; }
+      else if (t === m.aimT) { cls = "now"; icon = "▶"; }
       return `<li class="${cls}"><span class="ic">${icon}</span><span class="w">${esc(t.label)}${/\d+\/\d+/.test(t.label) ? "" : `（〜${mdOf(t.until)}）`}</span><span class="x">${esc(t.text)}</span></li>`;
     }).join("");
     out.push(`<section class="card">
       <div class="card-head"><h2>Mペースの持続力</h2><span class="sub">4:25/km 以内で続けた距離</span></div>
       <div class="card-body">
         ${take ? `<p class="take">${take}</p>` : `<p class="hnote">4:25/km 以内のラップが2本以上続いた記録はまだありません。</p>`}
-        ${barChart(sBars, { aria: "走行ごとの4:25以内の連続距離", line: aimT ? { v: aimT.km, label: `目標 ${aimT.km}km（${aimT.label}）` } : null })}
-        ${steps ? `<div class="sub-h">1回あたりのMペース量の到達目標（プロファイル）</div><ul class="steps">${steps}</ul>` : ""}
-        <p class="hnote">1kmラップのうち 4:25/km 以内（流し・短いレペを除く）が何本続いたかを数えたもの。閾値走の本セットも含む。サブ3は 4:15 を 42km 続ける競技なので、本数ではなくこの長さを伸ばす。</p>
+        ${barChart(sBars, { aria: "走行ごとの4:25以内の連続距離", line: m.aimT ? { v: m.aimT.km, label: `目標 ${m.aimT.km}km` } : null })}
+        ${steps ? `<div class="sub-h">1回あたりのMペース量の到達目標</div><ul class="steps">${steps}</ul>` : ""}
+        <p class="hnote">1kmラップのうち 4:25/km 以内（流し・短いレペを除く）が何本続いたか。閾値走の本セットも含む。サブ3は 4:15 を 42km 続ける競技なので、本数ではなくこの長さを伸ばす。</p>
       </div>
     </section>`);
 
-    // ===== 3. 週間距離 =====
-    const wBars = wlist.map(w => ({
-      label: mdOf(w.mon) + "〜", v: w.km, top: w.km.toFixed(0), ref: w.low,
-      fill: w.low && w.km < w.low ? "var(--warn)" : "var(--accent)", op: w.live ? .45 : .9,
-      tip: `${mdOf(w.mon)}〜 ${w.km}km${w.low ? `（下限 ${w.low}km）` : ""}${w.live ? " ※進行中" : ""}${w.partial ? " ※記録の一部のみ" : ""}`
-    }));
-    const done = wlist.filter(w => !w.live && !w.partial && w.low);
-    const hit = done.filter(w => w.km >= w.low).length;
-    const last4 = wlist.filter(w => !w.live && !w.partial).slice(-4);
-    const maxW = wlist.filter(w => !w.partial).reduce((a, w) => (!a || w.km > a.km ? w : a), null);
-    out.push(`<section class="card">
-      <div class="card-head"><h2>週間距離の推移</h2><span class="sub">月〜日 ／ 破線 = その週のフェーズ下限</span></div>
-      <div class="card-body">
-        ${done.length ? `<p class="take">確定した ${done.length} 週のうち、フェーズ下限に届いたのは <span class="n">${hit}</span> 週。${last4.length ? `直近${last4.length}週の平均は <span class="n">${(avg(last4.map(w => w.km))).toFixed(1)}km</span>。` : ""}${maxW && maxW.live && maxW.km > 0 && wlist.filter(w => !w.partial).length > 1 ? " 今週はすでに記録上の最多週。" : ""}</p>` : ""}
-        ${barChart(wBars, { aria: "週間距離の推移" })}
-        <p class="hnote">薄い棒は進行中の週。${wlist.some(w => w.partial) ? "最初の週は履歴が途中からなので実際より少ない。" : ""}週間距離は下限として扱う（プロファイル）。回復週とテーパー週は下限ではなく上限。</p>
-      </div>
-    </section>`);
-
-    // ===== 4. 有酸素の効率 と フル予測 =====
+    // ===== 有酸素の効率 と フル予測 =====
     const effRuns = runs.filter(r => r.eff).slice(-20);
     const ePts = effRuns.map(r => ({ label: mdOf(r.d), v: r.eff.hr, tip: `${r.d} ${r.type} — E帯 ${r.eff.n}本 平均 ${mmssOf(r.eff.sec)}・HR${r.eff.hr}` }));
     let eTake = "";
@@ -2016,9 +1893,11 @@ footer {
       const d = Math.round((b - a) * 10) / 10;
       eTake = `後半${effRuns.length - h}本の平均 <span class="n">HR${b.toFixed(1)}</span>（${mmssOf(Math.round(bs))}/km）は、前半${h}本の HR${a.toFixed(1)}（${mmssOf(Math.round(as))}/km）より ${d <= 0 ? `<span class="n">${Math.abs(d)}bpm 低い</span>` : `<span class="n">${d}bpm 高い</span>`}。${Math.abs(bs - as) >= 8 ? "ただしペースも違うので、差の一部はペース由来。" : ""}`;
     }
+    const preds = runs.filter(r => r.pred).reduce((acc, r) => { acc.set(r.d, r.pred); return acc; }, new Map());
+    const goalSec = secOf(D.race && D.race.goal);
     const pPts = [...preds.entries()].sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ label: mdOf(d), v, tip: `${d} フル予測 ${hmsOf(v)}` }));
     out.push(`<section class="card">
-      <div class="card-head"><h2>有酸素の効率</h2><span class="sub">E帯（5:30〜6:00/km）ラップの平均心拍</span></div>
+      <div class="card-head"><h2>有酸素の効率とフル予測</h2><span class="sub">E帯（5:30〜6:00/km）ラップの平均心拍</span></div>
       <div class="card-body">
         ${eTake ? `<p class="take">${eTake}</p>` : ""}
         ${ePts.length >= 2 ? lineChart(ePts, { aria: "E帯ラップの平均心拍の推移", color: "var(--z-e)", minSpan: 6, line: { v: 140, label: "E上限 140" } })
@@ -2028,249 +1907,157 @@ footer {
           ${lineChart(pPts, { aria: "Garmin フル予測の推移", color: "var(--z-t)", fmt: hmsOf, minSpan: 60, line: goalSec ? { v: goalSec, label: `目標 ${D.race.goal}` } : null })}` : ""}
       </div>
     </section>`);
-
     return out.join("");
   }
 
-  /* ---------- render ----------
-     画面幅の区分が変わったら（回転など）グラフを描き直す。
-     選択中のタブは URL のハッシュから復元されるので状態は失われない。 */
-  function render() {
-  const t = D.today, wk = D.week;
-  const deltaPct = wk.prevKm > 0 ? Math.round((wk.totalKm / wk.prevKm - 1) * 100) : null;
-  const monthPct = Math.min(100, (wk.monthKm / wk.monthTargetKm) * 100);
-  // 月末の見込みはその月の日数で割り戻す（以前は一律31日で数えていた）
-  const tdate = dateOf(t.date) || dateOf(D.meta && D.meta.generatedAt);
-  const monthDays = tdate ? new Date(Date.UTC(+tdate.slice(0, 4), +tdate.slice(5, 7), 0)).getUTCDate() : 31;
-  const monthPace = Math.round(wk.monthKm / wk.monthDayCount * monthDays);
-  // 週は「今日を含む直近7日」。常に7日そろっているので、前の7日との比較をそのまま出す
-  const lowKm = numOf(wk.targetKm);
-  const weekPct = lowKm ? Math.min(100, (wk.totalKm / lowKm) * 100) : 0;
-  const kmStat = (t.stats || []).find(s => s.label === "距離");
-
-  // タブに要注意の点があるかどうか。隠れている側の警告を見落とさないための印。
-  const runWarn = (D.axes || []).some(a => a.state === "warn" || a.state === "crit")
-    || (t.stats || []).some(s => s.state === "warn" || s.state === "crit");
-  const healthWarn = ((D.health && D.health.summary) || [])
-    .some(s => s.state === "warn" || s.state === "crit");
-  const hasHealth = !!(D.health && D.health.days && D.health.days.length);
-
-  // 数値とグラフのあとに置くコメント。結論 → 要点 → 全文の3段。
-  function commentBlock(t) {
-    const pts = t.points || [];
-    const head = t.headline
-      ? `<p class="cmt-h">${esc(t.headline)}</p>` : "";
-    const list = pointsList(pts);
-    if (!head && !list) return "";
-    return `<div class="cmt">
-        <div class="sub-h">コーチのコメント</div>
-        ${head}${list}
-      </div>`;
+  // 読みものの記録。今日の分（DATA.news）と、履歴に写してある過去の分（runs の news）
+  function archiveHtml() {
+    const items = [];
+    const seen = new Set();
+    const push = (d, n) => {
+      if (!n) return;
+      const url = safeUrl(n.url || n.u);
+      const title = n.title || n.t;
+      if (!title || (url && seen.has(url))) return;
+      if (url) seen.add(url);
+      items.push({ d, title, url, source: n.source || n.s || "", theme: n.theme || n.th || "" });
+    };
+    if (dataDay) push(dataDay, D.news);
+    (histRows || []).slice().sort((a, b) => String(b.d).localeCompare(String(a.d))).forEach(h => { if (h && h.d !== dataDay) push(h.d, h.news); });
+    if (!items.length) return `<p class="hnote">${histState === "loading" ? "読み込んでいます…" : "まだ記録がありません。毎日の「今日の読みもの」がここに積み上がります。"}</p>`;
+    return `<ul class="arch">${items.slice(0, archShow).map(x => `<li><span class="ad">${mdOf(x.d)}</span>
+        ${x.url ? `<a href="${esc(x.url)}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a>` : `<b>${esc(x.title)}</b>`}
+        <span class="as">${esc([x.theme, x.source].filter(Boolean).join(" ・ "))}</span></li>`).join("")}</ul>
+      ${items.length > archShow ? `<button class="cal-more" type="button" data-arch-more="1">さらに表示（残り ${items.length - archShow} 件）</button>` : ""}`;
   }
 
-  // 走りの評価パネル（今日の走り / コーチ評価 / 週間・月間ロード）
-  // 明日以降のメニューは menuPanel 側に分けている。走りの評価が縦に長くなりすぎるため。
-  const runPanel = `
-    <section class="hero">
-      <div class="hero-head">
-        <span class="hero-date">${esc(t.date)}<span class="hero-dow">(${esc(t.dow)})</span></span>
-        <span class="hero-type">${esc(t.type)}</span>
-        <span class="verdict ${vClass[t.verdict] || "v-warn"}">
-          <span class="verdict-mark">${esc(t.verdict)}</span>
-          <span class="verdict-txt">${esc(t.verdictLabel)}<span>総合評価</span></span>
-        </span>
-        <span class="hero-pb" id="pb">${pbHtml()}</span>
-        ${t.plan && t.plan.title ? `<span class="hero-plan">昨日の処方 <b>${esc(t.plan.title)}</b>${numOf(t.plan.km) ? `（${esc(t.plan.km)}km）` : ""}<span class="arrow">→</span>実走 <b>${kmStat ? esc(kmStat.value) + "km" : "なし"}</b></span>` : ""}
-      </div>
-      ${statsGrid(t.stats)}
-      <div class="effect">トレーニング効果: ${esc(t.effect)}</div>
-      <div class="chart-box">${lapChart(t.laps)}${lapTable(t.laps, "today")}</div>
-      ${commentBlock(t)}
-    </section>
-
-    <section class="card">
-      <div class="card-head"><h2>コーチ評価</h2><span class="sub">4軸（総合評価は上）</span></div>
-      <div class="card-body">
-        ${D.axes.map(a => `<div class="axis">
-            <div class="axis-h"><b>${esc(a.name)}</b><span class="pill ${esc(a.state)}">${esc(stateName[a.state] || a.state)}</span></div>
-            <p class="lead">${esc(a.summary || a.text || "")}</p>
-          </div>`).join("")}
-        <div class="divider"></div>
-        <div class="sub-h">良かった点</div>
-        <ul class="lst">${D.good.map(x => `<li><span>${bullet(x)}</span></li>`).join("")}</ul>
-        <div class="sub-h">課題</div>
-        <ul class="lst neg">${D.issues.map(x => `<li><span>${bullet(x)}</span></li>`).join("")}</ul>
-      </div>
-    </section>
-
-    <section class="card">
-      <div class="card-head"><h2>週間・月間ロード</h2><span class="sub">${esc(wk.label)}</span></div>
-      <div class="card-body">
-        <div class="week-grid">${weekBars(wk)}</div>
-        <div class="divider"></div>
-        <div class="tot">
-          <div><span class="n">${wk.totalKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> km</em></span><span class="l">直近7日（週の目標 ${esc(wk.targetKm)} km）</span></div>
-          <div><span class="n">${wk.runs}<em style="font-size:12px;font-weight:400"> 回</em></span><span class="l">走行回数</span></div>
-          <div><span class="n">${wk.prevKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> km</em></span><span class="l">その前の7日</span></div>
-          ${deltaPct !== null ? `<div><span class="n delta" style="color:${deltaPct > 10 ? "var(--warn)" : "var(--good)"}">${deltaPct > 0 ? "+" : ""}${deltaPct}%</span><span class="l">前の7日比（+10%超で過負荷）</span></div>` : ""}
-        </div>
-        ${lowKm ? `<div class="meter" title="週の下限 ${lowKm}km に対する直近7日の割合 ${weekPct.toFixed(0)}%"><i style="width:${weekPct.toFixed(1)}%"></i></div>` : ""}
-        <div class="divider"></div>
-        <div>
-          <div class="tot" style="margin-bottom:8px">
-            <div><span class="n">${wk.monthKm.toFixed(1)}<em style="font-size:12px;font-weight:400"> / ${wk.monthTargetKm} km</em></span><span class="l">今月累計（${wk.monthDayCount}日経過）／ このペースだと月末 ${monthPace} km</span></div>
-          </div>
-          <div class="meter"><i style="width:${monthPct.toFixed(1)}%"></i></div>
-        </div>
-      </div>
-    </section>
-  `;
-
-  // 明日以降のメニューパネル（明日の処方 / この先1週間）
-  const menuPanel = `
-    <section class="card rx">
-      <div class="card-head"><h2>明日のメニュー</h2><span class="sub">${esc(D.tomorrow.date)}(${esc(D.tomorrow.dow)})</span></div>
-      <div class="card-body">
-        <h3 class="rx-title">${esc(D.tomorrow.title)}</h3>
-        <p class="rx-headline">${esc(D.tomorrow.headline)}</p>
-        ${segTable(D.tomorrow.segments)}
-        ${(D.tomorrow.prescription || []).length ? `<dl class="rx-list">
-          ${D.tomorrow.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}
-        </dl>` : ""}
-        <div class="divider"></div>
-        ${prose("なぜこの内容か", D.tomorrow.why)}
-        ${Array.isArray(D.tomorrow.alt)
-          ? `<div class="blk"><b>切り替え条件</b><ol class="alts">${D.tomorrow.alt.map(x => `<li>${esc(x)}</li>`).join("")}</ol></div>`
-          : prose("切り替え条件", D.tomorrow.alt)}
-        ${prose("その先", D.tomorrow.next)}
-      </div>
-    </section>
-
-    ${planCard(D.weekPlan)}
-  `;
-
-  // 健康パネル（コンディション）
-  const healthPanel = condCard(D.health);
-
-  const tabDefs = [
-    { id: "run",    label: "走りの評価",       short: "評価",     warn: runWarn,    body: runPanel },
-    { id: "menu",   label: "明日以降のメニュー", short: "メニュー", warn: false,      body: menuPanel },
-    { id: "health", label: "コンディション",   short: "体調",     warn: healthWarn, body: healthPanel },
-    { id: "prog",   label: "進捗",             short: "進捗",     warn: false,      body: `<div class="panel-inner" id="prog">${progressHtml()}</div>` },
-    { id: "past",   label: "過去の評価",       short: "履歴",     warn: false,      body: `
+  function growPanel() {
+    return `<section class="card">
+        <div class="card-head"><h2>トレーニングカレンダー</h2><span class="sub">週は月曜始まり</span></div>
+        <div class="card-body" id="cal">${calendarHtml()}</div>
+      </section>
+      <div class="stack" id="prog">${progressHtml()}</div>
       <section class="card">
-        <div class="card-head"><h2>過去の評価</h2><span class="sub">日付を選ぶと開きます</span></div>
-        <div class="card-body"><div id="hist">${histHtml()}</div></div>
-      </section>` }
-  ].filter(x => x.body);
-
-  const app = document.getElementById("app");
-  app.innerHTML = `
-    <div class="band">
-      <h1 class="band-title">サブ3デイリーコーチ</h1>
-      <span class="band-spacer"></span>
-      <span class="band-meta">${esc(D.meta.generatedAt)} 更新</span>
-    </div>
-    ${D.meta.sourceFresh ? "" : `<div class="stale-band">データが最新ではありません — ドライブ「ランニングログ」は ${esc(D.meta.sourceUpdatedAt)} 時点。GitHub Actions の同期が失敗している可能性があります。</div>`}
-
-    <div class="counters">
-      <div class="counter primary">
-        <span class="num">${daysLeftOf(D.race)}</span>
-        <span class="lbl"><b>${esc(D.race.name)}</b>${esc(D.race.date)} ／ 目標 ${esc(D.race.goal)}（${esc(D.race.pace)}）</span>
-      </div>
-      ${D.tuneup && D.tuneup.name ? `<div class="counter">
-        <span class="num">${daysLeftOf(D.tuneup)}</span>
-        <span class="lbl"><b>${esc(D.tuneup.name)}</b>${esc(D.tuneup.date)} ／ 練習レース</span>
-      </div>` : ""}
-      <div class="counter">
-        <span class="lbl"><b>${esc(D.phase.name)}</b>${esc(D.phase.policy)} ／ 週 ${esc(D.phase.weeklyTarget)}${(() => {
-          const td = dateOf(D.today && D.today.date), ph = td ? phaseAt(td) : null;
-          return ph ? ` ／ 残り ${dayDiff(td, ph.to) + 1}日` : "";
-        })()}</span>
-      </div>
-    </div>
-
-    ${tabDefs.length > 1 ? `<div class="tabs" role="tablist" aria-label="表示の切り替え">
-      ${tabDefs.map((x, i) => `<button class="tab" type="button" role="tab"
-        id="tab-${x.id}" aria-controls="panel-${x.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">
-        <span class="tl">${esc(x.label)}</span><span class="ts">${esc(x.short || x.label)}</span>${x.warn ? `<span class="dot" title="要注意の項目があります"></span>` : ""}
-      </button>`).join("")}
-    </div>` : ""}
-
-    ${tabDefs.map((x, i) => `<div class="panel" id="panel-${x.id}" role="tabpanel"
-      aria-labelledby="tab-${x.id}"${i === 0 ? "" : " hidden"}>${x.body}</div>`).join("")}
-
-    <footer>
-      <span>データ元: Googleドライブ「ランニングログ」${esc(D.meta.sourceUpdatedAt)} 時点${D.meta.sourceFresh ? "" : ` <span class="stale">／ データが最新ではありません</span>`}</span>
-      <span>毎日 12:00 JST に Claude Routine が自動更新</span>
-    </footer>
-  `;
-
-  /* ---------- tab behaviour ---------- */
-  const tabs = [...app.querySelectorAll(".tab")];
-  const panels = [...app.querySelectorAll(".panel")];
-
-  // タブを切り替えたら必ずページ先頭に戻す。
-  // 前のタブのスクロール位置がそのまま残ると、次のタブが途中から表示されて
-  // 何が出ているのか分からなくなる（縦に長いスマホで特に起きる）。
-  function scrollToTop() {
-    window.scrollTo(0, 0);
-    // iOS Safari はレイアウト確定後に位置を復元することがあるので、次フレームでもう一度戻す。
-    requestAnimationFrame(() => window.scrollTo(0, 0));
+        <div class="card-head"><h2>読みものの記録</h2></div>
+        <div class="card-body" id="arch">${archiveHtml()}</div>
+      </section>`;
   }
 
-  // toTop は「利用者がタブを操作したとき」だけ true にする。
-  // 初期描画と画面幅の切り替わりによる再描画では位置を動かさない。
+  // db を読み終えたら、履歴に依存する部分だけを描き直す
+  function paintAsync() {
+    const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+    set("pb", pbHtml());
+    set("kpi", kpiHtml());
+    set("cal", calendarHtml());
+    set("prog", progressHtml());
+    set("arch", archiveHtml());
+  }
+
+  /* ======================================================================
+     全体の描画
+     画面幅の区分が変わったら（回転など）グラフを描き直す。選択中のタブは URL のハッシュから復元する。
+     ====================================================================== */
+  const LEGACY_TAB = { menu: "home", prog: "grow", past: "grow" };
+  let tabIds = [];
+
+  function render() {
+    const runWarn = (D.axes || []).some(a => a.state === "warn" || a.state === "crit")
+      || ((D.today && D.today.stats) || []).some(s => s.state === "warn" || s.state === "crit");
+    const healthWarn = ((D.health && D.health.summary) || []).some(s => s.state === "warn" || s.state === "crit");
+    // ホームの並び: 分析した日のうちは「走り → 明日」、翌朝以降は「今日のメニュー → 体調 → 昨日の走り」
+    const home = MODE === "same"
+      ? [goalBlock(), runCard(), menuCard(), condMini(), kpiCard(), newsCard()]
+      : [goalBlock(), menuCard(), condMini(), runCard(), kpiCard(), newsCard()];
+    const tabDefs = [
+      { id: "home",   label: "ホーム",         short: "ホーム", body: home.join("") },
+      { id: "run",    label: "走りの詳細",     short: "走り",   warn: runWarn, body: runPanel() },
+      { id: "plan",   label: "予定",           short: "予定",   body: seasonCard() + planCard() },
+      { id: "health", label: "コンディション", short: "体調",   warn: healthWarn, body: condCard() },
+      { id: "grow",   label: "成長の記録",     short: "成長",   body: growPanel() }
+    ].filter(x => x.body);
+    tabIds = tabDefs.map(x => x.id);
+
+    const m = D.meta || {};
+    const staleView = MODE === "stale" && D.tomorrow
+      ? `<div class="stale-band">この分析は ${esc(m.generatedAt || dataDay)} のものです（${dayDiff(dataDay, viewDay)}日前）。毎日12:00 の更新が止まっている可能性があります。</div>` : "";
+    const app = document.getElementById("app");
+    app.innerHTML = `
+      <div class="top">
+        <h1 class="brand">サブ3デイリーコーチ</h1>
+        <span class="top-meta">${esc(m.generatedAt || "")} 更新</span>
+      </div>
+      ${m.sourceFresh === false ? `<div class="stale-band">データが最新ではありません — ドライブ「ランニングログ」は ${esc(m.sourceUpdatedAt || "")} 時点。GitHub Actions の同期が失敗している可能性があります。</div>` : ""}
+      ${staleView}
+      <div class="tabs" role="tablist" aria-label="表示の切り替え">
+        ${tabDefs.map((x, i) => `<button class="tab" type="button" role="tab" id="tab-${x.id}" aria-controls="panel-${x.id}" aria-selected="${i === 0}" tabindex="${i === 0 ? 0 : -1}">
+          <span class="tl">${esc(x.label)}</span><span class="ts">${esc(x.short)}</span>${x.warn ? `<span class="dot" title="要注意の項目があります"></span>` : ""}
+        </button>`).join("")}
+      </div>
+      ${tabDefs.map((x, i) => `<div class="panel" id="panel-${x.id}" role="tabpanel" aria-labelledby="tab-${x.id}"${i === 0 ? "" : " hidden"}>${x.body}</div>`).join("")}
+      <footer>
+        <span>データ元: Googleドライブ「ランニングログ」${esc(m.sourceUpdatedAt || "")} 時点${m.sourceFresh === false ? ` <span class="stale">／ データが最新ではありません</span>` : ""}</span>
+        <span>毎日 12:00 JST に Claude Routine が自動更新</span>
+      </footer>`;
+
+    const tabs = [...app.querySelectorAll(".tab")];
+    tabs.forEach((tab, i) => {
+      tab.addEventListener("click", () => select(i, false, true));
+      tab.addEventListener("keydown", (e) => {
+        const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
+        if (!step) return;
+        e.preventDefault();
+        select((i + step + tabs.length) % tabs.length, true, true);
+      });
+    });
+    const h = location.hash.slice(1);
+    const want = tabIds.indexOf(LEGACY_TAB[h] || h);
+    select(want >= 0 ? want : 0);
+  }
+
+  // タブを切り替えたらページ先頭に戻す（前のタブのスクロール位置が残ると、次のタブが途中から表示される）。
+  // toTop は利用者が操作したときだけ true。初期描画と画面幅の切り替えでは位置を動かさない。
   function select(i, focus, toTop) {
-    tabs.forEach((tab, k) => {
-      tab.setAttribute("aria-selected", String(k === i));
-      tab.tabIndex = k === i ? 0 : -1;
-    });
+    const app = document.getElementById("app");
+    const tabs = [...app.querySelectorAll(".tab")], panels = [...app.querySelectorAll(".panel")];
+    if (!tabs[i]) return;
+    tabs.forEach((tab, k) => { tab.setAttribute("aria-selected", String(k === i)); tab.tabIndex = k === i ? 0 : -1; });
     panels.forEach((p, k) => { p.hidden = k !== i; });
-    // focus() 自体がタブを画面内へスクロールさせるので、先頭へ戻すのはそのあと。
     if (focus) tabs[i].focus();
-    if (toTop) scrollToTop();
+    if (toTop) { window.scrollTo(0, 0); requestAnimationFrame(() => window.scrollTo(0, 0)); }
     // リロードや共有で同じタブに戻れるようにする
-    history.replaceState(null, "", "#" + tabDefs[i].id);
-  }
-
-  tabs.forEach((tab, i) => {
-    tab.addEventListener("click", () => select(i, false, true));
-    tab.addEventListener("keydown", (e) => {
-      const step = e.key === "ArrowRight" ? 1 : e.key === "ArrowLeft" ? -1 : 0;
-      if (!step) return;
-      e.preventDefault();
-      select((i + step + tabs.length) % tabs.length, true, true);
-    });
-  });
-
-  if (tabs.length) {
-    const fromHash = tabDefs.findIndex(x => "#" + x.id === location.hash);
-    select(fromHash >= 0 ? fromHash : 0);
-  }
+    history.replaceState(null, "", "#" + tabIds[i]);
   }
 
   render();
 
-  // 履歴の開閉。app 自体は render() で作り直されないので、ここで一度だけ張る。
-  document.getElementById("app").addEventListener("click", (e) => {
-    const more = e.target.closest ? e.target.closest(".hmore") : null;
-    if (more) { histShow += HIST_PAGE; paintHistory(); return; }
-    const btn = e.target.closest ? e.target.closest(".hbtn") : null;
-    if (!btn) return;
-    histSel = histSel === btn.dataset.d ? null : btn.dataset.d;
-    paintHistory();
+  // ボタン類の操作。app 自体は render() で作り直されないので、ここで一度だけ張る
+  const appEl = document.getElementById("app");
+  appEl.addEventListener("click", (e) => {
+    const t = e.target.closest ? e.target : null;
+    if (!t) return;
+    const go = t.closest("[data-go]");
+    if (go) { const i = tabIds.indexOf(go.dataset.go); if (i >= 0) select(i, false, true); return; }
+    const day = t.closest(".cday[data-day]");
+    if (day) {
+      calSel = calSel === day.dataset.day ? null : day.dataset.day;
+      document.getElementById("cal").innerHTML = calendarHtml();
+      const again = document.querySelector(`.cday[data-day="${calSel}"]`);
+      if (again) again.focus({ preventScroll: true });
+      return;
+    }
+    if (t.closest("[data-cal-more]")) { calWeeks += 6; document.getElementById("cal").innerHTML = calendarHtml(); return; }
+    if (t.closest("[data-arch-more]")) { archShow += 10; document.getElementById("arch").innerHTML = archiveHtml(); }
   });
   // ラップ一覧の開閉状態を覚える（toggle はバブリングしないので capture で拾う）
-  document.getElementById("app").addEventListener("toggle", (e) => {
+  appEl.addEventListener("toggle", (e) => {
     const d = e.target;
     if (!d.classList || !d.classList.contains("lapdata")) return;
     if (d.open) lapOpen.add(d.dataset.lap); else lapOpen.delete(d.dataset.lap);
   }, true);
-  // db は初回描画のあとに解決される。読めたら履歴部分だけ差し替える。
+  // db は初回描画のあとに解決される。読めたら履歴部分だけ差し替える
   loadHistory();
 
-  const onBreakpoint = (e) => { NARROW = e.matches; render(); };
+  const onBreakpoint = (e) => { NARROW = e.matches; render(); paintAsync(); };
   if (narrowMQ.addEventListener) narrowMQ.addEventListener("change", onBreakpoint);
   else narrowMQ.addListener(onBreakpoint);
 })();
