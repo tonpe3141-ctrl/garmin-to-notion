@@ -1760,7 +1760,8 @@ footer {
     const totalWeeks = Math.floor(dayDiff(mondayOf(start), thisMon) / 7) + 1;
     const n = Math.min(calWeeks, totalWeeks);
     let grid = ["月", "火", "水", "木", "金", "土", "日"].map(d => `<div class="cal-h">${d}</div>`).join("") + `<div class="cal-h">週計</div>`;
-    for (let w = 0; w < n; w++) {
+    // 上が古い週・下が今週（暦と同じ向きで、上から読み下ろす）
+    for (let w = n - 1; w >= 0; w--) {
       const mon = isoAdd(thisMon, -7 * w);
       for (let i = 0; i < 7; i++) grid += cell(isoAdd(mon, i));
       grid += weekCell(mon);
@@ -1782,8 +1783,8 @@ footer {
         ${[["E", "ジョグ"], ["M", "Mペース"], ["T", "閾値"], ["R", "インターバル"], ["rest", "休養"]].map(([z, l]) => `<span class="lg"><span class="tp ${z}">${z === "rest" ? "休" : z}</span>${l}</span>`).join("")}
         <span class="lg">右上＝総合評価・マスを押すと評価が開く</span>
       </div>
-      <div class="cal" role="group" aria-label="トレーニングカレンダー">${grid}</div>
-      ${n < totalWeeks ? `<button class="cal-more" type="button" data-cal-more="1">さらに前の週を表示</button>` : ""}`;
+      ${n < totalWeeks ? `<button class="cal-more" type="button" data-cal-more="1">さらに前の週を表示</button>` : ""}
+      <div class="cal" role="group" aria-label="トレーニングカレンダー">${grid}</div>`;
   }
 
   /* 棒グラフ（持続力）。bars: [{ label, v, fill, op, tip, top }] */
