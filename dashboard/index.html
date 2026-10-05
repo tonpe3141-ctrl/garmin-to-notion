@@ -38,7 +38,7 @@
     走りの詳細   … 全指標・ラップ・4軸の評価・週とシーズンの視点
     予定         … シーズンの帯とフェーズ・この先1週間
     コンディション … 健康データ
-    成長の記録   … トレーニングカレンダー（旧「過去の評価」）・Mペースの持続力・有酸素の効率・読みものの記録
+    成長の記録   … トレーニングカレンダー（月を選べる）・月間走行距離・Mペースの持続力・有酸素の効率・読みものの記録
   ============================================================================
 -->
 
@@ -727,6 +727,20 @@ button.cday:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
 .cal-detail .stats { border: 1px solid var(--line-soft); border-radius: 4px; overflow: hidden; background: var(--surface); }
 .cal-detail .effect { padding: 0; border: 0; }
 .cal-detail .chart-box { padding: 6px 4px 10px; background: var(--surface); border-radius: 4px; }
+.cal-nav { display: flex; align-items: center; gap: 8px; }
+.cal-step, .cal-sel {
+  appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  border-radius: 4px; font-family: var(--jp); font-size: 13px; cursor: pointer; height: 34px;
+}
+.cal-step { width: 38px; padding: 0; }
+.cal-step:disabled { opacity: .35; cursor: default; }
+.cal-step:not(:disabled):hover, .cal-sel:hover { color: var(--accent-ink); border-color: var(--accent); }
+.cal-step:focus-visible, .cal-sel:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.cal-sel { padding: 0 28px 0 12px; font-weight: 700; color: var(--ink); min-width: 9.5em;
+  background: var(--surface) url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6'%3E%3Cpath d='M1 1l4 4 4-4' fill='none' stroke='%23666' stroke-width='1.5'/%3E%3C/svg%3E") no-repeat right 11px center; }
+.cday.base { background: #e2e6e5; }
+.cday.out { opacity: .45; }
+.tp.base { background: #e2e6e5; color: var(--ink-2); }
 .cal-more {
   appearance: none; border: 1px solid var(--line); background: var(--surface);
   border-radius: 4px; padding: 7px 14px; cursor: pointer; align-self: center;
@@ -1171,8 +1185,13 @@ footer {
   let histRows = null;            // db から読んだ過去エントリ
   let histState = "loading";      // loading / ready / off / error
   let calSel = null;              // カレンダーで開いている日付
-  let calWeeks = 6;               // カレンダーに出している週数
+  let calMonth = null;            // カレンダーに出している月（"YYYY-MM"）。null＝直近6週
   let archShow = 8;               // 読みものの記録に出している件数
+
+  /* 日別の走行距離（km）の基準データ。Garmin のランニング記録を日ごとに合計したもの（2026-10-05 時点）。
+     db の評価履歴は 2026-09-02 からしか無いので、それ以前の月のカレンダーと「月間走行距離」はこれで描く。
+     db に走りがある日はそちらを優先する。作り直すときは scripts/export_base_km.py（ローカルの ~/.garth で読むだけ）。 */
+  const BASE_KM = {"2025-10-26":42.9,"2025-11-08":1.4,"2025-11-16":3.4,"2025-11-17":5.1,"2025-11-19":5.1,"2025-11-20":4.1,"2025-11-21":5.9,"2025-11-28":3.8,"2025-12-16":2.8,"2025-12-19":5.1,"2025-12-26":4.1,"2025-12-27":6.0,"2025-12-28":8.1,"2025-12-29":6.0,"2025-12-30":10.2,"2025-12-31":9.6,"2026-01-02":5.5,"2026-01-03":4.8,"2026-01-04":10.0,"2026-01-05":3.2,"2026-01-06":8.6,"2026-01-09":6.0,"2026-01-10":4.2,"2026-01-11":42.8,"2026-01-14":5.3,"2026-01-15":8.2,"2026-01-17":11.3,"2026-01-18":6.5,"2026-01-20":7.7,"2026-01-21":2.2,"2026-01-22":10.8,"2026-01-23":6.2,"2026-01-24":15.5,"2026-01-27":10.9,"2026-01-28":8.2,"2026-01-29":6.0,"2026-01-30":6.0,"2026-01-31":8.9,"2026-02-01":4.9,"2026-02-02":17.8,"2026-02-03":8.9,"2026-02-04":8.1,"2026-02-05":9.4,"2026-02-07":17.3,"2026-02-10":10.3,"2026-02-12":8.4,"2026-02-15":42.7,"2026-02-18":3.6,"2026-02-20":5.5,"2026-02-21":9.8,"2026-02-22":14.2,"2026-02-24":10.2,"2026-02-26":7.9,"2026-02-27":19.0,"2026-03-01":21.2,"2026-03-03":12.0,"2026-03-05":11.0,"2026-03-07":12.1,"2026-03-08":13.0,"2026-03-10":11.0,"2026-03-11":10.1,"2026-03-12":7.4,"2026-03-16":16.0,"2026-03-17":12.0,"2026-03-20":15.1,"2026-03-21":6.1,"2026-03-22":30.0,"2026-03-24":10.1,"2026-03-25":12.0,"2026-03-27":10.2,"2026-03-28":28.2,"2026-03-29":0.9,"2026-03-30":7.2,"2026-03-31":8.1,"2026-04-01":8.0,"2026-04-03":11.0,"2026-04-05":20.2,"2026-04-08":10.1,"2026-04-11":10.4,"2026-04-12":5.9,"2026-04-15":9.4,"2026-04-17":4.0,"2026-04-19":42.6,"2026-04-23":5.4,"2026-04-24":10.4,"2026-04-26":10.3,"2026-04-28":10.9,"2026-04-29":5.2,"2026-04-30":10.9,"2026-05-02":10.2,"2026-05-03":11.5,"2026-05-05":11.1,"2026-05-06":20.0,"2026-05-07":6.2,"2026-05-08":10.0,"2026-05-09":6.4,"2026-05-10":18.4,"2026-05-11":10.8,"2026-05-12":11.6,"2026-05-13":10.8,"2026-05-15":11.2,"2026-05-16":10.5,"2026-05-17":10.5,"2026-05-18":10.0,"2026-05-19":10.0,"2026-05-20":9.3,"2026-05-23":25.1,"2026-05-24":14.4,"2026-05-25":11.0,"2026-05-26":10.4,"2026-05-27":10.8,"2026-05-28":11.3,"2026-05-29":7.4,"2026-05-30":22.9,"2026-06-01":10.8,"2026-06-02":10.9,"2026-06-04":10.9,"2026-06-05":10.8,"2026-06-06":21.8,"2026-06-10":11.3,"2026-06-11":10.4,"2026-06-12":10.8,"2026-06-13":9.2,"2026-06-14":25.5,"2026-06-16":10.1,"2026-06-17":11.1,"2026-06-19":10.8,"2026-06-20":11.1,"2026-06-21":11.7,"2026-06-22":4.1,"2026-06-23":10.8,"2026-06-24":10.8,"2026-06-26":6.7,"2026-06-28":14.5,"2026-06-29":10.0,"2026-06-30":10.8,"2026-07-01":10.8,"2026-07-03":10.8,"2026-07-05":4.0,"2026-07-07":10.3,"2026-07-08":10.8,"2026-07-09":10.9,"2026-07-10":10.8,"2026-07-12":14.5,"2026-07-13":6.2,"2026-07-14":10.8,"2026-07-15":10.4,"2026-07-16":10.8,"2026-07-17":6.8,"2026-07-18":14.4,"2026-07-19":10.4,"2026-07-20":4.2,"2026-07-21":10.8,"2026-07-22":10.5,"2026-07-23":10.4,"2026-07-24":10.1,"2026-07-27":10.5,"2026-07-29":14.1,"2026-08-02":7.6,"2026-08-03":11.2,"2026-08-04":8.0,"2026-08-05":10.9,"2026-08-06":10.2,"2026-08-07":6.5,"2026-08-08":10.9,"2026-08-10":10.8,"2026-08-11":11.2,"2026-08-15":16.0,"2026-08-17":10.8,"2026-08-18":10.4,"2026-08-19":10.5,"2026-08-20":7.1,"2026-08-21":10.3,"2026-08-23":16.1,"2026-08-24":4.1,"2026-08-25":10.4,"2026-08-26":10.3,"2026-08-28":12.2,"2026-08-30":7.4,"2026-08-31":8.3,"2026-09-01":2.4,"2026-09-02":8.8,"2026-09-04":12.1,"2026-09-05":11.3,"2026-09-06":16.1,"2026-09-08":10.8,"2026-09-09":12.0,"2026-09-10":11.0,"2026-09-11":9.9,"2026-09-13":22.1,"2026-09-15":13.1,"2026-09-16":12.3,"2026-09-17":16.2,"2026-09-18":10.4,"2026-09-19":10.1,"2026-09-20":22.1,"2026-09-22":14.5,"2026-09-23":10.0,"2026-09-24":16.2,"2026-09-25":8.0,"2026-09-26":10.3,"2026-09-27":24.5,"2026-09-28":1.0,"2026-09-30":14.9,"2026-10-01":10.1,"2026-10-02":18.0,"2026-10-03":8.1,"2026-10-04":28.0};
 
   // 今日の分は db への書き込みを待たずに DATA から組み立てる。同じ日の2本目以降は today.extra[]
   function todayRows() {
@@ -1701,13 +1720,11 @@ footer {
     </div>`;
   }
 
-  /* トレーニングカレンダー。1マス＝1日（色＝練習の種類、右上＝総合評価、数字＝距離）、右端＝その週の合計。
-     マスを押すとその日の評価が週の下に開く。旧「過去の評価」の一覧と「週間距離の推移」をこれ1つにまとめた。 */
-  function calendarHtml() {
+  /* 日ごとの走行距離・練習の種類をまとめる（カレンダーと月間走行距離で共用）。
+     距離は 評価の履歴（db・今日の DATA）→ 直近7日（DATA.week）→ 基準データ（BASE_KM）の順に採る。 */
+  function dayModel() {
     const today = dataDay;
-    if (!today) return "";
     const runs = allRuns();
-    const haveHist = histState === "ready";
     const byDay = new Map();
     runs.forEach(r => { if (!byDay.has(r.d)) byDay.set(r.d, []); byDay.get(r.d).push(r); });
     // 直近7日は DATA.week が正（type が E/M/T/R/rest で入っている）
@@ -1715,24 +1732,57 @@ footer {
     if (D.week && Array.isArray(D.week.days) && D.week.days.length === 7) {
       D.week.days.forEach((x, i) => wk.set(isoAdd(today, i - 6), x));
     }
-    const start = haveHist && runs.length ? runs[0].d < isoAdd(today, -6) ? runs[0].d : isoAdd(today, -6) : isoAdd(today, -6);
+    const baseFirst = Object.keys(BASE_KM).sort()[0];
+    const firsts = [isoAdd(today, -6)];
+    if (baseFirst) firsts.push(baseFirst);
+    if (runs.length) firsts.push(runs[0].d);
+    const start = firsts.sort()[0];
     const dayInfo = (iso) => {
       const rs = byDay.get(iso) || [];
       const ran = rs.filter(r => r.km > 0);
       const w = wk.get(iso);
-      const km = ran.length ? ran.reduce((a, r) => a + r.km, 0) : (w ? Number(w.km) || 0 : 0);
-      const zone = km <= 0 ? "rest" : (w && w.km > 0 && w.type !== "rest" ? w.type : zoneOfType(ran[0] && ran[0].type, ran[0] && ran[0].laps));
-      return { rs, km, zone, main: rs[0] || null };
+      let km = ran.length ? ran.reduce((a, r) => a + r.km, 0) : (w ? Number(w.km) || 0 : 0);
+      // 評価の記録が無い日は、基準データの距離だけを出す（種類・評価は分からない）
+      const base = km <= 0 && !w && BASE_KM[iso] > 0;
+      if (base) km = BASE_KM[iso];
+      const zone = base ? "base" : km <= 0 ? "rest" : (w && w.km > 0 && w.type !== "rest" ? w.type : zoneOfType(ran[0] && ran[0].type, ran[0] && ran[0].laps));
+      return { rs, km, zone, main: rs[0] || null, base };
     };
-    const cell = (iso) => {
+    return { today, start, dayInfo };
+  }
+
+  const monthOf = (iso) => iso.slice(0, 7);
+  const monthEnd = (ym) => isoAdd(monthOf(isoAdd(ym + "-01", 32)) + "-01", -1);
+  const monthLabel = (ym) => `${ym.slice(0, 4)}年${+ym.slice(5)}月`;
+  // 選べる月。新しい順（今月が先頭）
+  function calMonths(dm) {
+    const out = [];
+    for (let m = monthOf(dm.today); m >= monthOf(dm.start); m = monthOf(isoAdd(m + "-01", -1))) out.push(m);
+    return out;
+  }
+  // カレンダーの表示切り替えの並び。null＝直近6週
+  const calOptions = () => { const dm = dayModel(); return dm.today ? [null].concat(calMonths(dm)) : [null]; };
+
+  /* トレーニングカレンダー。1マス＝1日（色＝練習の種類、右上＝総合評価、数字＝距離）、右端＝その週の合計。
+     マスを押すとその日の評価が週の下に開く。表示は「直近6週」か、月を選んでその月の週。
+     評価の履歴が無い日（2026-09-02 より前）は、距離だけを灰色のマスで出す。 */
+  function calendarHtml() {
+    const dm = dayModel();
+    const { today, start, dayInfo } = dm;
+    if (!today) return "";
+    const haveHist = histState === "ready";
+    let usedBase = false;
+    const cell = (iso, ym) => {
       const dd = +iso.slice(8, 10);
       const first = dd === 1 ? `${+iso.slice(5, 7)}/1` : dd;
-      if (iso > today) return `<div class="cday fut"><span class="cd">${first}</span></div>`;
-      if (iso < start) return `<div class="cday none"><span class="cd">${first}</span></div>`;
-      const { km, zone, main } = dayInfo(iso);
+      const out = ym && monthOf(iso) !== ym ? " out" : "";
+      if (iso > today) return `<div class="cday fut${out}"><span class="cd">${first}</span></div>`;
+      if (iso < start) return `<div class="cday none${out}"><span class="cd">${first}</span></div>`;
+      const { km, zone, main, base } = dayInfo(iso);
+      if (base) usedBase = true;
       const v = main && JUDGED.includes(main.verdict) ? main.verdict : "";
       const label = `${mdOf(iso)}(${dowOf(iso)}) ${main ? main.type : km > 0 ? "" : "休養"}${km > 0 ? ` ${kmFmt(km)}km` : ""}${v ? ` 評価${v}` : ""}`;
-      return `<button type="button" class="cday ${esc(zone)}${iso === today ? " today" : ""}${calSel === iso ? " sel" : ""}" data-day="${iso}" aria-pressed="${calSel === iso}" aria-label="${esc(label)}">
+      return `<button type="button" class="cday ${esc(zone)}${iso === today ? " today" : ""}${calSel === iso ? " sel" : ""}${out}" data-day="${iso}" aria-pressed="${calSel === iso}" aria-label="${esc(label)}">
           <span class="cd">${first}</span>${v ? `<span class="cv ${vcls(v)}">${v}</span>` : ""}
           <span class="ck">${km > 0 ? kmFmt(km) : "休"}</span></button>`;
     };
@@ -1752,39 +1802,110 @@ footer {
         <b>${Math.round(km)}<em>km</em></b>${ref ? `<span class="cm"><i style="width:${Math.min(100, km / ref * 100).toFixed(0)}%"></i></span>` : ""}<span class="cl">${esc(lab)}</span></div>`;
     };
     const detail = (iso) => {
-      const { rs, km } = dayInfo(iso);
-      if (!rs.length) return `<div class="cal-detail"><p class="hnote">${mdOf(iso)}(${dowOf(iso)}) — ${km > 0 ? `${kmFmt(km)}km（評価の記録なし）` : "休養（記録なし）"}</p></div>`;
+      const { rs, km, base } = dayInfo(iso);
+      if (!rs.length || base) return `<div class="cal-detail"><p class="hnote">${mdOf(iso)}(${dowOf(iso)}) — ${km > 0 ? `${kmFmt(km)}km（Garmin の記録。評価の記録なし）` : "休養（記録なし）"}</p></div>`;
       return `<div class="cal-detail">${rs.map(r => runBody(r.raw, iso + "-" + r.seq)).join("")}</div>`;
     };
+
+    const months = calMonths(dm);
+    if (calMonth && !months.includes(calMonth)) calMonth = null;
     const thisMon = mondayOf(today);
-    const totalWeeks = Math.floor(dayDiff(mondayOf(start), thisMon) / 7) + 1;
-    const n = Math.min(calWeeks, totalWeeks);
+    // 表示する週（古い順に並べる）。月を選んだらその月にかかる週すべて
+    let mons = [];
+    if (calMonth) {
+      for (let m = mondayOf(calMonth + "-01"); m <= monthEnd(calMonth); m = isoAdd(m, 7)) mons.push(m);
+    } else {
+      const totalWeeks = Math.floor(dayDiff(mondayOf(start), thisMon) / 7) + 1;
+      for (let w = Math.min(6, totalWeeks) - 1; w >= 0; w--) mons.push(isoAdd(thisMon, -7 * w));
+    }
     let grid = ["月", "火", "水", "木", "金", "土", "日"].map(d => `<div class="cal-h">${d}</div>`).join("") + `<div class="cal-h">週計</div>`;
-    // 上が古い週・下が今週（暦と同じ向きで、上から読み下ろす）
-    for (let w = n - 1; w >= 0; w--) {
-      const mon = isoAdd(thisMon, -7 * w);
-      for (let i = 0; i < 7; i++) grid += cell(isoAdd(mon, i));
+    // 上が古い週・下が新しい週（暦と同じ向きで、上から読み下ろす）
+    mons.forEach(mon => {
+      for (let i = 0; i < 7; i++) grid += cell(isoAdd(mon, i), calMonth);
       grid += weekCell(mon);
       if (calSel && calSel >= mon && calSel <= isoAdd(mon, 6)) grid += detail(calSel);
-    }
+    });
 
-    // 直近30日の総合評価（事実の集計。甘くしない）
-    const judged = runs.filter(r => JUDGED.includes(r.verdict) && dayDiff(r.d, today) < 30);
-    const ok = judged.filter(r => r.verdict === "◎" || r.verdict === "○").length;
-    let streakOk = 0;
-    for (let i = judged.length - 1; i >= 0 && (judged[i].verdict === "◎" || judged[i].verdict === "○"); i--) streakOk++;
-    const cnt = (v) => judged.filter(r => r.verdict === v).length;
-    const take = haveHist && judged.length
-      ? `<p class="take">直近30日の評価は ${JUDGED.filter(v => cnt(v)).map(v => `${v}${cnt(v)}`).join("・")}（○以上 <span class="n">${ok}/${judged.length}</span> 本）。${streakOk >= 2 ? `いま <span class="n">${streakOk}</span> 本続けて○以上。` : ""}</p>` : "";
+    const opts = [null].concat(months);
+    const idx = opts.indexOf(calMonth);
+    const nav = `<div class="cal-nav">
+        <button class="cal-step" type="button" data-cal-step="1" aria-label="前の月" ${idx >= opts.length - 1 ? "disabled" : ""}>◀</button>
+        <select class="cal-sel" data-cal-month aria-label="表示する期間">${opts.map(o => `<option value="${o || ""}"${o === calMonth ? " selected" : ""}>${o ? monthLabel(o) : "直近6週"}</option>`).join("")}</select>
+        <button class="cal-step" type="button" data-cal-step="-1" aria-label="次の月" ${idx <= 0 ? "disabled" : ""}>▶</button>
+      </div>`;
+
+    let take = "";
+    if (calMonth) {
+      let km = 0, days = 0;
+      for (let iso = calMonth + "-01"; iso <= monthEnd(calMonth) && iso <= today; iso = isoAdd(iso, 1)) {
+        const k = dayInfo(iso).km;
+        km += k; if (k > 0) days++;
+      }
+      take = `<p class="take">${+calMonth.slice(5)}月の走行距離は <span class="n">${kmFmt(km)}km</span>（走った日 <span class="n">${days}</span> 日）${calMonth === monthOf(today) ? "。今月は途中の値。" : "。"}</p>`;
+    } else {
+      // 直近30日の総合評価（事実の集計。甘くしない）
+      const judged = allRuns().filter(r => JUDGED.includes(r.verdict) && dayDiff(r.d, today) < 30);
+      const ok = judged.filter(r => r.verdict === "◎" || r.verdict === "○").length;
+      let streakOk = 0;
+      for (let i = judged.length - 1; i >= 0 && (judged[i].verdict === "◎" || judged[i].verdict === "○"); i--) streakOk++;
+      const cnt = (v) => judged.filter(r => r.verdict === v).length;
+      take = haveHist && judged.length
+        ? `<p class="take">直近30日の評価は ${JUDGED.filter(v => cnt(v)).map(v => `${v}${cnt(v)}`).join("・")}（○以上 <span class="n">${ok}/${judged.length}</span> 本）。${streakOk >= 2 ? `いま <span class="n">${streakOk}</span> 本続けて○以上。` : ""}</p>` : "";
+    }
     const note = histState === "loading" ? `<p class="hnote">履歴を読み込んでいます…</p>`
-      : histState === "ready" ? "" : `<p class="hnote">この画面では保存済みの履歴を読み出せないため、直近7日だけを表示しています。</p>`;
-    return `${take}${note}
+      : histState === "ready" ? "" : `<p class="hnote">この画面では保存済みの評価の履歴を読み出せないため、評価と練習の種類は直近7日だけを表示しています。</p>`;
+    return `${nav}${take}${note}
       <div class="cal-legend">
         ${[["E", "ジョグ"], ["M", "Mペース"], ["T", "閾値"], ["R", "インターバル"], ["rest", "休養"]].map(([z, l]) => `<span class="lg"><span class="tp ${z}">${z === "rest" ? "休" : z}</span>${l}</span>`).join("")}
-        <span class="lg">右上＝総合評価・マスを押すと評価が開く</span>
+        ${usedBase ? `<span class="lg"><span class="tp base">走</span>距離のみ</span>` : ""}
+        <span class="lg">右上＝総合評価・マスを押すと開く</span>
       </div>
-      ${n < totalWeeks ? `<button class="cal-more" type="button" data-cal-more="1">さらに前の週を表示</button>` : ""}
       <div class="cal" role="group" aria-label="トレーニングカレンダー">${grid}</div>`;
+  }
+
+  /* 月間走行距離。月ごとの合計（km）を棒で並べる。今月は途中なので薄く描く。 */
+  function monthlyHtml() {
+    const dm = dayModel();
+    const { today, dayInfo } = dm;
+    if (!today) return "";
+    const cur = monthOf(today);
+    const sumTo = (ym, lastDay) => {
+      let km = 0, days = 0;
+      for (let iso = ym + "-01"; iso <= monthEnd(ym) && iso <= lastDay; iso = isoAdd(iso, 1)) {
+        const k = dayInfo(iso).km;
+        km += k; if (k > 0) days++;
+      }
+      return { km, days };
+    };
+    const months = calMonths(dm).slice(0, 12).reverse();
+    if (months.length < 2) return "";
+    const tot = new Map(months.map(m => [m, sumTo(m, today)]));
+    const bars = months.map(m => {
+      const t = tot.get(m);
+      return { label: `${+m.slice(5)}月`, v: t.km, top: `${Math.round(t.km)}`, fill: "var(--accent)", op: m === cur ? .4 : .9,
+        tip: `${monthLabel(m)} ${kmFmt(t.km)}km（走った日 ${t.days} 日${m === cur ? "・途中" : ""}）` };
+    });
+    const done = months.filter(m => m < cur);
+    let take = "";
+    if (done.length) {
+      const last = done[done.length - 1];
+      const best = done.reduce((a, m) => tot.get(m).km > tot.get(a).km ? m : a, done[0]);
+      take = `先月（${+last.slice(5)}月）は <span class="n">${kmFmt(tot.get(last).km)}km</span>。` +
+        (done.length < 2 ? "" : best === last ? "集計できている月のなかで最多。" : `最多は ${+best.slice(5)}月の <span class="n">${kmFmt(tot.get(best).km)}km</span>。`);
+      if (months.includes(cur)) {
+        const d = +today.slice(8, 10);
+        const prevSame = sumTo(last, isoAdd(last + "-01", d - 1)).km;
+        take += ` 今月は${d}日までで <span class="n">${kmFmt(tot.get(cur).km)}km</span>（先月の同じ日まで ${kmFmt(prevSame)}km）。`;
+      }
+    }
+    return `<section class="card">
+      <div class="card-head"><h2>月間走行距離</h2><span class="sub">ランニングの月合計 km</span></div>
+      <div class="card-body">
+        ${take ? `<p class="take">${take}</p>` : ""}
+        ${barChart(bars, { aria: "月ごとの走行距離" })}
+        <p class="hnote">薄い棒は今月（途中の値）。Garmin のランニングの記録を月ごとに合計している。1週ごとの量ではなく、積み上げが月単位で続いているかを見る。</p>
+      </div>
+    </section>`;
   }
 
   /* 棒グラフ（持続力）。bars: [{ label, v, fill, op, tip, top }] */
@@ -1937,6 +2058,7 @@ footer {
         <div class="card-head"><h2>トレーニングカレンダー</h2><span class="sub">週は月曜始まり</span></div>
         <div class="card-body" id="cal">${calendarHtml()}</div>
       </section>
+      <div class="stack" id="mon">${monthlyHtml()}</div>
       <div class="stack" id="prog">${progressHtml()}</div>
       <section class="card">
         <div class="card-head"><h2>読みものの記録</h2></div>
@@ -1950,6 +2072,7 @@ footer {
     set("pb", pbHtml());
     set("kpi", kpiHtml());
     set("cal", calendarHtml());
+    set("mon", monthlyHtml());
     set("prog", progressHtml());
     set("arch", archiveHtml());
   }
@@ -2046,8 +2169,25 @@ footer {
       if (again) again.focus({ preventScroll: true });
       return;
     }
-    if (t.closest("[data-cal-more]")) { calWeeks += 6; document.getElementById("cal").innerHTML = calendarHtml(); return; }
+    const step = t.closest("[data-cal-step]");
+    if (step) {
+      const opts = calOptions();
+      const to = opts[Math.max(0, Math.min(opts.length - 1, opts.indexOf(calMonth) + Number(step.dataset.calStep)))];
+      showMonth(to === undefined ? null : to, "[data-cal-step='" + step.dataset.calStep + "']");
+      return;
+    }
     if (t.closest("[data-arch-more]")) { archShow += 10; document.getElementById("arch").innerHTML = archiveHtml(); }
+  });
+  // カレンダーの表示期間を切り替えて描き直す。focus は操作したボタンを探すセレクタ（押せなくなっていたら選択欄へ）
+  function showMonth(ym, focus) {
+    calMonth = ym; calSel = null;
+    document.getElementById("cal").innerHTML = calendarHtml();
+    const el = (focus && document.querySelector("#cal " + focus + ":not([disabled])")) || document.querySelector("#cal .cal-sel");
+    if (el) el.focus({ preventScroll: true });
+  }
+  appEl.addEventListener("change", (e) => {
+    const t = e.target;
+    if (t && t.matches && t.matches("[data-cal-month]")) showMonth(t.value || null, ".cal-sel");
   });
   // ラップ一覧の開閉状態を覚える（toggle はバブリングしないので capture で拾う）
   appEl.addEventListener("toggle", (e) => {
