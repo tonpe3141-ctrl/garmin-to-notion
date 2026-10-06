@@ -22,7 +22,7 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 | Notion のウィジェット用ページの更新 | 可（例外） | STEP 6.8 の1ページだけ。`.claude/settings.json` のフックで、そのページの `replace_content` だけを承認なしで通す |
 | Artifact の発行・更新 | 可 | 固定URLへ上書き更新できる。更新前に WebFetch での既読が必須 |
 | Artifact の db 書き込み | 可 | **承認プロンプトは `.claude/settings.json` のフックで抑止済み。** 下記参照。ツール名は `Artifact`（`action: "write_db"`）のことも `ArtifactData`（`action: "set"` / `"batch"`）のこともある（2026-09-15 にセッション途中で分割された）。**どちらでも `runs` コレクションへの書き込みはフックが通す** |
-| GitHub Actions の手動起動 | 不明 | 以前は 403。連携し直したので通る可能性がある。必要になったら確かめる |
+| GitHub Actions の手動起動 | 可 | **2026-10-06 に確認。** GitHub MCP の `actions_run_trigger`（`run_workflow`）で `sync_garmin_to_notion.yml` を `main` で起動でき、約3分で完了した。使いどころは STEP 2 |
 | リポジトリへの push / コミット | 可 | **2026-09-06 に GitHub App を接続して解消。** それ以前は 403 だった |
 | WebSearch（今日の読みもの） | 可 | STEP 5.8。**2026-09-30 に Routine の許可ツールへ追加した。** 万一拒否されたら `news: null` にして先へ進む（許可ツールから外れていないか確認）。検索はサーバー側で行われるので egress の制限は受けない |
 | WebFetch（記事本文） | 不明 | 一般のニュースサイトは egress プロキシで拒否される可能性が高い。STEP 5.8 では試してよいが、失敗したら検索結果の情報だけで書く |
@@ -97,7 +97,19 @@ Google Drive MCP の `read_file_content` で以下を読む。
 読んだら先頭行の `最終更新: YYYY-MM-DD HH:MM JST` を必ず確認する。
 
 - **更新日が今日** → 通常どおり進む（`sourceFresh: true`）
-- **更新日が今日より前** → `sourceFresh: false` にする（フッターに「データが最新ではありません」と出る）。
+- **更新日が今日より前** → まず同期を手で起動して取り直す（2026-10-06 追加）。
+  スケジュール実行（cron 23:30 UTC）は GitHub 側の遅延で実際には **02:00〜02:50 UTC（11:00〜11:50 JST）** に
+  走ることが多く、この Routine（11:57 JST）より後になる日がある。10/6 はまさにそれで、手で起動したら当日分が入った。
+  ```
+  actions_list(method: "list_workflow_runs", owner: "tonpe3141-ctrl", repo: "garmin-to-notion",
+               resource_id: "sync_garmin_to_notion.yml", perPage: 1)   ← 実行中なら起動せず完了を待つ
+  actions_run_trigger(method: "run_workflow", owner: "tonpe3141-ctrl", repo: "garmin-to-notion",
+                      workflow_id: "sync_garmin_to_notion.yml", ref: "main")
+  ```
+  約3分で終わる。待つ間に STEP 3（公開版の全文 Read）と STEP 5.8（読みもの）を進め、
+  `list_workflow_runs` が `completed` になったらドライブを読み直す。起動が拒否された・失敗した・
+  読み直しても古いままなら、次の扱いで続行する。
+- **それでも更新日が今日より前** → `sourceFresh: false` にする（フッターに「データが最新ではありません」と出る）。
   あわせて「データが N 日前のものです。GitHub Actions の同期が失敗している可能性があります」を
   `issues` の先頭に書く（`meta.note` は 2026-09-30 に廃止）。
   分析自体は入手できている最新データで続行し、勝手に中止しない。
