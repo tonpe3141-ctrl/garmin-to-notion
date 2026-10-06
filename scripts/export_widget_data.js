@@ -133,8 +133,9 @@ const next = t.date ? {
 
 // ---------- レース ----------
 // ウィジェットでは「◯◯まで N日」と出すので短くする（例: 水戸黄門漫遊マラソン → 水戸黄門）
+// 「City」「シティ」も落とす（板橋Cityマラソン が4字で切られて「板橋Ci」になっていた）
 const shortName = (n) => {
-  let s = String(n || "").replace(/[（(][^）)]*[）)]/g, "").replace(/マラソン$/, "").trim();
+  let s = String(n || "").replace(/[（(][^）)]*[）)]/g, "").replace(/マラソン$/, "").replace(/\s*(City|シティ)$/i, "").trim();
   if (s.length > 5) s = s.slice(0, 4);
   return s;
 };
