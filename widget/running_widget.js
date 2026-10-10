@@ -13,12 +13,13 @@ const DASHBOARD_URL = "https://claude.ai/code/artifact/eedcbce5-cbe3-45f2-8181-4
 const TOKEN_KEY = "sub3coach_notion_token";
 const CACHE_FILE = "sub3coach_widget_cache.json";
 
-// ダッシュボードと同じ配色（dashboard/index.html の :root）
+// ダッシュボードと同じ配色（dashboard/index.html の :root。ゾーン色は --z-e / --z-m / --z-t / --z-r）
+// ダッシュボードの配色を変えたら、ここも同じ値に直すこと
 const C = {
   bg:    Color.dynamic(new Color("#f2f4f3"), new Color("#161c1a")),
   ink:   Color.dynamic(new Color("#161c1a"), new Color("#eef2f0")),
-  ink2:  Color.dynamic(new Color("#5a6764"), new Color("#a9b6b2")),
-  ink3:  Color.dynamic(new Color("#8b9995"), new Color("#78867f")),
+  ink2:  Color.dynamic(new Color("#56635f"), new Color("#a9b6b2")),
+  ink3:  Color.dynamic(new Color("#87948f"), new Color("#78867f")),
   line:  Color.dynamic(new Color("#d5dcd9"), new Color("#2c3532")),
   accent: Color.dynamic(new Color("#0f6e5c"), new Color("#4fb39e")),
   good:  new Color("#2f7d5f"),
@@ -26,11 +27,11 @@ const C = {
   crit:  new Color("#a83c2f"),
 };
 const ZONE = {
-  E:    { color: new Color("#3f8f7f"), label: "E" },
-  M:    { color: new Color("#c9932f"), label: "M" },
-  T:    { color: new Color("#bd5533"), label: "T" },
-  R:    { color: new Color("#8b3a62"), label: "R" },
-  rest: { color: new Color("#8b9995"), label: "休" },
+  E:    { color: new Color("#149169"), label: "E" },
+  M:    { color: new Color("#c2951a"), label: "M" },
+  T:    { color: new Color("#c8432e"), label: "T" },
+  R:    { color: new Color("#7a3d93"), label: "R" },
+  rest: { color: new Color("#87948f"), label: "休" },
 };
 const VERDICT_COLOR = { "◎": C.good, "○": C.good, "〇": C.good, "△": C.warn, "✕": C.crit };
 
