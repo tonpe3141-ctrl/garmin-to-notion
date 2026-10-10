@@ -66,7 +66,7 @@ const DATA = {
   },
 
   // race / tuneup / phase は docs/athlete_profile.md の値を反映すること。ここを正にしない。
-  race: { name: "東京マラソン（仮）", date: "2027-03-07", goal: "2:59:59", pace: "4:15 /km", daysLeft: 159 },
+  race: { name: "板橋Cityマラソン", date: "2027-03-21", goal: "2:49:59", pace: "4:01 /km", daysLeft: 173 },
   tuneup: { name: "水戸黄門漫遊マラソン", date: "2026-10-25", daysLeft: 26 },
   phase: { name: "Phase 5 — マラソン特異・サブ3判定", window: "9/28〜10/11", policy: "Mペースの「1回あたりの量」を一気に伸ばす", weeklyTarget: "80〜88 km" },
 
@@ -230,7 +230,7 @@ const DATA = {
   }
 };
 // docs/athlete_profile.md から splice_dashboard.js が機械的に差し込む。手で書かない。
-DATA.season = {"phases":[{"name":"Phase 4 ビルドアップ","from":"2026-09-01","to":"2026-09-27","policy":"Mペース走力の引き上げが最優先。ここは一切緩めない","km":"70〜85","quality":"週3本（Mペース1／T or インターバル1／ロング後半M混走1）","rest":"週0〜1日"},{"name":"Phase 5 マラソン特異・サブ3判定","from":"2026-09-28","to":"2026-10-11","policy":"Mペースの「1回あたりの量」を一気に伸ばす。10/11 にサブ3判定走","km":"80〜88","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 6 移行週","from":"2026-10-12","to":"2026-10-18","policy":"まだテーパーではない。距離だけ1段落とし、質1本と中ロングは残す","km":"65〜70","quality":"週1本","rest":"週0〜1日"},{"name":"Phase 7 短縮テーパー＋水戸黄門","from":"2026-10-19","to":"2026-10-25","policy":"落とすのは距離だけ。7日間で終える。🏁 10/25 水戸黄門","km":"35 km ＋レース","quality":"週1本（10/21 M4km×2）","rest":"週2日"},{"name":"Phase 8 回復","from":"2026-10-26","to":"2026-11-01","policy":"質ゼロ。Eジョグのみ。走らない日を2日。痛みが残れば延長","km":"30〜40","quality":"0本","rest":"週2日"},{"name":"Phase 9 冬ベース＋LT","from":"2026-11-02","to":"2026-12-06","policy":"VDOTを上げる期。T走を本当に 3:58〜4:08 で実施する","km":"78〜88","quality":"週3本（T1／インターバル1／ロング後半M1）","rest":"週0〜1日"},{"name":"Phase 10 マラソン特異","from":"2026-12-07","to":"2027-01-03","policy":"ロング30〜32km、後半M15〜18km を常設","km":"85〜92","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 11 短縮テーパー＋指宿","from":"2027-01-04","to":"2027-01-10","policy":"Phase 7 と同じ型。🏁 1/10 指宿（4:15 リハーサル）","km":"35 km ＋レース","quality":"週1本","rest":"週2日"},{"name":"Phase 12 回復","from":"2027-01-11","to":"2027-01-17","policy":"質ゼロ。Eジョグのみ","km":"30〜40","quality":"0本","rest":"週2日"},{"name":"Phase 13 最終ビルド","from":"2027-01-18","to":"2027-02-21","policy":"最大負荷期。Mペース単発20km / ロング32km後半M20km に到達させる","km":"88〜95","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 14 本テーパー","from":"2027-02-22","to":"2027-02-28","policy":"ここではケチらない。削るのは距離だけ。質は維持","km":"60","quality":"週2本","rest":"週0〜1日"},{"name":"Phase 15 レース週","from":"2027-03-01","to":"2027-03-07","policy":"Eのみ→最終刺激→完全休養→🏁 3/7 東京マラソン","km":"30","quality":"週1本（最終刺激のみ）","rest":"週2〜3日"}],"races":[{"name":"水戸黄門漫遊マラソン","date":"2026-10-25","aim":"サブ3挑戦＋実力測定"},{"name":"指宿なのはなマラソン","date":"2027-01-10","aim":"4:15 のリハーサル"},{"name":"東京マラソン（仮）","date":"2027-03-07","aim":"サブ3本番"}],"mTargets":[{"label":"9月","until":"2026-09-30","km":5,"text":"5〜6km"},{"label":"10/11 サブ3判定走","until":"2026-10-11","km":20,"text":"20km（4:15〜4:20）"},{"label":"12月","until":"2026-12-31","km":15,"text":"15〜18km をロング後半に"},{"label":"2月","until":"2027-02-28","km":20,"text":"単発20km / ロング32km の後半20km"}]};
+DATA.season = {"phases":[{"name":"Phase 4 ビルドアップ","from":"2026-09-01","to":"2026-09-27","policy":"Mペース走力の引き上げが最優先。ここは一切緩めない","km":"70〜85","quality":"週3本（Mペース1／T or インターバル1／ロング後半M混走1）","rest":"週0〜1日"},{"name":"Phase 5 マラソン特異・サブ3判定","from":"2026-09-28","to":"2026-10-11","policy":"Mペースの「1回あたりの量」を一気に伸ばす。10/11 にサブ3判定走","km":"80〜88","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 6 移行週","from":"2026-10-12","to":"2026-10-18","policy":"まだテーパーではない。距離だけ1段落とし、質1本と中ロングは残す","km":"65〜70","quality":"週1本","rest":"週0〜1日"},{"name":"Phase 7 短縮テーパー＋水戸黄門","from":"2026-10-19","to":"2026-10-25","policy":"落とすのは距離だけ。7日間で終える。🏁 10/25 水戸黄門","km":"35 km ＋レース","quality":"週1本（10/21 M4km×2）","rest":"週2日"},{"name":"Phase 8 回復","from":"2026-10-26","to":"2026-11-01","policy":"質ゼロ。Eジョグのみ。走らない日を2日。水戸黄門の結果で段階を判定する","km":"30〜40","quality":"0本","rest":"週2日"},{"name":"Phase 9 冬ベース＋VDOT","from":"2026-11-02","to":"2026-12-06","policy":"VDOTを上げる期。T とインターバルをその段階の帯で。12月上旬に 10km TT で段階判定","km":"80〜90","quality":"週3本（T1／インターバル1／ロング後半M1）","rest":"週0〜1日"},{"name":"Phase 10 マラソン特異","from":"2026-12-07","to":"2027-01-03","policy":"ロング30〜32km、後半M15〜18km を常設。年末年始は 12/27 のロングを動かさない","km":"85〜95","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 11 指宿週","from":"2027-01-04","to":"2027-01-10","policy":"テーパーはしない。質は水曜の M10km だけ。金土を軽く。🏁 1/10 指宿（練習のロング走）","km":"45〜50 km ＋指宿","quality":"週1本（1/6 M10km）","rest":"週1日"},{"name":"Phase 12 指宿後の回復","from":"2027-01-11","to":"2027-01-17","policy":"最初の2日は休養。脚が戻っていれば週末に M8km を1本","km":"45〜55","quality":"0〜1本","rest":"週2日"},{"name":"Phase 13 最終ビルド","from":"2027-01-18","to":"2027-02-28","policy":"最大負荷期。M単発20km／ロング35km後半M20〜25km。2月中旬のハーフで目標ペースを決める。2/28 が最後のロング","km":"90〜100","quality":"週3本","rest":"週0〜1日"},{"name":"Phase 14 仕上げ","from":"2027-03-01","to":"2027-03-07","policy":"量を1段落とす。質は目標ペースで維持。ロングは25km・後半M12km","km":"80〜85","quality":"週2本＋ロング","rest":"週0〜1日"},{"name":"Phase 15 本テーパー","from":"2027-03-08","to":"2027-03-14","policy":"ここではケチらない。削るのは距離だけ。質は目標ペースで維持","km":"55〜60","quality":"週2本","rest":"週0〜1日"},{"name":"Phase 16 レース週","from":"2027-03-15","to":"2027-03-21","policy":"Eのみ→最終刺激→完全休養→🏁 3/21 板橋City（本命・サブエガ）","km":"30 km ＋レース","quality":"週1本（最終刺激のみ）","rest":"週2〜3日"}],"races":[{"name":"水戸黄門漫遊マラソン","date":"2026-10-25","aim":"サブ3挑戦＋段階判定"},{"name":"いぶすき菜の花マラソン","date":"2027-01-10","aim":"練習のロング走（タイムは狙わない）"},{"name":"板橋Cityマラソン","date":"2027-03-21","aim":"サブエガ本番（本命）"}],"mTargets":[{"label":"9月","until":"2026-09-30","km":5,"text":"5〜6km"},{"label":"10/11 サブ3判定走","until":"2026-10-11","km":20,"text":"20km（4:15〜4:20）"},{"label":"12月","until":"2026-12-31","km":15,"text":"15〜18km をロング後半に"},{"label":"1月","until":"2027-01-31","km":20,"text":"単発20km"},{"label":"2/28 最終ロング","until":"2027-02-28","km":20,"text":"後半20〜25km（ロング35km の中で・板橋の目標ペースで）"}]};
 </script>
 
 <style>
@@ -879,6 +879,12 @@ footer {
   const mmssOf = (s) => `${Math.floor(s / 60)}:${String(Math.round(s % 60)).padStart(2, "0")}`;
   const gapOf = (s) => `${Math.floor(s / 60)}分${String(s % 60).padStart(2, "0")}秒`;
   const kmFmt = (v) => (Math.round(v * 10) / 10).toFixed(1);
+  // 目標タイムの呼び名。目標はプロファイルで変わるので「サブ3」と決め打ちしない（2026-10-01 にサブエガへ変更）
+  const goalName = (() => {
+    const g = secOf(D.race && D.race.goal);
+    if (!g) return "目標";
+    return g < 9000 ? "サブ2.5" : g < 10200 ? "サブエガ" : g < 10800 ? "サブ3" : g < 12600 ? "サブ3.5" : "目標";
+  })();
 
   const dataDay = (D.today && D.today.date) || dateOf(D.meta && D.meta.generatedAt);
   // 閲覧時点の JST の日付（時計が分析日より前なら分析日に合わせる）
@@ -1437,7 +1443,7 @@ footer {
       const trend = base && base.pred !== predNow
         ? `${mdOf(base.d)} の ${hmsOf(base.pred)} から ${predNow < base.pred ? "−" : "+"}${mmssOf(Math.abs(predNow - base.pred))}` : "";
       tiles.push(tile("Garmin フル予測", esc(hmsOf(predNow)), "",
-        gap > 0 ? `サブ3まで あと ${gapOf(gap)}` : "目標タイムを上回っている", gap > 0 ? "warn" : "good", esc(trend)));
+        gap > 0 ? `${esc(goalName)}（${esc(D.race.goal)}）まで あと ${gapOf(gap)}` : "目標タイムを上回っている", gap > 0 ? "warn" : "good", esc(trend)));
     }
     if (haveHist) {
       const m = mStatus(runs, today);
@@ -1472,7 +1478,7 @@ footer {
 
   function kpiCard() {
     return `<section class="card">
-      <div class="card-head"><h2>現在地</h2><span class="sub">サブ3に向けて</span></div>
+      <div class="card-head"><h2>現在地</h2><span class="sub">${esc(goalName)}に向けて</span></div>
       <div class="card-body"><div class="stack" id="kpi" style="gap:14px">${kpiHtml()}</div>
         <button class="more" type="button" data-go="grow">カレンダーと推移 →</button></div>
     </section>`;
@@ -1948,11 +1954,20 @@ footer {
     const y = (v) => padT + ih - ((v - (lo - span * .15)) / (span * 1.3)) * ih;
     const x = (i) => padL + (i / (pts.length - 1)) * iw;
     const path = pts.map((p, i) => `${i ? "L" : "M"}${x(i).toFixed(1)},${y(p.v).toFixed(1)}`).join(" ");
-    const stride = Math.max(1, Math.ceil(pts.length / (NARROW ? 6 : 14)));
+    // ラベルの間隔は、いちばん長いラベル（値か日付）の幅から決める。3:15:08 のような長い値でも隣と重ならないように
+    const valTxt = (p) => String(o.fmt ? o.fmt(p.v) : p.v);
+    const charW = fs(10.5, 11.5) * 0.62;
+    const labelW = Math.max(...pts.map(p => Math.max(valTxt(p).length, String(p.label).length))) * charW + 8;
+    const gapX = pts.length > 1 ? iw / (pts.length - 1) : iw;
+    const stride = Math.max(1, Math.ceil(pts.length / (NARROW ? 6 : 14)), Math.ceil(labelW / gapX));
+    const last = pts.length - 1;
+    // 最初と最後の点は必ず出す。両端のラベルは片寄せなので、隣のラベルとは 1.5 個分空ける
+    const labelled = (i) => i === 0 || i === last
+      || (i % stride === 0 && i * gapX >= labelW * 1.5 && (last - i) * gapX >= labelW * 1.5);
     // 両端のラベルは内側へ寄せる（中央揃えだと画面の外にはみ出す）
-    const edge = (i) => i === 0 ? "start" : i === pts.length - 1 ? "end" : "middle";
+    const edge = (i) => i === 0 ? "start" : i === last ? "end" : "middle";
     const dots = pts.map((p, i) => `<circle cx="${x(i).toFixed(1)}" cy="${y(p.v).toFixed(1)}" r="4" fill="var(--surface)" stroke="${o.color}" stroke-width="2"><title>${esc(p.tip || "")}</title></circle>
-      ${(i % stride === 0 || i === pts.length - 1) ? `<text x="${x(i).toFixed(1)}" y="${(y(p.v) - 10).toFixed(1)}" class="l-v" text-anchor="${edge(i)}">${esc(o.fmt ? o.fmt(p.v) : p.v)}</text>
+      ${labelled(i) ? `<text x="${x(i).toFixed(1)}" y="${(y(p.v) - 10).toFixed(1)}" class="l-v" text-anchor="${edge(i)}">${esc(valTxt(p))}</text>
       <text x="${x(i).toFixed(1)}" y="${H - 8}" class="l-ax" text-anchor="${edge(i)}">${esc(p.label)}</text>` : ""}`).join("");
     const line = o.line ? `<line x1="${padL}" x2="${W - padR}" y1="${y(o.line.v).toFixed(1)}" y2="${y(o.line.v).toFixed(1)}" stroke="var(--crit)" stroke-width="1" stroke-dasharray="4 4" opacity=".6"/>
       <text x="${W - padR}" y="${(y(o.line.v) - 4).toFixed(1)}" class="b-ref">${esc(o.line.label)}</text>` : "";
@@ -2000,7 +2015,7 @@ footer {
         ${take ? `<p class="take">${take}</p>` : `<p class="hnote">4:25/km 以内のラップが2本以上続いた記録はまだありません。</p>`}
         ${barChart(sBars, { aria: "走行ごとの4:25以内の連続距離", line: m.aimT ? { v: m.aimT.km, label: `目標 ${m.aimT.km}km` } : null })}
         ${steps ? `<div class="sub-h">1回あたりのMペース量の到達目標</div><ul class="steps">${steps}</ul>` : ""}
-        <p class="hnote">1kmラップのうち 4:25/km 以内（流し・短いレペを除く）が何本続いたか。閾値走の本セットも含む。サブ3は 4:15 を 42km 続ける競技なので、本数ではなくこの長さを伸ばす。</p>
+        <p class="hnote">1kmラップのうち 4:25/km 以内（流し・短いレペを除く）が何本続いたか。閾値走の本セットも含む。マラソンは目標ペース（${esc((D.race && D.race.pace) || "")}）を 42km 続ける競技なので、本数ではなくこの長さを伸ばす。4:25 は現在の段階の M 帯の上限。</p>
       </div>
     </section>`);
 
