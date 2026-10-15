@@ -6,7 +6,7 @@ Google スプレッドシートと Google ドキュメントに同期するス�
 1. https://connect.garmin.com/modern/activities にアクセス
 2. ページ下部まで全アクティビティを読み込む（スクロールして全件表示）
 3. 右上の「エクスポート CSV」をクリック
-4. ダウンロードされた Activities.csv をこのリポジトリのルートに置く
+4. ダウンロードされた Activities.csv をこのリポジトリのルートに置く（.gitignore 済み。コミットしない）
 
 【使い方】
   source .venv/bin/activate

@@ -317,3 +317,6 @@ pyrightconfig.json
 .claude/*
 !.claude/settings.json
 .DS_Store
+
+# Garmin Connect から手で書き出した活動 CSV（src/csv_to_google.py の入力）。個人の記録なのでコミットしない
+Activities.csv
