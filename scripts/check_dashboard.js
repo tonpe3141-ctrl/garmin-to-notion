@@ -390,6 +390,14 @@ function check(html, opts = {}) {
     if (isoDate(today) && arr(ss.phases) && !ss.phases.some((p) => p.from <= today && today <= p.to)) {
       warn(`今日（${today}）を含むフェーズが season にない。プロファイルのロードマップ表を確認すること`);
     }
+    // ペース帯（2026-10-19 追加）。読めないとダッシュボードは段階A の既定値で描くので、publish は止めない
+    if (ss.zones == null) warn("season.zones がない。プロファイルの「ペースゾーン定義」の表を読めなかったので、ラップの色分けなどは段階A の既定値で描く");
+    else {
+      const z = ss.zones;
+      const okZ = ["E", "M", "T", "R"].every((k) => z[k] && arr(z[k].pace) && z[k].pace.length === 2 && z[k].pace.every(Number.isInteger));
+      if (!okZ) err("season.zones の E/M/T/R に pace [速い側, 遅い側]（秒）がない");
+      else info(`ペース帯: ${z.stage ? `段階${z.stage}` : "段階不明"} ／ M ${z.M.pace.join("〜")}s・上限HR ${z.M.hr} ／ T 上限HR ${z.T.hr}`);
+    }
     if (arr(ss.races) && D.race && isStr(D.race.date) && !ss.races.some((r) => r.date === D.race.date)) {
       warn(`race.date ${D.race.date} がプロファイルのレース表に無い。DATA.race とプロファイルが食い違っている`);
     }
