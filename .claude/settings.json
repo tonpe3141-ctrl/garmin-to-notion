@@ -7,7 +7,21 @@
       "mcp__Notion__notion-create-pages",
       "mcp__Notion__notion-create-database",
       "mcp__Notion__notion-create-comment",
-      "mcp__Notion__notion-update-data-source"
+      "mcp__Notion__notion-update-data-source",
+      "mcp__Notion__notion-search",
+      "mcp__Notion__notion-fetch",
+      "mcp__Notion__notion-query-data-sources",
+      "mcp__Notion__notion-query-multiple-data-sources",
+      "mcp__Notion__notion-query-meeting-notes",
+      "mcp__Notion__notion-memory-search",
+      "mcp__Notion__notion-get-comments",
+      "mcp__Notion__notion-list-recent-pages",
+      "mcp__Notion__notion-list-private-pages",
+      "mcp__Notion__notion-list-shared-pages",
+      "mcp__Notion__notion-list-favorite-pages",
+      "mcp__Notion__notion-list-page-backlinks",
+      "mcp__Notion__notion-get-file-download-urls",
+      "mcp__Notion__notion-download-attachment"
     ]
   },
   "hooks": {
