@@ -104,7 +104,8 @@ if (!isRest(today)) {
 // ---------- 次のラン ----------
 const t = D.tomorrow || {};
 const wp = (D.weekPlan && D.weekPlan.days) || [];
-const ZONE_RANK = { R: 4, T: 3, M: 2, E: 1 };
+// ステディ（S）は E と M の間（2026-10-26 追加）
+const ZONE_RANK = { R: 4, T: 3, M: 2, S: 1.5, E: 1 };
 const segs = t.segments || [];
 // ウィジェットに出すペース・心拍は、その日いちばん強度の高い区間（同じ強度なら長いほう）
 const main = segs.slice().sort((a, b) =>
@@ -132,11 +133,13 @@ const next = t.date ? {
 } : null;
 
 // ---------- レース ----------
-// ウィジェットでは「◯◯まで N日」と出すので短くする（例: 水戸黄門漫遊マラソン → 水戸黄門）
+// ウィジェットでは「◯◯まで N日」と出すので短くする（例: 水戸黄門漫遊マラソン → 水戸黄門、板橋Cityマラソン → 板橋）。
+// 以前は「マラソン」を外したあと5字を超えると4字で切っていたので、板橋Cityマラソンが「板橋Ci」になっていた
 const shortName = (n) => {
-  let s = String(n || "").replace(/[（(][^）)]*[）)]/g, "").replace(/マラソン$/, "").trim();
+  let s = String(n || "").replace(/[（(][^）)]*[）)]/g, "")
+    .replace(/(漫遊|菜の花|City|シティ|市民)?(フル)?マラソン.*$/i, "").trim();
   if (s.length > 5) s = s.slice(0, 4);
-  return s;
+  return s || String(n || "").slice(0, 4);
 };
 const races = [D.tuneup, D.race].filter((r) => r && r.date)
   .map((r) => ({ name: shortName(r.name), date: r.date }))

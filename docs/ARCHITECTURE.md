@@ -8,7 +8,7 @@ Routine の実行環境から Garmin へ接続できないため（egress プロ
 
 ```mermaid
 graph TD
-    subgraph "取得 — GitHub Actions 毎日 8:30 JST"
+    subgraph "取得 — GitHub Actions 毎日 8:30 JST（実際は 10〜11時ごろ）"
         Auth[認証<br>Playwright → Cookie → トークン → パスワード の順に試す]
         Sync[src/ガーミン活動データ取得.py]
         Auth --> Sync
@@ -35,7 +35,8 @@ graph TD
     Steps --> Splice
 
     Dash[ダッシュボード<br>Artifact 固定URL]
-    DB[(Artifact の db<br>runs コレクション)]
+    DB[(Artifact の db<br>runs コレクション<br>評価の履歴＋体感メモ)]
+    Me((自分))
     NP[Notion「📱 ウィジェット用データ」]
     W[iPhone ウィジェット<br>widget/running_widget.js]
 
@@ -43,6 +44,8 @@ graph TD
     Steps -->|export_run_history.js| DB
     Steps -->|export_widget_data.js| NP
     DB -->|開いたときに読む| Dash
+    Me -->|体感メモを書く note-日付| Dash
+    DB -->|recent_notes.js| Steps
     NP -->|Notion API| W
 ```
 
@@ -52,12 +55,25 @@ graph TD
 
 | もの | 正 | 備考 |
 |------|----|------|
-| 目標レース・目標タイム・ペースゾーン・ロードマップ | `docs/athlete_profile.md` | ダッシュボードのシーズンの帯とペース帯（ラップの色分け・心拍上限の線）は `scripts/profile_season.js` がこの表を読んで差し込む |
+| 目標レース・目標タイム・ペースゾーン・ロードマップ | `docs/athlete_profile.md` | ダッシュボードのシーズンの帯とペース帯（ラップの色分け・心拍上限の線・ステディ帯）は `scripts/profile_season.js` がこの表を読んで差し込む |
+| 月間計画・段階（A−〜C）・判定の機会・積み上げの目標 | `docs/athlete_profile.md` | 同じく `profile_season.js` が表を読む（ホームの月間目標・走力の階段・ロングと積み上げの目標。2026-10-26〜） |
+| 本人の体感（脚の張り・きつさ・痛み・補強・メモ） | Artifact の db（`runs` の doc_id `note-YYYY-MM-DD`・`kind: "note"`） | ダッシュボードのホームで本人が書く。Routine は STEP 3.5 で読むだけ。`runs` に同居させているのは、Routine が承認なしで読めるのが `runs` だけだから |
 | ダッシュボードの描画（HTML / CSS / 描画スクリプト） | リポジトリの `dashboard/index.html`（main） | Routine は毎日これを土台に DATA だけ差し替えて公開する |
 | その日の分析（DATA） | 公開済みの Artifact | 毎日の DATA はコミットしない。リポジトリの DATA は古いスナップショット |
 | 過去の評価（カレンダー・推移） | Artifact の db（`runs`） | 1日1件。2026-09-02 より前の距離は `BASE_KM`（`scripts/export_base_km.py`） |
 | ウィジェットの表示内容 | Notion のウィジェット用ページの JSON | Routine が `scripts/export_widget_data.js` の出力で丸ごと置き換える |
 | Garmin の生データ | Google ドライブのドキュメントとスプレッドシート | GitHub Actions が毎朝上書きする |
+
+## 取得の時刻
+
+ワークフローの予約は 23:30 UTC（8:30 JST）だが、GitHub の予約実行は混雑で遅れ、2026-10 は毎日 10:15〜11:00 JST ごろに走っている。
+12:00 の Routine には間に合っているが、12:00 を過ぎるとその日の分析は前日のデータで行われる（ダッシュボードに「データが最新ではありません」）。
+
+## 活動の重複（2026-10-26 に修正）
+
+Playwright の事前取得（`scripts/refresh_garmin_cookies_playwright.py`）は、ページネーション用に自分で呼んだ `fetch` のレスポンスも
+`page.on("response")` で拾っていた。そのため同じ50件が2回入り、次のページの開始位置も倍に進んで、その先の50件が抜けていた
+（ドキュメントの週次サマリーで 8〜10月の週が実際の約2倍）。いまは activityId で重複を落とし、本体（`dedupe_activities`）でも落とす。
 
 ## 認証まわり
 

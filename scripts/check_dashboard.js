@@ -21,7 +21,13 @@ const path = require("path");
 const { spawnSync } = require("child_process");
 
 const DOW = ["日", "月", "火", "水", "木", "金", "土"];
-const ZONES = ["E", "M", "T", "R", "rest"];
+// S = ステディ（ロング専用の帯。2026-10-26 追加）
+const ZONES = ["E", "S", "M", "T", "R", "rest"];
+const ZONE_TXT = "E/S/M/T/R/rest";
+// 質練習の数え方（ダッシュボードの isQuality と同じ）。M/T/R/S の日と、E でも中ロング・ロング走・TT・レースの日
+const QUALITY_TITLE = /中ロング|ロング走|TT|🏁|レース/;
+const isQuality = (d) => d.type !== "rest" && (["M", "T", "R", "S"].includes(d.type)
+  || (QUALITY_TITLE.test(d.title || "") && !/前日|翌日/.test(d.title || "")));
 const TONES = ["good", "bad", "note"];
 const STAT_STATES = ["ok", "warn", "crit"];
 const AXIS_STATES = ["good", "warn", "crit"];
@@ -218,7 +224,7 @@ function check(html, opts = {}) {
   const segs = arr(tm.segments);
   if (!segs || !segs.length) err("tomorrow.segments が空");
   else segs.forEach((s, i) => {
-    if (!ZONES.includes(s.zone)) err(`segments[${i}].zone "${s.zone}" は E/M/T/R/rest`);
+    if (!ZONES.includes(s.zone)) err(`segments[${i}].zone "${s.zone}" は ${ZONE_TXT}`);
     if (!isNum(s.km)) err(`segments[${i}].km は数値`);
     if (!isStr(s.label)) err(`segments[${i}].label がない`);
     for (const k of ["pace", "hr", "note"]) if (!isStr(s[k])) err(`segments[${i}].${k} がない（無い区間は "—"）`);
@@ -240,7 +246,7 @@ function check(html, opts = {}) {
   else {
     let sum = 0, quality = 0, restDays = 0;
     pd.forEach((d, i) => {
-      if (!ZONES.includes(d.type)) err(`weekPlan.days[${i}].type "${d.type}" は E/M/T/R/rest`);
+      if (!ZONES.includes(d.type)) err(`weekPlan.days[${i}].type "${d.type}" は ${ZONE_TXT}`);
       if (typeof d.km !== "string") err(`weekPlan.days[${i}].km は文字列（"14〜16" / "0"）`);
       if (!isStr(d.title)) err(`weekPlan.days[${i}].title がない`);
       if (isoDate(tm.date)) {
@@ -249,7 +255,7 @@ function check(html, opts = {}) {
         if (d.dow !== dowOf(want)) err(`weekPlan.days[${i}].dow "${d.dow}" は ${dowOf(want)}`);
       }
       sum += numOf(d.km) || 0;
-      if (["M", "T", "R"].includes(d.type)) quality++;
+      if (isQuality(d)) quality++;
       if (d.type === "rest") restDays++;
     });
     const tot = numOf(wp.totalKm);
@@ -279,7 +285,7 @@ function check(html, opts = {}) {
   else {
     let sum = 0, runs = 0;
     wd.forEach((d, i) => {
-      if (!ZONES.includes(d.type)) err(`week.days[${i}].type "${d.type}" は E/M/T/R/rest`);
+      if (!ZONES.includes(d.type)) err(`week.days[${i}].type "${d.type}" は ${ZONE_TXT}`);
       if (!isNum(d.km)) err(`week.days[${i}].km は数値`);
       if (!(d.hr === null || isNum(d.hr))) err(`week.days[${i}].hr は数値か null`);
       if (isoDate(today)) {
@@ -396,8 +402,13 @@ function check(html, opts = {}) {
       const z = ss.zones;
       const okZ = ["E", "M", "T", "R"].every((k) => z[k] && arr(z[k].pace) && z[k].pace.length === 2 && z[k].pace.every(Number.isInteger));
       if (!okZ) err("season.zones の E/M/T/R に pace [速い側, 遅い側]（秒）がない");
-      else info(`ペース帯: ${z.stage ? `段階${z.stage}` : "段階不明"} ／ M ${z.M.pace.join("〜")}s・上限HR ${z.M.hr} ／ T 上限HR ${z.T.hr}`);
+      else info(`ペース帯: ${z.stage ? `段階${z.stage}` : "段階不明"} ／ M ${z.M.pace.join("〜")}s・上限HR ${z.M.hr} ／ T 上限HR ${z.T.hr}`
+        + (z.S ? ` ／ ステディ ${z.S.pace.join("〜")}s・上限HR ${z.S.hr}` : " ／ ステディなし"));
     }
+    // 2026-10-26 追加（任意）。読めなければその部分が出ないだけなので、警告にとどめる
+    const opt = [["months", "月間計画（月間距離について の表）"], ["stages", "段階の表"], ["milestones", "キロ4分の位置の表"], ["goals", "積み上げの目標の表"]];
+    const missing = opt.filter(([k]) => !arr(ss[k]) || !ss[k].length).map(([, l]) => l);
+    if (missing.length) warn(`プロファイルから読めなかった表: ${missing.join("・")}（ダッシュボードの該当部分が出ない）`);
     if (arr(ss.races) && D.race && isStr(D.race.date) && !ss.races.some((r) => r.date === D.race.date)) {
       warn(`race.date ${D.race.date} がプロファイルのレース表に無い。DATA.race とプロファイルが食い違っている`);
     }
