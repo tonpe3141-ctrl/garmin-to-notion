@@ -34,15 +34,17 @@
 
   画面の構成（2026-09-30 に再構築）— 1つの情報は1か所にだけ出す:
     ホーム       … カウントダウン（本命の前のレースが14日を切ったらそちらを大きく）/ 今日の走り（結論と要点）/
-                   次のメニュー / 体調 / 現在地（フル予測と途中の関門）/ 今日の読みもの
+                   次のメニュー / 体感メモ（本人が書く。2026-10-26〜）/ 体調 /
+                   現在地（フル予測と途中の関門・走力 VDOT と次の判定・Mペース・直近7日・今月・積み上げの目標）/ 今日の読みもの
                    開いた時刻が翌朝なら「今日のメニュー」を先頭に出す（分析は前日12:00のものなので）
     走りの詳細   … 全指標・ラップ・4軸の評価・週とシーズンの視点
     予定         … シーズンの帯とフェーズ・この先1週間
     コンディション … 健康データ
-    成長の記録   … トレーニングカレンダー（月を選べる）・自己記録・週間走行距離の推移・強度の配分・月間走行距離・
-                   Mペースの持続力（M帯の区間の心拍も）・有酸素の効率・読みものの記録
-    ペース帯は DATA.season.zones（プロファイルの「ペースゾーン定義」の表を splice が差し込む。2026-10-19〜）
-    ホームの「現在地」には今月の距離と月間目標（week.monthTargetKm）の進み具合も出す（2026-10-12〜）
+    成長の記録   … トレーニングカレンダー（月を選べる）・ロングと積み上げの目標・走力の階段・自己記録・週間走行距離の推移・
+                   強度の配分・月間走行距離・Mペースの持続力（M帯の区間の心拍も）・有酸素の効率・読みものの記録
+    ペース帯は DATA.season.zones（プロファイルの「ペースゾーン定義」の表を splice が差し込む。2026-10-19〜。ステディは 2026-10-26〜）
+    月間計画・段階・判定の機会・積み上げの目標も DATA.season（同じくプロファイルの表。2026-10-26〜）
+    体感メモは db の runs に doc_id "note-YYYY-MM-DD"・kind: "note" で書く（Routine が承認なしで読めるのが runs だけのため）
   ============================================================================
 -->
 
@@ -253,12 +255,15 @@ DATA.season = {"phases":[{"name":"Phase 4 ビルドアップ","from":"2026-09-01
   --accent: #0f6e5c;
   --accent-ink: #0b5245;
   --accent-soft: #dcece7;
-  /* 練習ゾーン（E=緑 / M=金 / T=赤 / R=紫）。validate_palette.js で色覚・彩度・隣接差を確認済み（2026-09-30） */
+  /* 練習ゾーン（E=緑 / S=青 / M=金 / T=赤 / R=紫）。validate_palette.js で色覚・彩度・隣接差を確認済み
+     （2026-09-30。ステディの青は 2026-10-26 に5色の全ペアで再確認） */
   --z-e: #149169;
+  --z-s: #4a6fd0;
   --z-m: #c2951a;
   --z-t: #c8432e;
   --z-r: #7a3d93;
   --z-e-soft: #d9efe6; --z-e-ink: #0b5a41;
+  --z-s-soft: #e1e8f8; --z-s-ink: #2a4596;
   --z-m-soft: #f6ecd0; --z-m-ink: #6f520b;
   --z-t-soft: #f8dfd9; --z-t-ink: #8a2c1d;
   --z-r-soft: #ece0f2; --z-r-ink: #562a6c;
@@ -505,6 +510,7 @@ body {
   padding: 1px 0; border-radius: 3px; line-height: 1.7; text-align: center; display: inline-block; min-width: 30px;
 }
 .tp.E { background: var(--z-e-soft); color: var(--z-e-ink); }
+.tp.S { background: var(--z-s-soft); color: var(--z-s-ink); }
 .tp.M { background: var(--z-m-soft); color: var(--z-m-ink); }
 .tp.T { background: var(--z-t-soft); color: var(--z-t-ink); }
 .tp.R { background: var(--z-r-soft); color: var(--z-r-ink); }
@@ -551,6 +557,7 @@ body {
 .wd { display: flex; flex-direction: column; align-items: center; gap: 4px; }
 .wd-bar { width: 100%; max-width: 46px; border-radius: 4px 4px 0 0; min-height: 3px; background: var(--z-e); }
 .wd-bar.T { background: var(--z-t); } .wd-bar.M { background: var(--z-m); } .wd-bar.R { background: var(--z-r); }
+.wd-bar.S { background: var(--z-s); }
 .wd-bar.rest { background: var(--line); }
 .wd-km { font-family: var(--num); font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
 .wd-d { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); text-align: center; line-height: 1.35; }
@@ -562,6 +569,7 @@ body {
 .tot .n.warn { color: var(--warn); }
 .goalline { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--ink-2); }
 .goalline b { color: var(--good); }
+.goalline .warn { color: var(--warn); font-weight: 700; }
 
 /* ---------- ホーム: 今日の読みもの ---------- */
 .news-theme {
@@ -722,11 +730,13 @@ table.htab tr:last-child td { border-bottom: none; }
 button.cday { cursor: pointer; }
 button.cday:hover { filter: brightness(.96); }
 button.cday:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.cday.E { background: var(--z-e-soft); } .cday.M { background: var(--z-m-soft); }
+.cday.E { background: var(--z-e-soft); } .cday.M { background: var(--z-m-soft); } .cday.S { background: var(--z-s-soft); }
 .cday.T { background: var(--z-t-soft); } .cday.R { background: var(--z-r-soft); }
 .cday.rest { background: #f7f8f8; color: var(--ink-3); }
 .cday.fut, .cday.none { background: transparent; border: 1px dashed var(--line-soft); color: var(--ink-3); }
 .cday.today { box-shadow: inset 0 0 0 2px var(--accent); }
+.cn { position: absolute; right: 5px; bottom: 3px; font-size: 10px; line-height: 1; color: var(--ink-3); }
+.cn.pain { color: var(--crit); }
 .cday.sel { box-shadow: inset 0 0 0 2px var(--ink); }
 .cd { font-family: var(--mono); font-size: 10px; color: var(--ink-3); line-height: 1.2; }
 .cd.m1 { color: var(--accent-ink); font-weight: 700; }
@@ -780,6 +790,67 @@ button.cday:focus-visible { outline: 2px solid var(--accent); outline-offset: 1p
 .arch a { color: var(--ink); font-weight: 700; font-size: 13px; text-decoration: none; }
 .arch a:hover { text-decoration: underline; }
 .arch .as { grid-column: 2; font-size: 11px; color: var(--ink-3); }
+
+/* ---------- 積み上げの目標（ホームの現在地・成長の記録） ---------- */
+.goals { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 10px; }
+.goals li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0 12px; align-items: baseline; }
+.goals .gl { font-size: 13px; font-weight: 700; color: var(--ink); }
+.goals .gv { font-family: var(--num); font-weight: 700; font-size: 15px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.goals .gv em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-3); margin-left: 2px; }
+.goals .meter { grid-column: 1 / -1; margin: 3px 0 1px; }
+.goals .gs { grid-column: 1 / -1; font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
+.goals li.ok .gv { color: var(--good); }
+
+/* ---------- 走力の階段（5km のタイムの物差し） ---------- */
+svg.ladder { display: block; width: 100%; height: auto; }
+.lad-legend { display: flex; flex-wrap: wrap; gap: 4px 14px; font-size: 11px; color: var(--ink-2); }
+.lad-legend .mk { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+
+/* ---------- ロングの一覧 ---------- */
+.longs { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; }
+.longs li { display: grid; grid-template-columns: 4.2em 4.6em 4.2em 1fr; gap: 1px 10px; align-items: baseline; padding: 7px 0; border-bottom: 1px solid var(--line-soft); font-size: 12.5px; }
+.longs li:last-child { border-bottom: 0; }
+.longs .ld { font-family: var(--mono); color: var(--ink-2); }
+.longs .lk, .longs .lt { font-family: var(--num); font-weight: 700; font-variant-numeric: tabular-nums; text-align: right; }
+.longs .lx { color: var(--ink-2); line-height: 1.6; }
+.longs .lx b { color: var(--ink); font-weight: 700; }
+
+/* ---------- 体感メモ ---------- */
+.memo-days { display: flex; gap: 6px; flex-wrap: wrap; }
+.chipbtn {
+  appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
+  border-radius: 99px; padding: 4px 12px; font-family: var(--jp); font-size: 12.5px; font-weight: 700; cursor: pointer; line-height: 1.5;
+}
+.chipbtn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.chipbtn:focus-visible, .scale button:focus-visible, .memo-save:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.memo-row { display: flex; flex-direction: column; gap: 5px; }
+.memo-l { font-size: 12px; font-weight: 700; color: var(--ink-2); display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.memo-l span { font-weight: 400; color: var(--ink-3); font-size: 11px; }
+.scale { display: grid; grid-template-columns: repeat(11, minmax(0, 1fr)); gap: 3px; max-width: 440px; }
+.scale.s10 { grid-template-columns: repeat(10, minmax(0, 1fr)); }
+.scale button {
+  appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink);
+  border-radius: 4px; height: 34px; padding: 0; font-family: var(--num); font-weight: 700; font-size: 13px; cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+.scale button[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; }
+.memo-in, .memo-txt {
+  font: inherit; font-size: 13px; color: var(--ink); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 4px; padding: 6px 9px; width: 100%; max-width: 440px;
+}
+.memo-txt { min-height: 64px; resize: vertical; line-height: 1.6; }
+.memo-in:focus, .memo-txt:focus { outline: 2px solid var(--accent); outline-offset: 0; border-color: var(--accent); }
+.memo-foot { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.memo-save {
+  appearance: none; border: 0; background: var(--accent); color: #fff; border-radius: 4px;
+  padding: 8px 18px; font-family: var(--jp); font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.memo-save:disabled { opacity: .45; cursor: default; }
+.memo-st { font-size: 12px; color: var(--ink-3); }
+.memo-st.ok { color: var(--good); font-weight: 700; }
+.memo-st.err { color: var(--crit); font-weight: 700; }
+.note-line { font-size: 12.5px; color: var(--ink-2); background: var(--surface); border-radius: 4px; padding: 7px 10px; line-height: 1.7; }
+.note-line b { color: var(--ink); }
 
 footer {
   font-size: 11.5px; color: var(--ink-3); font-family: var(--mono);
@@ -850,6 +921,10 @@ footer {
   .steps .x { grid-column: 2; }
   .tot { gap: 6px 18px; }
   .tot .n { font-size: 18px; }
+  .longs li { grid-template-columns: 3.6em 4.2em 1fr; }
+  .longs .lt { text-align: left; }
+  .longs .lx { grid-column: 1 / -1; }
+  .scale button { height: 32px; font-size: 12px; }
   footer { font-size: 10.5px; gap: 4px 12px; }
 }
 
@@ -879,17 +954,28 @@ footer {
      splice_dashboard.js がプロファイルの表を読んで DATA.season.zones に入れる（2026-10-19〜）。
      段階を変えて表を書き換えれば、翌日の publish から色分け・上限線・持続力・E帯がそろって追従する。
      読めなかったときは段階A の値（R 3:35〜3:45 / T 3:58〜4:08 / M 4:15〜4:25 / E 5:30〜6:00）で描く。
-     ラップの色分けは帯と帯の中間を境にする（段階A なら R|T = 3:52 / T|M = 4:12 / M|E = 4:58）。 */
+     ラップの色分けは帯と帯の中間を境にする（段階A+ なら R|T = 3:49 / T|M = 4:08 / M|S = 4:32 / S|E = 5:10）。
+     ステディ（ロング専用の帯・2026-10-26〜）はプロファイルに行があるときだけ。無ければ M|E を境にする。 */
   const ZN = (() => {
     const z = D.season && D.season.zones;
     const ok = z && ["E", "M", "T", "R"].every(k => z[k] && Array.isArray(z[k].pace) && z[k].pace.length === 2);
     return ok ? z : { stage: null, E: { pace: [330, 360], hr: 140 }, M: { pace: [255, 265], hr: 167 }, T: { pace: [238, 248], hr: 176 }, R: { pace: [215, 225], hr: null } };
   })();
+  const HAS_S = !!(ZN.S && Array.isArray(ZN.S.pace) && ZN.S.pace.length === 2);
   const mid = (a, b) => Math.round((a + b) / 2);
-  const ZONE_EDGE = { r: mid(ZN.R.pace[1], ZN.T.pace[0]), t: mid(ZN.T.pace[1], ZN.M.pace[0]), m: mid(ZN.M.pace[1], ZN.E.pace[0]) };
-  const zoneOf = (sec) => sec <= ZONE_EDGE.r ? "z-r" : sec <= ZONE_EDGE.t ? "z-t" : sec <= ZONE_EDGE.m ? "z-m" : "z-e";
-  const HR_CAPS = [{ hr: ZN.M.hr || 167, label: "M上限" }, { hr: ZN.T.hr || 176, label: "T上限" }];
-  const E_CAP = ZN.E.hr || 140;
+  const ZONE_EDGE = {
+    r: mid(ZN.R.pace[1], ZN.T.pace[0]), t: mid(ZN.T.pace[1], ZN.M.pace[0]),
+    m: mid(ZN.M.pace[1], (HAS_S ? ZN.S : ZN.E).pace[0]),
+    s: HAS_S ? mid(ZN.S.pace[1], ZN.E.pace[0]) : null
+  };
+  const zoneOf = (sec) => sec <= ZONE_EDGE.r ? "z-r" : sec <= ZONE_EDGE.t ? "z-t" : sec <= ZONE_EDGE.m ? "z-m"
+    : HAS_S && sec <= ZONE_EDGE.s ? "z-s" : "z-e";
+  // 帯ごとの心拍の上限（E 140 / ステディ 155 / M 167 / T 176）。ラップの上限線と、一覧で超えた心拍を赤字にするのに使う
+  const CAP = { "z-e": ZN.E.hr || 140, "z-s": HAS_S ? ZN.S.hr || null : null, "z-m": ZN.M.hr || 167, "z-t": ZN.T.hr || 176 };
+  const CAP_LABEL = { "z-e": "E上限", "z-s": "ステディ上限", "z-m": "M上限", "z-t": "T上限" };
+  const E_CAP = CAP["z-e"];
+  // ステディ帯（とそれより速い帯）の遅い側。ロングで「ステディ以上を保てた距離」を数える境
+  const S_EDGE = HAS_S ? ZONE_EDGE.s : ZONE_EDGE.m;
   /* 持続力 … M帯の遅い側（段階A なら 4:25/km）以内のラップが何本続いたか。ラップは1kmなので本数≒km。
                3:20/km より速いラップは流し・短いレペなので数えない（連続も切る）。
      有酸素の効率 … Eだけの日の、E帯（段階A なら 5:30〜6:00/km）のラップの平均心拍。1本目（アップ）は除く。 */
@@ -899,6 +985,14 @@ footer {
   const M_EDGE_TXT = paceTxt(M_EDGE);                       // "4:25"
   const bandTxt = (z) => `${paceTxt(z.pace[0])}〜${paceTxt(z.pace[1])}`;
   const stageTxt = ZN.stage ? `段階${ZN.stage}` : "";
+
+  /* 質練習の数え方（プロファイル「質練習の定義」）。M/T/R/ステディの日に加えて、E の日でも中ロング・ロング走・TT・レースは数える。
+     「Eジョグ（ロング前日）」のような題は数えない。check_dashboard.js も同じ規則で数える。 */
+  const QUALITY_TITLE = /中ロング|ロング走|TT|🏁|レース/;
+  const isQuality = (d) => d.type !== "rest" && (["M", "T", "R", "S"].includes(d.type)
+    || (QUALITY_TITLE.test(d.title || "") && !/前日|翌日/.test(d.title || "")));
+  // プロファイルの「月間距離について」の表（月ごとの計画）。無い月は null
+  const monthPlan = (ym) => ((D.season && D.season.months) || []).find(m => m.ym === ym) || null;
 
   // ---------- 日付と数値の小道具 ----------
   const dateOf = (s) => { const m = String(s || "").match(/\d{4}-\d{2}-\d{2}/); return m ? m[0] : null; };
@@ -1024,17 +1118,21 @@ footer {
        ${labelled(p[3]) ? `<text x="${p[0].toFixed(1)}" y="${place[p[3]].hrb.toFixed(1)}" class="c-hr">${p[2]}</text>` : ""}`).join("");
     const xlab = laps.map((l, i) => labelled(i)
       ? `<text x="${(padL + bw * i + bw / 2).toFixed(1)}" y="${H - (NARROW ? 12 : 14)}" class="c-ax">${l.n}</text>` : "").join("");
-    // 心拍の上限線（M上限167 / T上限176）。描画範囲に入るときだけ引き、超えた本が一目で分かるようにする
-    const hrRef = hrs.length ? HR_CAPS.filter(c => c.hr > hLo && c.hr < hHi).map(c => {
-      const y = padT + ih - ((c.hr - hLo) / (hHi - hLo)) * ih;
+    // 心拍の上限線。その走りに出てきた帯の上限だけを、描画範囲に入るときに引く（超えた本が一目で分かるように）。
+    // 以前は M・T の2本を常に引いていたので、E やステディの走りでは基準の線が出なかった
+    const present = new Set(laps.map(l => zoneOf(l.sec)));
+    // ラベルは左端に置く（右端は心拍が上がりきったところで折れ線と重なりやすい）。上限線は棒・折れ線より奥に描く
+    const hrRef = hrs.length ? Object.keys(CAP).filter(z => CAP[z] && present.has(z) && CAP[z] > hLo && CAP[z] < hHi).map(z => {
+      const y = padT + ih - ((CAP[z] - hLo) / (hHi - hLo)) * ih;
       return `<line x1="${padL}" y1="${y.toFixed(1)}" x2="${W - padR}" y2="${y.toFixed(1)}" stroke="var(--crit)" stroke-width="1" stroke-dasharray="3 4" opacity=".45"/>
-        <text x="${W - padR}" y="${(y - 3).toFixed(1)}" class="c-ref">${c.label} ${c.hr}</text>`;
+        <text x="${padL + 2}" y="${(y - 3).toFixed(1)}" class="c-ref">${NARROW ? CAP_LABEL[z].replace("ステディ", "S") : CAP_LABEL[z]} ${CAP[z]}</text>`;
     }).join("") : "";
     const mmss = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
     return `<div class="chart-legend">
         <span><i style="background:var(--z-r)"></i>R域 〜${mmss(ZONE_EDGE.r)}</span>
         <span><i style="background:var(--z-t)"></i>T域 〜${mmss(ZONE_EDGE.t)}</span>
         <span><i style="background:var(--z-m)"></i>M域 〜${mmss(ZONE_EDGE.m)}</span>
+        ${HAS_S ? `<span><i style="background:var(--z-s)"></i>ステディ 〜${mmss(ZONE_EDGE.s)}</span>` : ""}
         <span><i style="background:var(--z-e)"></i>E域</span>
         <span><i style="background:var(--crit);border-radius:50%"></i>心拍 bpm</span>
         <span class="ref">破線 = 心拍上限 ／ 横軸 = ラップ番号</span>
@@ -1046,7 +1144,7 @@ footer {
           .c-hr{font-family:var(--mono);font-size:${hfs}px;fill:var(--crit);text-anchor:middle;font-weight:500;paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
           .c-ax{font-family:var(--mono);font-size:${fs(10.5, 12)}px;fill:var(--ink-3);text-anchor:middle}
           .c-side{font-family:var(--mono);font-size:${fs(10, 11)}px;fill:var(--ink-3)}
-          .c-ref{font-family:var(--mono);font-size:${fs(9.5, 10.5)}px;fill:var(--crit);text-anchor:end;opacity:.85}
+          .c-ref{font-family:var(--mono);font-size:${fs(9.5, 10.5)}px;fill:var(--crit);text-anchor:start;opacity:.9;paint-order:stroke;stroke:var(--surface);stroke-width:3px;stroke-linejoin:round}
         </style>
         <line x1="${padL}" y1="${padT + ih}" x2="${W - padR}" y2="${padT + ih}" stroke="var(--line)" stroke-width="1"/>
         <text x="${NARROW ? 2 : 6}" y="${padT + 10}" class="c-side">速い</text>
@@ -1061,9 +1159,9 @@ footer {
      グラフのラベルは間引かれるうえ、バーの高さだけではラップタイムが読めない。
      開閉状態は key ごとに覚えておき、画面幅の切り替えによる再描画でも閉じないようにする。 */
   const lapOpen = new Set();
-  const ZONES = [{ cls: "z-r", name: "R" }, { cls: "z-t", name: "T" }, { cls: "z-m", name: "M" }, { cls: "z-e", name: "E" }];
-  // 域ごとの心拍上限（M上限167 / T上限176）。超えたラップの心拍を赤字にする
-  const capOf = { "z-m": HR_CAPS[0].hr, "z-t": HR_CAPS[1].hr };
+  const ZONES = [{ cls: "z-r", name: "R" }, { cls: "z-t", name: "T" }, { cls: "z-m", name: "M" }, { cls: "z-s", name: "S" }, { cls: "z-e", name: "E" }];
+  // 域ごとの心拍上限。超えたラップの心拍を赤字にする
+  const capOf = CAP;
   function lapTable(laps, key) {
     if (!laps || !laps.length) return "";
     const zoneName = (cls) => ZONES.find(z => z.cls === cls).name;
@@ -1253,7 +1351,9 @@ footer {
   /* ---------- 履歴（Artifact の db） ----------
      過去分は DATA に持たせない。持たせると Routine が毎日その全部を書き直すことになり、
      日を追うごとに生成コストが増え続けるため。db に1日1件だけ書き、ページ側が開いたときに読む。 */
-  const HIST_DAYS = 150;
+  // シーズン全体（9/2〜板橋）を1回で読む。150件だと2月には9月の記録が落ち、自己記録やカレンダーから消えていた。
+  // runs には体感メモ（kind: "note"）も同居するので、そのぶん多めに読む（1回の上限は 1000）
+  const HIST_DAYS = 800;
   let histRows = null;            // db から読んだ過去エントリ
   let histState = "loading";      // loading / ready / off / error
   let calSel = null;              // カレンダーで開いている日付
@@ -1287,16 +1387,31 @@ footer {
   }
   const fit = () => (D.health && D.health.fitness) || {};
 
+  /* 体感メモ（2026-10-26〜）。runs コレクションに doc_id "note-YYYY-MM-DD"・kind: "note" で1日1件
+     { kind, d, legs, rpe, pain, painWhere, strength, memo, at }。ページで本人が書き、12:00 の Routine が読む
+     （docs/daily_coach_routine.md STEP 3.5）。runs に同居させているのは、Routine が承認なしで読めるのが runs だけだから
+     （.claude/settings.json のフック）。走りの記録とは kind で分ける。 */
+  const NOTE_PREFIX = "note-";
+  const isNote = (h) => h && h.kind === "note";
+  let dbRef = null;               // db の名前空間（読めたときだけ）
+  let notesMap = {};              // { "YYYY-MM-DD": note }
+  let notesState = "loading";     // loading / ready / off / error
+
   async function loadHistory() {
     try {
       const use = window.claude && window.claude.use;
       const db = use ? await window.claude.use("db") : null;
-      if (!db) { histState = "off"; paintAsync(); return; }
+      if (!db) { histState = "off"; notesState = "off"; paintAsync(); return; }
+      dbRef = db;
       const snap = await db.collection("runs").orderBy("d", "desc").limit(HIST_DAYS).get();
-      histRows = snap.docs.map(x => x.data()).filter(Boolean);
+      const rows = snap.docs.map(x => x.data()).filter(Boolean);
+      histRows = rows.filter(h => !isNote(h));
+      rows.filter(isNote).forEach(n => { if (n.d) notesMap[n.d] = n; });
       histState = "ready";
+      notesState = "ready";
     } catch (e) {
       histState = "error";
+      if (notesState === "loading") notesState = "error";
     }
     paintAsync();
   }
@@ -1317,6 +1432,8 @@ footer {
   function eEffOf(laps) {
     // 質練習を含む日（Mペース帯より速いラップがある日）は除く。本セット後のEラップは心拍が高止まりするため
     if (laps.some(l => l.sec >= STRIDE_EDGE && l.sec <= ZONE_EDGE.m)) return null;
+    // ステディの区間（3本以上）がある日も除く。ロングの後半の E は心拍が高止まりするため
+    if (HAS_S && laps.filter(l => l.sec > ZONE_EDGE.m && l.sec <= ZONE_EDGE.s).length >= 3) return null;
     const ls = laps.slice(1).filter(l => l.sec >= E_BAND[0] && l.sec <= E_BAND[1] && l.hr != null);
     return ls.length >= 3 ? { hr: Math.round(avg(ls.map(l => l.hr)) * 10) / 10, sec: Math.round(avg(ls.map(l => l.sec))), n: ls.length } : null;
   }
@@ -1324,6 +1441,7 @@ footer {
   function zoneOfType(type, laps) {
     const s = String(type || "");
     if (/^休養/.test(s)) return "rest";
+    if (/ステディ/.test(s)) return "S";
     if (/閾値|Tペース|（T）|テンポ/.test(s)) return "T";
     if (/インターバル|レペ|Rペース/.test(s)) return "R";
     if (/M|マラソン|ロング.*後半/.test(s)) return "M";
@@ -1352,17 +1470,25 @@ footer {
     const ls = r.laps, n = ls.length;
     if (n < 2 || r.km < T) return null;
     const tail = r.km - (n - 1);
-    // 最後のラップは端数の距離なので、時間ではなく 1km あたりのペースで見る
-    const lapPace = (l, i) => i < n - 1 ? l.sec : l.sec / tail;
-    if (!(tail > 0 && tail <= 1.05) || ls.some((l, i) => lapPace(l, i) < STRIDE_EDGE || lapPace(l, i) > 900)) return null;
+    /* ラップの sec は「そのラップのペース（秒/km）」で、最後の端数ラップも同じ（手順書 STEP 6・check_dashboard.js が pace と突き合わせている）。
+       2026-10-26 まではここで最後のラップの sec を所要時間として割っていたため、端数が短い走り（10/11 の 32km は 0.23km）は
+       ペースが 1km 22分に見えて対象から外れていた */
+    if (!(tail > 0 && tail <= 1.05) || ls.some(l => l.sec < STRIDE_EDGE || l.sec > 900)) return null;
     const cd = [0], ct = [0];
-    ls.forEach((l, i) => { cd.push(cd[i] + (i < n - 1 ? 1 : tail)); ct.push(ct[i] + l.sec); });
-    const at = (x) => { const j = Math.min(n - 1, Math.floor(x + 1e-9)); return ct[j] + (x - cd[j]) / (cd[j + 1] - cd[j]) * ls[j].sec; };
+    ls.forEach((l, i) => { const dk = i < n - 1 ? 1 : tail; cd.push(cd[i] + dk); ct.push(ct[i] + l.sec * dk); });
+    const at = (x) => { const j = Math.min(n - 1, Math.floor(x + 1e-9)); return ct[j] + (x - cd[j]) * ls[j].sec; };
     let best = null;
     for (let i = 0; i < n && cd[i] + T <= cd[n] + 1e-9; i++) { const t = at(cd[i] + T) - ct[i]; if (best == null || t < best) best = t; }
     return best == null ? null : Math.round(best);
   }
-  // { "5": { sec, d, base }, … }。ラップから数えた最速と BASE_PB のうち速いほう
+  /* フルのレースの公式タイム（stats の「完走タイム」など h:mm:ss）。GPS の距離はコースより長く出るので、
+     ラップから 42.195km を切り出すと公式より速くなる（水戸黄門は公式 3:51:27 に対しラップからは 3:49:32）。レースはこちらを採る */
+  function officialOf(r, z) {
+    if (z.key !== "42" || !/レース|マラソン/.test(r.type || "") || r.km < 41.5) return null;
+    const st = ((r.raw && r.raw.stats) || []).find(s => /タイム/.test(s.label || "") && /^\d:\d{2}:\d{2}$/.test(String(s.value)));
+    return st ? secOf(st.value) : null;
+  }
+  // { "5": { sec, d, base }, … }。ラップから数えた最速（フルのレースは公式タイム）と BASE_PB のうち速いほう
   function pbOf(runs) {
     const out = {};
     PB_DIST.forEach(z => {
@@ -1370,13 +1496,71 @@ footer {
       const b = BASE_PB[z.key];
       if (b && b.sec > 0) best = { sec: b.sec, d: b.d || null, base: true };
       runs.forEach(r => {
-        const s = fastestSplit(r, z.km);
-        if (s != null && (!best || s < best.sec)) best = { sec: s, d: r.d, base: false };
+        const off = officialOf(r, z);
+        const s = off != null ? off : fastestSplit(r, z.km);
+        if (s != null && (!best || s < best.sec)) best = { sec: s, d: r.d, base: false, official: off != null };
       });
       out[z.key] = best;
     });
     return out;
   }
+
+  /* ---------- 走力（VDOT） ----------
+     ダニエルズの式（Daniels & Gilbert）で、タイムから走力を出す。プロファイルの段階・判定の機会と同じ物差し
+     （プロファイルの「サブ3 = 53.5、サブエガ = 57.3」もこの式）。 */
+  const vdotOf = (m, sec) => {
+    if (!(m > 0 && sec > 0)) return null;
+    const t = sec / 60, v = m / t;
+    const vo2 = -4.6 + 0.182258 * v + 0.000104 * v * v;
+    const pct = 0.8 + 0.1894393 * Math.exp(-0.012778 * t) + 0.2989558 * Math.exp(-0.1932605 * t);
+    return vo2 / pct;
+  };
+  // その VDOT で距離 m を走るタイム（秒）。vdotOf の逆を二分法で解く
+  const timeAt = (vdot, m) => {
+    let lo = m * 0.1, hi = m * 0.6;
+    for (let i = 0; i < 60; i++) { const md = (lo + hi) / 2; if (vdotOf(m, md) > vdot) lo = md; else hi = md; }
+    return Math.round((lo + hi) / 2);
+  };
+  const v1 = (x) => (Math.round(x * 10) / 10).toFixed(1);
+  const timeOf = (s) => s >= 3600 ? hmsOf(s) : mmssOf(s);
+
+  /* 走力の材料。
+       speed    … 直近120日の 5km・10km・ハーフの最速（ラップから）のうち VDOT がいちばん高いもの（ふつうは TT）
+       pred5    … Garmin の 5K 予測 / predFull … Garmin のフル予測
+       race     … シーズン中のフルのレースの最速（公式タイム）
+       goal     … 本命の目標タイム */
+  function fitnessModel(runs, today) {
+    const recent = runs.filter(r => dayDiff(r.d, today) <= 120 && r.d <= today);
+    const pb = pbOf(recent);
+    let speed = null;
+    PB_DIST.filter(z => z.key !== "42").forEach(z => {
+      const b = pb[z.key];
+      if (!b || b.base) return;
+      const v = vdotOf(z.km * 1000, b.sec);
+      if (v && (!speed || v > speed.v)) speed = { v, sec: b.sec, d: b.d, label: z.label };
+    });
+    const f = fit().race || {};
+    const p5 = secOf(f.k5), pF = secOf(f.full);
+    const seasonFrom = (D.season && D.season.phases && D.season.phases[0] && D.season.phases[0].from) || "";
+    const races = runs.filter(r => r.d >= seasonFrom && r.d <= today).map(r => ({ d: r.d, sec: officialOf(r, PB_DIST[3]) })).filter(x => x.sec);
+    const race = races.length ? races.reduce((a, b) => b.sec < a.sec ? b : a) : null;
+    const goalSec = secOf(D.race && D.race.goal);
+    return {
+      speed, race: race && { ...race, v: vdotOf(42195, race.sec) },
+      pred5: p5 ? { sec: p5, v: vdotOf(5000, p5) } : null,
+      predFull: pF ? { sec: pF, v: vdotOf(42195, pF) } : null,
+      goal: goalSec ? { sec: goalSec, v: vdotOf(42195, goalSec) } : null
+    };
+  }
+  // 5km のタイムが入る段階（プロファイルの段階の表。k5 はその段階に入れる遅い側）
+  function stageFor5k(sec) {
+    const st = ((D.season && D.season.stages) || []).filter(s => s.k5).sort((a, b) => a.k5 - b.k5);
+    const hit = st.find(s => sec <= s.k5);
+    if (hit) return hit;
+    return ((D.season && D.season.stages) || []).find(s => !s.k5) || null;
+  }
+  // 次の判定（プロファイルの「キロ4分の位置」の表で、まだ来ていない最初の行）
+  const nextMilestone = (today) => ((D.season && D.season.milestones) || []).find(m => m.date && m.date >= today && !m.done) || null;
 
   const phaseAt = (iso) => ((D.season && D.season.phases) || []).find(p => p.from <= iso && iso <= p.to) || null;
 
@@ -1587,6 +1771,24 @@ footer {
       tiles.push(tile("Garmin フル予測", esc(hmsOf(predNow)), "",
         gap > 0 ? `${esc(goalName)}（${esc(D.race.goal)}）まで あと ${gapOf(gap)}` : "目標タイムを上回っている", gap > 0 ? "warn" : "good", sub, pct));
     }
+    // 走力（VDOT）と次の判定。履歴が無くても Garmin の 5K 予測だけで出す
+    const fm = fitnessModel(haveHist ? runs : todayRows().map(h => ({ ...h, km: Number(h.km) || 0, laps: expandLaps(h.laps), raw: h })), today);
+    const nm = nextMilestone(today);
+    if (fm.speed || fm.pred5) {
+      const v = fm.speed ? fm.speed.v : fm.pred5.v;
+      const goalV = fm.goal ? fm.goal.v : null;
+      const t5 = fm.speed ? timeAt(fm.speed.v, 5000) : fm.pred5.sec;
+      const nmT = nm && nm.k5 && nm.k5.length ? Math.max(...nm.k5) : null;
+      const n = nm ? `次の判定 ${esc(nm.when)}（あと${dayDiff(today, nm.date)}日）${nmT ? `: 5km ${mmssOf(nmT)}${t5 > nmT ? ` まで あと ${mmssOf(t5 - nmT)}` : " に届いている"}` : ""}` : "";
+      const sub = [fm.speed ? `実測 ${esc(fm.speed.label)} ${timeOf(fm.speed.sec)}（${mdOf(fm.speed.d)}）` : "",
+        fm.pred5 ? `Garmin 5K 予測 ${mmssOf(fm.pred5.sec)}（VDOT ${v1(fm.pred5.v)}）` : "",
+        goalV ? `${esc(goalName)}は VDOT ${v1(goalV)}` : ""].filter(Boolean).join("<br>");
+      // メーターは「キロ4分の位置」の表の起点（① 今の VDOT）から目標までのうち、どこまで来たか
+      const ms0 = ((D.season && D.season.milestones) || [])[0];
+      const baseV = ms0 && ms0.vdot && ms0.vdot.length ? ms0.vdot[0] : null;
+      tiles.push(tile(`走力（VDOT・${fm.speed ? "実測" : "予測"}）`, v1(v), "", n, nmT && t5 <= nmT ? "good" : "", sub,
+        goalV && baseV != null && goalV > baseV ? Math.max(0, (v - baseV) / (goalV - baseV) * 100) : null));
+    }
     if (haveHist) {
       const m = mStatus(runs, today);
       const bestKm = m.best ? m.best.streak.km : 0;
@@ -1602,28 +1804,47 @@ footer {
     const wk = D.week;
     if (wk && Array.isArray(wk.days) && wk.days.length) {
       const low = numOf(wk.targetKm);
+      /* 回復週・テーパー週・レース週の距離は下限ではなく上限（プロファイル「週間距離は目標の帯」の例外）。
+         直近7日には前のフェーズ（レースなど）が混ざるので、そのフェーズに入ってからの距離を上限と比べる */
+      const ph = phaseAt(today);
+      const capPhase = !!(ph && /回復|テーパー|レース週/.test(ph.name));
+      let bar = "";
+      if (capPhase && numsOf(ph.km).length && wk.days.length === 7) {
+        const hi = Math.max(...numsOf(ph.km));
+        const inPh = wk.days.filter((d, i) => isoAdd(today, i - 6) >= ph.from);
+        const km = inPh.reduce((a, d) => a + (Number(d.km) || 0), 0);
+        bar = `<div><div class="meter"><i style="width:${Math.min(100, km / hi * 100).toFixed(1)}%"></i></div>
+          <div class="goalline"><span>${esc(ph.name.replace(/^Phase\s*\d+\s*/, ""))}（${mdOf(ph.from)}〜・${inPh.length}日目）${kmFmt(km)}km ／ 上限 ${hi}km</span>${km > hi ? `<span class="warn">上限を ${kmFmt(km - hi)}km 超え</span>` : `<span>上限まで ${kmFmt(hi - km)}km</span>`}</div></div>`;
+      } else if (low) {
+        bar = `<div><div class="meter"><i style="width:${Math.min(100, wk.totalKm / low * 100).toFixed(1)}%"></i></div>
+          <div class="goalline"><span>週の下限 ${low}km</span>${wk.totalKm >= low ? `<b>到達 ✓</b>` : `<span>あと ${kmFmt(low - wk.totalKm)}km</span>`}</div></div>`;
+      }
       const delta = wk.prevKm > 0 ? Math.round((wk.totalKm / wk.prevKm - 1) * 100) : null;
       // 急な跳ね上がり（前の7日比 +30% 超）だけを色で立てる。+10% ルールは根拠が弱いので使わない（プロファイル）
       week = `<div class="sub-h">直近7日（${esc(String(wk.label || "").replace(/\s*直近7日\s*$/, ""))}）</div>
         <div class="week-grid">${weekBars(wk)}</div>
         <div class="tot">
-          <div><span class="n">${kmFmt(wk.totalKm)}<em>km</em></span><span class="l">目標 ${esc(wk.targetKm)} km</span></div>
+          <div><span class="n">${kmFmt(wk.totalKm)}<em>km</em></span><span class="l">${capPhase ? "規定（上限）" : "目標"} ${esc(wk.targetKm)} km</span></div>
           <div><span class="n">${esc(wk.runs)}<em>日</em></span><span class="l">走った日</span></div>
           ${delta !== null ? `<div><span class="n ${delta > 30 ? "warn" : ""}">${delta > 0 ? "+" : ""}${delta}<em>%</em></span><span class="l">前の7日（${kmFmt(wk.prevKm)}km）比</span></div>` : ""}
         </div>
-        ${low ? `<div><div class="meter"><i style="width:${Math.min(100, wk.totalKm / low * 100).toFixed(1)}%"></i></div>
-          <div class="goalline"><span>週の下限 ${low}km</span>${wk.totalKm >= low ? `<b>到達 ✓</b>` : `<span>あと ${kmFmt(low - wk.totalKm)}km</span>`}</div></div>` : ""}
+        ${bar}
         ${monthGoalHtml(wk)}`;
     }
-    return `${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}${week}`;
+    // 積み上げの目標（プロファイルの表）。ロングの本数・後半ステディ・週80km・補強
+    const gs = haveHist ? goalsModel(runs, today).filter(g => g.started) : [];
+    const goals = gs.length ? `<div class="sub-h">積み上げの目標</div>${goalsListHtml(gs)}` : "";
+    return `${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}${week}${goals}`;
   }
 
-  /* 今月の距離と月間目標（week.monthTargetKm）。目標に対して、日割りで今日までに要る距離（目盛り）と、
-     このペースで続けたときの月末の見込みを出す。目標が無ければ距離だけ。 */
+  /* 今月の距離と月間目標。目標はプロファイルの月ごとの計画（10月 340・3月 230 など）を優先し、無い月だけ week.monthTargetKm を使う
+     （2026-10-26 変更。それまでは毎月 350 で、レース月・テーパー月も同じ目標に見えていた）。
+     目標に対して、日割りで今日までに要る距離（目盛り）と、このペースで続けたときの月末の見込みを出す。目標が無ければ距離だけ。 */
   function monthGoalHtml(wk) {
     if (wk.monthKm == null || !dataDay) return "";
-    const target = Number(wk.monthTargetKm) || 0;
     const ym = monthOf(dataDay);
+    const plan = monthPlan(ym);
+    const target = (plan && plan.km) || Number(wk.monthTargetKm) || 0;
     const dim = +monthEnd(ym).slice(8, 10);
     const done = Math.min(dim, Number(wk.monthDayCount) || +dataDay.slice(8, 10));
     const left = dim - done;
@@ -1635,12 +1856,12 @@ footer {
     const need = left > 0 ? Math.max(0, target - wk.monthKm) / left : 0;
     return `${head}
       <div class="tot">
-        <div><span class="n">${kmFmt(wk.monthKm)}<em>km</em></span><span class="l">目標 ${esc(target)} km</span></div>
+        <div><span class="n">${kmFmt(wk.monthKm)}<em>km</em></span><span class="l">${plan ? "計画" : "目標"} ${esc(target)} km</span></div>
         <div><span class="n ${ahead < 0 ? "warn" : ""}">${ahead >= 0 ? "+" : "−"}${kmFmt(Math.abs(ahead))}<em>km</em></span><span class="l">日割りの予定（${kmFmt(due)}km）比</span></div>
         <div><span class="n">${Math.round(pace)}<em>km</em></span><span class="l">このペースの月末見込み</span></div>
       </div>
       <div><div class="meter mgoal"><i style="width:${Math.min(100, wk.monthKm / target * 100).toFixed(1)}%"></i><s style="left:${Math.min(100, due / target * 100).toFixed(1)}%"></s></div>
-        <div class="goalline"><span>目盛り＝日割り</span>${wk.monthKm >= target ? `<b>月間目標 到達 ✓</b>` : left > 0 ? `<span>あと ${kmFmt(target - wk.monthKm)}km（1日 ${kmFmt(need)}km）</span>` : `<span>あと ${kmFmt(target - wk.monthKm)}km</span>`}</div></div>`;
+        <div class="goalline"><span>目盛り＝日割り</span>${wk.monthKm >= target ? `<b>月間${plan ? "計画" : "目標"} 到達 ✓</b>` : left > 0 ? `<span>あと ${kmFmt(target - wk.monthKm)}km（1日 ${kmFmt(need)}km）</span>` : `<span>あと ${kmFmt(target - wk.monthKm)}km</span>`}</div></div>`;
   }
 
   function kpiCard() {
@@ -1803,7 +2024,7 @@ footer {
       </div>`).join("");
     // 要約行。手順書の自己チェック（質練習の本数・休養日・週間距離）がそのまま目で確認できるようにする
     const sumKm = p.days.reduce((a, d) => a + (numOf(d.km) || 0), 0);
-    const quality = p.days.filter(d => ["M", "T", "R"].includes(d.type)).length;
+    const quality = p.days.filter(isQuality).length;
     const restDays = p.days.filter(d => d.type === "rest").length;
     return `<section class="card">
       <div class="card-head"><h2>この先1週間</h2><span class="sub">${esc(p.label || (firstIso ? mdOf(firstIso) + "〜" : ""))}</span></div>
@@ -2004,7 +2225,7 @@ footer {
       const v = main && JUDGED.includes(main.verdict) ? main.verdict : "";
       const label = `${mdOf(iso)}(${dowOf(iso)}) ${main ? main.type : km > 0 ? "" : "休養"}${km > 0 ? ` ${kmFmt(km)}km` : ""}${v ? ` 評価${v}` : ""}`;
       return `<button type="button" class="cday ${esc(zone)}${iso === today ? " today" : ""}${calSel === iso ? " sel" : ""}${out}" data-day="${iso}" aria-pressed="${calSel === iso}" aria-label="${esc(label)}">
-          ${cd}${v ? `<span class="cv ${vcls(v)}">${v}</span>` : ""}
+          ${cd}${v ? `<span class="cv ${vcls(v)}">${v}</span>` : ""}${notesMap[iso] ? `<span class="cn${notesMap[iso].pain ? " pain" : ""}" aria-hidden="true">✎</span>` : ""}
           <span class="ck">${km > 0 ? kmFmt(km) : "休"}</span></button>`;
     };
     const weekCell = (mon) => {
@@ -2019,8 +2240,9 @@ footer {
     };
     const detail = (iso) => {
       const { rs, km, base } = dayInfo(iso);
-      if (!rs.length || base) return `<div class="cal-detail"><p class="hnote">${mdOf(iso)}(${dowOf(iso)}) — ${km > 0 ? `${kmFmt(km)}km（Garmin の記録。評価の記録なし）` : "休養（記録なし）"}</p></div>`;
-      return `<div class="cal-detail">${rs.map(r => runBody(r.raw, iso + "-" + r.seq)).join("")}</div>`;
+      const nt = notesMap[iso] ? `<div class="note-line">体感メモ — ${noteSummary(notesMap[iso])}</div>` : "";
+      if (!rs.length || base) return `<div class="cal-detail"><p class="hnote">${mdOf(iso)}(${dowOf(iso)}) — ${km > 0 ? `${kmFmt(km)}km（Garmin の記録。評価の記録なし）` : "休養（記録なし）"}</p>${nt}</div>`;
+      return `<div class="cal-detail">${nt}${rs.map(r => runBody(r.raw, iso + "-" + r.seq)).join("")}</div>`;
     };
 
     const months = calMonths(dm);
@@ -2079,9 +2301,9 @@ footer {
       : histState === "ready" ? "" : `<p class="hnote">この画面では保存済みの評価の履歴を読み出せないため、評価と練習の種類は直近7日だけを表示しています。</p>`;
     return `${nav}${take}${note}
       <div class="cal-legend">
-        ${[["E", "ジョグ"], ["M", "Mペース"], ["T", "閾値"], ["R", "インターバル"], ["rest", "休養"]].map(([z, l]) => `<span class="lg"><span class="tp ${z}">${z === "rest" ? "休" : z}</span>${l}</span>`).join("")}
+        ${[["E", "ジョグ"]].concat(HAS_S ? [["S", "ステディ"]] : [], [["M", "Mペース"], ["T", "閾値"], ["R", "インターバル"], ["rest", "休養"]]).map(([z, l]) => `<span class="lg"><span class="tp ${z}">${z === "rest" ? "休" : z}</span>${l}</span>`).join("")}
         ${usedBase ? `<span class="lg"><span class="tp base">走</span>距離のみ</span>` : ""}
-        <span class="lg">右上＝総合評価・マスを押すと開く</span>
+        <span class="lg">右上＝総合評価・✎＝体感メモ・マスを押すと開く</span>
       </div>
       <div class="cal" role="group" aria-label="トレーニングカレンダー">${grid}</div>`;
   }
@@ -2103,11 +2325,15 @@ footer {
     const months = calMonths(dm).slice(0, 12).reverse();
     if (months.length < 2) return "";
     const tot = new Map(months.map(m => [m, sumTo(m, today)]));
+    // 計画のある月は、その月の計画（プロファイルの月表）を横線で重ねる。終わった月で計画の95%に届かなければ橙
     const bars = months.map(m => {
-      const t = tot.get(m);
-      return { label: `${+m.slice(5)}月`, v: t.km, top: `${Math.round(t.km)}`, fill: "var(--accent)", op: m === cur ? .4 : .9,
-        tip: `${monthLabel(m)} ${kmFmt(t.km)}km（走った日 ${t.days} 日${m === cur ? "・途中" : ""}）` };
+      const t = tot.get(m), pl = monthPlan(m);
+      const short = pl && m < cur && t.km < pl.km * 0.95;
+      return { label: `${+m.slice(5)}月`, v: t.km, top: `${Math.round(t.km)}`, ref: pl ? pl.km : null,
+        fill: short ? "var(--warn)" : "var(--accent)", op: m === cur ? .4 : .9,
+        tip: `${monthLabel(m)} ${kmFmt(t.km)}km（走った日 ${t.days} 日${m === cur ? "・途中" : ""}${pl ? `・計画 ${pl.km}km` : ""}）` };
     });
+    const hasPlan = bars.some(b => b.ref);
     const done = months.filter(m => m < cur);
     let take = "";
     if (done.length) {
@@ -2125,8 +2351,13 @@ footer {
       <div class="card-head"><h2>月間走行距離</h2><span class="sub">ランニングの月合計 km</span></div>
       <div class="card-body">
         ${take ? `<p class="take">${take}</p>` : ""}
+        ${hasPlan ? `<div class="chart-legend" style="padding:0">
+          <span><i style="background:var(--accent)"></i>計画どおり</span>
+          <span><i style="background:var(--warn)"></i>計画の95%未満</span>
+          <span><i style="background:var(--ink);height:3px;opacity:.55;vertical-align:3px"></i>月間計画（プロファイル）</span>
+        </div>` : ""}
         ${barChart(bars, { aria: "月ごとの走行距離" })}
-        <p class="hnote">薄い棒は今月（途中の値）。Garmin のランニングの記録を月ごとに合計している。1週ごとの量ではなく、積み上げが月単位で続いているかを見る。</p>
+        <p class="hnote">薄い棒は今月（途中の値）。Garmin のランニングの記録を月ごとに合計している。1週ごとの量ではなく、積み上げが月単位で続いているかを見る。${hasPlan ? "横線は docs/athlete_profile.md の「月間距離について」の見込み。" : ""}</p>
       </div>
     </section>`;
   }
@@ -2189,13 +2420,17 @@ footer {
     </section>`;
   }
 
-  /* 強度の配分（月曜始まりの週ごと）。各ラップをペースで E/M/T/R に分け（境目はラップの色分けと同じ）、走った距離を按分する。
+  /* 強度の配分（月曜始まりの週ごと）。各ラップをペースで E/S/M/T/R に分け（境目はラップの色分けと同じ）、走った距離を按分する。
      ラップは 1km の自動ラップを前提に、最後のラップだけ端数の距離にする。そう読めない走り（ワークアウトのラップ・流しを含む）は
      流しを除いた本数で等分する。ラップの無い走りは「不明」。db の評価の履歴がある週（2026-09 以降）だけを出す。 */
-  const MIX = [{ k: "E", c: "var(--z-e)" }, { k: "M", c: "var(--z-m)" }, { k: "T", c: "var(--z-t)" }, { k: "R", c: "var(--z-r)" }, { k: "?", c: "var(--line)" }];
-  const zkey = { "z-e": "E", "z-m": "M", "z-t": "T", "z-r": "R" };
+  // 積む順（下から）。ステディは E と M の間。プロファイルにステディの行が無ければ数えない
+  const MIX = [{ k: "E", c: "var(--z-e)" }].concat(HAS_S ? [{ k: "S", c: "var(--z-s)" }] : [],
+    [{ k: "M", c: "var(--z-m)" }, { k: "T", c: "var(--z-t)" }, { k: "R", c: "var(--z-r)" }, { k: "?", c: "var(--line)" }]);
+  const MIX_NAME = { E: "E帯", S: "ステディ", M: "M帯", T: "T帯", R: "R帯", "?": "ラップ無し" };
+  const zkey = { "z-e": "E", "z-s": "S", "z-m": "M", "z-t": "T", "z-r": "R" };
+  const mix0 = () => ({ E: 0, S: 0, M: 0, T: 0, R: 0, "?": 0 });
   function mixOf(r) {
-    const out = { E: 0, M: 0, T: 0, R: 0, "?": 0 };
+    const out = mix0();
     const ls = r.laps.filter(l => l.sec >= STRIDE_EDGE);
     if (!ls.length) { out["?"] += r.km; return out; }
     const n = r.laps.length, tail = r.km - (n - 1);
@@ -2213,20 +2448,21 @@ footer {
     const thisMon = mondayOf(dataDay), firstMon = mondayOf(runs[0].d);
     const N = NARROW ? 8 : 12;
     const weeks = [];
-    for (let w = N - 1; w >= 0; w--) { const mon = isoAdd(thisMon, -7 * w); if (mon >= firstMon) weeks.push({ mon, E: 0, M: 0, T: 0, R: 0, "?": 0 }); }
+    for (let w = N - 1; w >= 0; w--) { const mon = isoAdd(thisMon, -7 * w); if (mon >= firstMon) weeks.push({ mon, ...mix0() }); }
     if (weeks.length < 2) return "";
     const byMon = new Map(weeks.map(w => [w.mon, w]));
     runs.forEach(r => { const w = byMon.get(mondayOf(r.d)); if (!w) return; const x = mixOf(r); MIX.forEach(z => { w[z.k] += x[z.k]; }); });
     const tot = (w) => MIX.reduce((a, z) => a + w[z.k], 0);
-    const q = (w) => w.M + w.T + w.R;
+    // E 以外（ステディ・M・T・R）の距離。8割以上を低強度（E）で積めているかを見る
+    const q = (w) => w.S + w.M + w.T + w.R;
     // 直近4週（今週を除く）の合計の割合
     const done = weeks.filter(w => w.mon < thisMon).slice(-4);
-    const sum = { E: 0, M: 0, T: 0, R: 0, "?": 0 };
+    const sum = mix0();
     done.forEach(w => MIX.forEach(z => { sum[z.k] += w[z.k]; }));
     const all = tot(sum), known = all - sum["?"];
     const pc = (v) => known > 0 ? Math.round(v / known * 100) : 0;
     const take = done.length && known > 0
-      ? `直近${done.length}週（${mdOf(done[0].mon)}〜${mdOf(isoAdd(done[done.length - 1].mon, 6))}）は E <span class="n">${pc(sum.E)}%</span>・M <span class="n">${pc(sum.M)}%</span>・T <span class="n">${pc(sum.T)}%</span>・R <span class="n">${pc(sum.R)}%</span>。`
+      ? `直近${done.length}週（${mdOf(done[0].mon)}〜${mdOf(isoAdd(done[done.length - 1].mon, 6))}）は E <span class="n">${pc(sum.E)}%</span>${HAS_S ? `・ステディ <span class="n">${pc(sum.S)}%</span>` : ""}・M <span class="n">${pc(sum.M)}%</span>・T <span class="n">${pc(sum.T)}%</span>・R <span class="n">${pc(sum.R)}%</span>。`
         + ` T は週平均 <span class="n">${kmFmt(sum.T / done.length)}km</span>（週間距離の ${pc(sum.T)}%）。` : "";
     const W = NARROW ? 360 : 900, H = NARROW ? 190 : 200;
     const padL = NARROW ? 8 : 12, padR = NARROW ? 8 : 12, padT = 22, padB = 26;
@@ -2240,7 +2476,7 @@ footer {
         const h = w[z.k] / max * ih;
         if (h <= 0) return "";
         yy -= h;
-        return `<rect x="${x0.toFixed(1)}" y="${yy.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0.5, h - (h > 2 ? 1 : 0)).toFixed(1)}" fill="${z.c}" opacity="${live ? .45 : .9}"><title>${mdOf(w.mon)}〜 ${z.k === "?" ? "ラップ無し" : z.k + "帯"} ${kmFmt(w[z.k])}km</title></rect>`;
+        return `<rect x="${x0.toFixed(1)}" y="${yy.toFixed(1)}" width="${barW.toFixed(1)}" height="${Math.max(0.5, h - (h > 2 ? 1 : 0)).toFixed(1)}" fill="${z.c}" opacity="${live ? .45 : .9}"><title>${mdOf(w.mon)}〜 ${MIX_NAME[z.k]} ${kmFmt(w[z.k])}km</title></rect>`;
       }).join("");
       const t = tot(w), qp = t - w["?"] > 0 ? Math.round(q(w) / (t - w["?"]) * 100) : null;
       return segs + (qp != null ? `<text x="${cx.toFixed(1)}" y="${(yy - 5).toFixed(1)}" class="b-v">${qp}%</text>` : "")
@@ -2251,8 +2487,8 @@ footer {
       <div class="card-body">
         ${take ? `<p class="take">${take}</p>` : ""}
         <div class="chart-legend" style="padding:0">
-          ${MIX.map(z => `<span><i style="background:${z.c}"></i>${z.k === "?" ? "ラップ無し" : z.k + "帯"}</span>`).join("")}
-          <span class="ref">棒の上＝M・T・R の割合 ／ 薄い棒＝今週（進行中）</span>
+          ${MIX.map(z => `<span><i style="background:${z.c}"></i>${MIX_NAME[z.k]}</span>`).join("")}
+          <span class="ref">棒の上＝E 以外の割合 ／ 薄い棒＝今週（進行中）</span>
         </div>
         <svg class="prog" viewBox="0 0 ${W} ${H}" role="img" aria-label="週ごとの強度の配分">
           <style>
@@ -2262,7 +2498,7 @@ footer {
           <line x1="${padL}" x2="${W - padR}" y1="${padT + ih}" y2="${padT + ih}" stroke="var(--line)"/>
           ${body}
         </svg>
-        <p class="hnote">帯の境目はラップの色分けと同じ（${esc(stageTxt || "現在の段階")}: R と T の境 ${paceTxt(ZONE_EDGE.r)}・T と M ${paceTxt(ZONE_EDGE.t)}・M と E ${paceTxt(ZONE_EDGE.m)}）。帯と帯の間のペースは近いほうに入る。流し（3:20/km より速いラップ）は数えない。プロファイルの閾値走の考え方（ダニエルズのクルーズインターバル）では、T は合計で週間距離の 10% までが目安。</p>
+        <p class="hnote">帯の境目はラップの色分けと同じ（${esc(stageTxt || "現在の段階")}: R と T の境 ${paceTxt(ZONE_EDGE.r)}・T と M ${paceTxt(ZONE_EDGE.t)}・${HAS_S ? `M とステディ ${paceTxt(ZONE_EDGE.m)}・ステディと E ${paceTxt(ZONE_EDGE.s)}` : `M と E ${paceTxt(ZONE_EDGE.m)}`}）。帯と帯の間のペースは近いほうに入る。流し（3:20/km より速いラップ）は数えない。プロファイルの閾値走の考え方（ダニエルズのクルーズインターバル）では、T は合計で週間距離の 10% までが目安。練習の8割以上は E で積む（Haugen et al. 2022）。</p>
       </div>
     </section>`;
   }
@@ -2332,7 +2568,8 @@ footer {
         ${(NARROW && bars.length > 8 && (bars.length - 1 - i) % 2) ? "" : `<text x="${cx.toFixed(1)}" y="${H - 8}" class="b-ax">${esc(b.label)}</text>`}`;
     }).join("");
     const line = o.line ? `<line x1="${padL}" x2="${W - padR}" y1="${y(o.line.v).toFixed(1)}" y2="${y(o.line.v).toFixed(1)}" stroke="var(--crit)" stroke-width="1" stroke-dasharray="4 4" opacity=".6"/>
-      <text x="${W - padR}" y="${(y(o.line.v) - 4).toFixed(1)}" class="b-ref">${esc(o.line.label)}</text>` : "";
+      <text x="${o.line.at === "start" ? padL : W - padR}" y="${(y(o.line.v) - 4).toFixed(1)}" class="b-ref"${o.line.at === "start" ? ` style="text-anchor:start"` : ""}>${esc(o.line.label)}</text>` : "";
+    // 基準線のラベルは棒より手前に描く（棒に隠れないように）
     return `<svg class="prog" viewBox="0 0 ${W} ${H}" role="img" aria-label="${esc(o.aria)}">
         <style>
           .b-v{font-family:var(--num);font-weight:700;font-size:${fs(11, 12)}px;fill:var(--ink);text-anchor:middle}
@@ -2340,7 +2577,7 @@ footer {
           .b-ref{font-family:var(--mono);font-size:${fs(10, 10.5)}px;fill:var(--crit);text-anchor:end}
         </style>
         <line x1="${padL}" x2="${W - padR}" y1="${padT + ih}" y2="${padT + ih}" stroke="var(--line)"/>
-        ${line}${body}
+        ${body}${line}
       </svg>`;
   }
 
@@ -2394,7 +2631,7 @@ footer {
   function mHrHtml(m) {
     const rs = m.withStreak.filter(r => r.streak.km >= 3 && r.streak.hr && r.streak.sec > ZONE_EDGE.t).slice(-16);
     if (rs.length < 2) return "";
-    const cap = HR_CAPS[0].hr;
+    const cap = CAP["z-m"];
     const last = rs[rs.length - 1];
     const before = rs.slice(0, -1);
     const lowest = before.reduce((a, r) => r.streak.hr < a.streak.hr ? r : a, before[0]);
@@ -2495,11 +2732,359 @@ footer {
       ${items.length > archShow ? `<button class="cal-more" type="button" data-arch-more="1">さらに表示（残り ${items.length - archShow} 件）</button>` : ""}`;
   }
 
+  /* ======================================================================
+     ロングの耐性と積み上げの目標（2026-10-26〜）
+     水戸黄門は 30km・2時間半を越えたところで脚が尽きた（プロファイル「水戸黄門の振り返り」）。
+     その差を埋める練習（30km 以上のロング・後半ステディ）がどれだけ積めているかを数える。
+     ====================================================================== */
+
+  /* ステディ帯（とそれより速い帯）を続けた区間。流し（STRIDE_EDGE より速いラップ）は除く。
+     給水などで1本だけ外れたラップは区間を切らない（距離には数えない）。いちばん長い区間を返す。 */
+  function steadyBlockOf(laps) {
+    const inb = (l) => l && l.sec >= STRIDE_EDGE && l.sec <= S_EDGE;
+    let best = null, cur = null;
+    const close = () => {
+      if (cur && (!best || cur.laps.length > best.laps.length)) best = cur;
+      cur = null;
+    };
+    laps.forEach((l, i) => {
+      if (inb(l)) { if (!cur) cur = { from: i, laps: [] }; cur.laps.push(l); cur.to = i; return; }
+      if (cur && inb(laps[i + 1]) && cur.to === i - 1) return;   // 1本だけの外れは区間を切らない
+      close();
+    });
+    close();
+    if (!best) return null;
+    const hs = best.laps.map(l => l.hr).filter(h => h != null);
+    const after = laps.slice(best.to + 1, laps.length - 1).filter(l => l.sec >= STRIDE_EDGE);   // 区間のあと（最後の端数ラップは除く）
+    return {
+      km: best.laps.length, from: best.from + 1, to: best.to + 1,
+      sec: Math.round(avg(best.laps.map(l => l.sec))), hr: hs.length ? Math.round(avg(hs)) : null,
+      // 心拍の上限はラップの帯ごと（ステディ 155・M 167・T 176）で見る
+      over: best.laps.filter(l => l.hr != null && CAP[zoneOf(l.sec)] && l.hr > CAP[zoneOf(l.sec)]).length,
+      after: after.length >= 2 ? Math.round(avg(after.map(l => l.sec))) : null
+    };
+  }
+  /* 走った時間（秒）。フルのレースは公式タイム。1km の自動ラップなら「ラップのペース × 距離」の合計
+     （ラップの sec はペースなので、最後の端数ラップは端数の距離を掛ける）。読めなければ平均ペース × 距離 */
+  function durOf(r) {
+    const off = officialOf(r, PB_DIST[3]);
+    if (off) return off;
+    const ls = r.laps, n = ls.length;
+    if (n >= 2) {
+      const tail = r.km - (n - 1);
+      if (tail > 0 && tail <= 1.05) return Math.round(ls.reduce((a, l, i) => a + l.sec * (i < n - 1 ? 1 : tail), 0));
+    }
+    const p = secOf(r.raw && r.raw.pace);
+    return p && r.km ? Math.round(p * r.km) : null;
+  }
+  // 20km 以上の走り
+  function longsOf(runs) {
+    return runs.filter(r => r.km >= 20).map(r => ({ r, dur: durOf(r), st: r.laps.length ? steadyBlockOf(r.laps) : null }));
+  }
+  const hmOf = (s) => `${Math.floor(s / 3600)}:${String(Math.floor(s % 3600 / 60)).padStart(2, "0")}`;
+  const notesOk = () => notesState === "ready";
+  const noteDays = (from, to) => Object.values(notesMap).filter(n => n && n.d >= from && n.d <= to);
+
+  /* プロファイルの「積み上げの目標」の表を、行の言葉で数え方に結びつける。
+     知らない行は目安だけを出す（数え方が分からないものを推測で数えない）。 */
+  function goalsModel(runs, today) {
+    const goals = (D.season && D.season.goals) || [];
+    const longs = longsOf(runs);
+    const dm = dayModel();
+    return goals.map(g => {
+      const from = g.from || "0000", to = g.to || "9999";
+      const inWin = (iso) => iso >= from && iso <= to && iso <= today;
+      const left = g.to ? dayDiff(today, g.to) : null;
+      // 週で数える目標の起点。表の「数え始め」が空なら直近12週から（西暦0年から回さない）
+      const weekFrom = g.from || mondayOf(isoAdd(today, -7 * 12));
+      const base = { label: g.label, target: g.target, n: g.n, from: g.from, to: g.to, left, started: today >= from };
+      const minKm = numOf((g.label.match(/(\d+)\s*km/) || [])[0]);
+      if (/ステディ/.test(g.label)) {
+        const hit = longs.filter(x => inWin(x.r.d) && x.st && x.st.km >= (minKm || 15));
+        return { ...base, kind: "count", count: hit.length, items: hit.map(x => x.r.d) };
+      }
+      if (/ロング/.test(g.label) && minKm) {
+        const hit = longs.filter(x => inWin(x.r.d) && x.r.km >= minKm);
+        return { ...base, kind: "count", count: hit.length, items: hit.map(x => x.r.d) };
+      }
+      if (/週/.test(g.label) && minKm) {
+        // 終わった週（月〜日がすべて期間内で、今日より前）だけを数える
+        let weeks = 0, ok = 0;
+        for (let mon = mondayOf(weekFrom); isoAdd(mon, 6) < today && isoAdd(mon, 6) <= to; mon = isoAdd(mon, 7)) {
+          if (mon < weekFrom) continue;
+          weeks++; if (weekKmOf(dm, mon) >= minKm) ok++;
+        }
+        return { ...base, kind: "ratio", count: ok, of: weeks };
+      }
+      if (/補強/.test(g.label)) {
+        if (!notesOk()) return { ...base, kind: "na" };
+        const mon = mondayOf(today);
+        const thisWeek = noteDays(mon, today).filter(n => n.strength).length;
+        let weeks = 0, ok = 0;
+        for (let m = mondayOf(weekFrom); isoAdd(m, 6) < today && m <= to; m = isoAdd(m, 7)) {
+          weeks++; if (noteDays(m, isoAdd(m, 6)).filter(n => n.strength).length >= (g.n || 2)) ok++;
+        }
+        return { ...base, kind: "weekly", count: thisWeek, weeks, ok };
+      }
+      return { ...base, kind: "na" };
+    });
+  }
+  function goalsListHtml(gs) {
+    if (!gs.length) return "";
+    const li = (g) => {
+      const until = g.to ? `〜${mdOf(g.to)}${g.left != null && g.left >= 0 ? `・あと${g.left}日` : ""}` : "";
+      if (!g.started) return `<li><span class="gl">${esc(g.label)}</span><span class="gv">${esc(g.target)}</span><span class="gs">${g.from ? mdOf(g.from) : ""} から数える（${esc(until)}）</span></li>`;
+      if (g.kind === "count") {
+        const pct = g.n ? g.count / g.n * 100 : null;
+        return `<li class="${g.n && g.count >= g.n ? "ok" : ""}"><span class="gl">${esc(g.label)}</span><span class="gv">${g.count}<em>/ ${esc(g.target)}</em></span>
+          ${pct != null ? `<span class="meter"><i style="width:${Math.max(2, Math.min(100, pct)).toFixed(0)}%"></i></span>` : ""}
+          <span class="gs">${g.from ? mdOf(g.from) : "これまで"}${esc(until)}${g.items.length ? `　済: ${g.items.slice(-4).map(mdOf).join("・")}` : ""}</span></li>`;
+      }
+      if (g.kind === "ratio") {
+        const pct = g.of ? g.count / g.of * 100 : 0;
+        return `<li class="${g.of && pct > 50 ? "ok" : ""}"><span class="gl">${esc(g.label)}</span><span class="gv">${g.count}<em>/ ${g.of}週</em></span>
+          <span class="meter"><i style="width:${Math.max(2, Math.min(100, pct)).toFixed(0)}%"></i></span>
+          <span class="gs">目安 ${esc(g.target)}（終わった週で数える・${g.from ? mdOf(g.from) : "直近12週"}${esc(until)}）</span></li>`;
+      }
+      if (g.kind === "weekly") {
+        const pct = g.n ? g.count / g.n * 100 : 0;
+        return `<li class="${g.n && g.count >= g.n ? "ok" : ""}"><span class="gl">${esc(g.label)}（今週）</span><span class="gv">${g.count}<em>/ ${esc(g.target)}</em></span>
+          <span class="meter"><i style="width:${Math.max(2, Math.min(100, pct)).toFixed(0)}%"></i></span>
+          <span class="gs">体感メモの「補強した」で数える${g.weeks ? `・週${g.n || 2}回に届いた週 ${g.ok}/${g.weeks}` : ""}</span></li>`;
+      }
+      return `<li><span class="gl">${esc(g.label)}</span><span class="gv">${esc(g.target)}</span><span class="gs">${g.kind === "na" && /補強/.test(g.label) ? "体感メモを読めない画面では数えない" : esc(until)}</span></li>`;
+    };
+    return `<ul class="goals">${gs.map(li).join("")}</ul>`;
+  }
+
+  // 成長の記録: ロングの耐性（積み上げの目標・ロングごとの時間とステディを保てた距離）
+  function longsHtml() {
+    if (histState !== "ready" || !dataDay) return "";
+    const runs = allRuns();
+    const gs = goalsModel(runs, dataDay);
+    const longs = longsOf(runs);
+    if (!longs.length && !gs.length) return "";
+    const goalSec = secOf(D.race && D.race.goal);
+    const train = longs.filter(x => x.dur && !/レース/.test(x.r.type));
+    const longestTrain = train.length ? train.reduce((a, b) => b.dur > a.dur ? b : a) : null;
+    const last = longs.slice(-14);
+    const bars = last.filter(x => x.dur).map(x => ({
+      label: mdOf(x.r.d), v: x.dur / 60, top: hmOf(x.dur),
+      fill: x.r.km >= 30 ? "var(--accent)" : "var(--z-e)", op: x.r.km >= 30 ? .95 : .55,
+      tip: `${x.r.d} ${x.r.type} ${kmFmt(x.r.km)}km ${hmsOf(x.dur)}${x.st ? `・ステディ以上 ${x.st.km}km（${mmssOf(x.st.sec)}${x.st.hr ? `・HR${x.st.hr}` : ""}）` : ""}`
+    }));
+    let take = "";
+    if (longestTrain) take += `練習のロングで最も長く動いたのは <span class="n">${hmsOf(longestTrain.dur)}</span>（${mdOf(longestTrain.r.d)}・${kmFmt(longestTrain.r.km)}km）。`;
+    if (goalSec) take += ` 板橋の目標 ${esc(D.race.goal)} を走り切る脚は、この時間を越えたところで作られる。`;
+    const rows = longs.slice(-6).reverse().map(x => {
+      const st = x.st;
+      const stTxt = st && st.km >= 3
+        ? `ステディ以上 <b>${st.km}km</b>（${st.from}〜${st.to}km・${mmssOf(st.sec)}${st.hr ? `・HR${st.hr}` : ""}${st.over ? `・心拍が帯の上限超え ${st.over}本` : ""}）${st.after ? ` → 以降 ${mmssOf(st.after)}/km` : ""}`
+        : "ステディ以上の区間なし（E のロング）";
+      return `<li><span class="ld">${mdOf(x.r.d)}</span><span class="lk">${kmFmt(x.r.km)}km</span><span class="lt">${x.dur ? hmOf(x.dur) : "—"}</span><span class="lx">${stTxt}</span></li>`;
+    }).join("");
+    return `<section class="card">
+      <div class="card-head"><h2>ロングと積み上げの目標</h2><span class="sub">30km 以降に持つ脚</span></div>
+      <div class="card-body">
+        ${gs.length ? `<div class="sub-h">積み上げの目標</div>${goalsListHtml(gs)}<p class="hnote">目標はプロファイルの「確度を上げる条件」の表。</p><div class="divider"></div>` : ""}
+        ${take ? `<p class="take">${take}</p>` : ""}
+        ${bars.length >= 2 ? `<div class="chart-legend" style="padding:0">
+            <span><i style="background:var(--accent)"></i>30km 以上</span><span><i style="background:var(--z-e);opacity:.55"></i>20〜30km</span>
+            <span class="ref">棒の高さ＝走った時間（レースは公式タイム）</span></div>
+          ${barChart(bars, { aria: "ロングごとの走った時間", line: goalSec ? { v: goalSec / 60, label: `板橋の目標 ${hmsOf(goalSec)}`, at: "start" } : null })}` : ""}
+        ${rows ? `<div class="sub-h">最近のロング（20km 以上）</div><ul class="longs">${rows}</ul>` : ""}
+        <p class="hnote">「ステディ以上」は ${paceTxt(S_EDGE)}/km より速いラップ（流しを除く）が続いた区間。給水などで1本だけ外れたラップは区間を切らない。プロファイルでは、ステディのロングで後半の HR が ${CAP["z-s"] || 155} を超えて戻らなければ、そこでステディを切って E に落とす。保てた距離が、指宿・板橋の入りのペースを決める材料になる。</p>
+      </div>
+    </section>`;
+  }
+
+  /* 走力の階段。5km のタイムを物差しに、プロファイルの段階（A−〜C）と判定の機会、実測・Garmin 予測を1本に並べる。
+     あわせて「5km の走力から見込めるフル」と実績の差（＝距離への耐性の不足）を数字で出す。 */
+  function ladderSvg(fm, stages, miles) {
+    const st = stages.filter(s => s.k5).sort((a, b) => b.k5 - a.k5);   // 遅い順（A → C）
+    const base = stages.find(s => !s.k5);
+    if (!st.length) return "";
+    const marks = [fm.speed && timeAt(fm.speed.v, 5000), fm.pred5 && fm.pred5.sec].filter(Boolean);
+    const mileT = miles.flatMap(m => m.k5 || []);
+    const slow = Math.max(...marks, st[0].k5 + 25, ...mileT) + 18;
+    const fast = Math.min(...marks, st[st.length - 1].k5 - 25, ...mileT) - 12;
+    const W = NARROW ? 360 : 900, H = NARROW ? 112 : 104;
+    const padL = 6, padR = 6, top = 34, bh = 26;
+    const x = (s) => padL + (slow - s) / (slow - fast) * (W - padL - padR);
+    const bands = [];
+    if (base) bands.push({ name: base.name, from: slow, to: st[0].k5, cur: base.current });
+    st.forEach((s, i) => { bands.push({ name: s.name, from: s.k5, to: i + 1 < st.length ? st[i + 1].k5 : fast, cur: s.current }); });
+    const rects = bands.map((b, i) => {
+      const x0 = x(b.from), x1 = x(b.to);
+      return `<rect x="${x0.toFixed(1)}" y="${top}" width="${Math.max(1, x1 - x0 - 2).toFixed(1)}" height="${bh}" rx="3" fill="${b.cur ? "var(--accent-soft)" : i % 2 ? "var(--surface-2)" : "#f7f8f8"}" ${b.cur ? `stroke="var(--accent)" stroke-width="1.5"` : ""}/>
+        <text x="${((x0 + x1) / 2).toFixed(1)}" y="${top + bh / 2 + 4}" class="l-st${b.cur ? " cur" : ""}">${esc(b.name)}</text>`;
+    }).join("");
+    const ticks = st.map(s => `<line x1="${x(s.k5).toFixed(1)}" x2="${x(s.k5).toFixed(1)}" y1="${top + bh}" y2="${top + bh + 4}" stroke="var(--ink-3)"/>
+      <text x="${x(s.k5).toFixed(1)}" y="${top + bh + 16}" class="l-tk">${mmssOf(s.k5)}</text>`).join("");
+    // 判定の機会（②③④）は帯の下に番号だけ。詳しくは下の一覧
+    const mile = miles.filter(m => m.k5 && m.k5.length && m.step && !m.done).map(m => {
+      const t = Math.max(...m.k5);
+      return `<text x="${x(t).toFixed(1)}" y="${H - 4}" class="l-ms">${esc(m.step)}</text>`;
+    }).join("");
+    const dots = [];
+    if (fm.speed) {
+      const t = timeAt(fm.speed.v, 5000), other = fm.pred5 && fm.pred5.sec;
+      const anchor = other && other < t ? "end" : "start";
+      dots.push(`<circle cx="${x(t).toFixed(1)}" cy="${top + bh / 2}" r="6" fill="var(--accent-ink)" stroke="var(--surface)" stroke-width="2"/>
+        <text x="${(x(t) + (anchor === "end" ? 4 : -4)).toFixed(1)}" y="${top - 8}" class="l-mk" text-anchor="${anchor}">実測 ${mmssOf(t)}</text>`);
+    }
+    if (fm.pred5) {
+      const t = fm.pred5.sec, other = fm.speed && timeAt(fm.speed.v, 5000);
+      const anchor = other && other > t ? "start" : "end";
+      dots.push(`<circle cx="${x(t).toFixed(1)}" cy="${top + bh / 2}" r="5.5" fill="var(--surface)" stroke="var(--accent-ink)" stroke-width="2"/>
+        <text x="${(x(t) + (anchor === "end" ? 4 : -4)).toFixed(1)}" y="${top - 8}" class="l-mk pred" text-anchor="${anchor}">予測 ${mmssOf(t)}</text>`);
+    }
+    return `<svg class="ladder" viewBox="0 0 ${W} ${H}" role="img" aria-label="5km のタイムで見た段階と現在地">
+      <style>
+        .l-st{font-family:var(--num);font-weight:700;font-size:${fs(12, 12.5)}px;fill:var(--ink-2);text-anchor:middle}
+        .l-st.cur{fill:var(--accent-ink)}
+        .l-tk{font-family:var(--mono);font-size:${fs(10, 10.5)}px;fill:var(--ink-3);text-anchor:middle}
+        .l-ms{font-family:var(--num);font-weight:700;font-size:${fs(12, 12.5)}px;fill:var(--accent-ink);text-anchor:middle}
+        .l-mk{font-family:var(--mono);font-weight:500;font-size:${fs(11, 11.5)}px;fill:var(--ink)}
+        .l-mk.pred{fill:var(--ink-2)}
+      </style>
+      <text x="${padL}" y="${H - 4}" class="l-tk" text-anchor="start" style="text-anchor:start">← 遅い</text>
+      <text x="${W - padR}" y="${H - 4}" class="l-tk" style="text-anchor:end">速い →</text>
+      ${rects}${ticks}${mile}${dots.join("")}
+    </svg>`;
+  }
+
+  function ladderHtml() {
+    if (!dataDay) return "";
+    const stages = (D.season && D.season.stages) || [];
+    const miles = (D.season && D.season.milestones) || [];
+    const runs = allRuns();
+    const fm = fitnessModel(runs, dataDay);
+    if (!stages.length || (!fm.speed && !fm.pred5)) return "";
+    const lines = [];
+    const cur = stages.find(s => s.current);
+    if (fm.speed) {
+      const t5 = timeAt(fm.speed.v, 5000);
+      const ev = stageFor5k(t5);
+      lines.push(`${esc(fm.speed.label)}の実測ベストは <span class="n">${timeOf(fm.speed.sec)}</span>（${mdOf(fm.speed.d)}・VDOT <span class="n">${v1(fm.speed.v)}</span>）${ev ? `で、実測の段階は <span class="n">${esc(ev.name)}</span>${cur && cur.name !== ev.name ? `（プロファイルの指定は ${esc(cur.name)}）` : ""}` : ""}。`);
+    }
+    if (fm.goal && fm.speed) lines.push(`${esc(goalName)}は VDOT <span class="n">${v1(fm.goal.v)}</span>（5km ${mmssOf(timeAt(fm.goal.v, 5000))} 相当）で、差は <span class="n">${v1(fm.goal.v - fm.speed.v)}</span>。`);
+    let endur = "";
+    if (fm.speed) {
+      const fullFromSpeed = timeAt(fm.speed.v, 42195);
+      endur = `5km の走力（VDOT ${v1(fm.speed.v)}）から見込めるフルは <b>${hmsOf(fullFromSpeed)}</b>。`;
+      if (fm.race) endur += ` シーズンのフルの実績は ${hmsOf(fm.race.sec)}（${mdOf(fm.race.d)}・VDOT ${v1(fm.race.v)}）で、差の <b>${gapOf(Math.max(0, fm.race.sec - fullFromSpeed))}</b> が距離への耐性の不足にあたる。`;
+      if (fm.predFull) endur += ` Garmin のフル予測 ${hmsOf(fm.predFull.sec)} は VDOT ${v1(fm.predFull.v)}。`;
+    }
+    const best = fm.speed ? fm.speed.v : fm.pred5.v;
+    const steps = miles.map(m => {
+      const reached = m.done || (m.vdot.length && best >= m.vdot[0] - 0.05);
+      const isNext = m === nextMilestone(dataDay);
+      const cls = reached ? "done" : isNext ? "now" : "";
+      const icon = reached ? "✓" : isNext ? "▶" : "・";
+      const when = m.date && !m.done ? `${esc(m.when)}${m.date >= dataDay ? `（あと${dayDiff(dataDay, m.date)}日）` : ""}` : esc(m.when);
+      const k5 = m.k5 && m.k5.length ? `5km ${m.k5.map(mmssOf).join("〜")}` : "";
+      return `<li class="${cls}"><span class="ic">${icon}</span><span class="w">${esc(m.step)} ${esc(m.label)}</span><span class="x">${when}${k5 ? ` — ${k5}${m.vdot.length ? `・VDOT ${m.vdot.join("〜")}` : ""}` : ""}${m.check && m.check !== "—" ? `。${esc(m.check)}` : ""}</span></li>`;
+    }).join("");
+    return `<section class="card">
+      <div class="card-head"><h2>走力の階段</h2><span class="sub">5km のタイムで見た段階（VDOT）</span></div>
+      <div class="card-body">
+        ${lines.length ? `<p class="take">${lines.join(" ")}</p>` : ""}
+        <div class="lad-legend"><span><i class="mk" style="background:var(--accent-ink)"></i>実測ベスト（直近120日）</span><span><i class="mk" style="border:2px solid var(--accent-ink);width:8px;height:8px"></i>Garmin 予測</span><span>枠＝プロファイルの現在の段階</span><span>②③④＝判定の機会</span></div>
+        ${ladderSvg(fm, stages, miles)}
+        ${steps ? `<div class="sub-h">キロ4分の位置を動かす（判定の機会）</div><ul class="steps">${steps}</ul>` : ""}
+        ${endur ? `<div class="divider"></div><div class="sub-h">距離への耐性</div><p class="lead">${endur}</p>` : ""}
+        <p class="hnote">VDOT はダニエルズの式でタイムから出した走力。10km・ハーフの実測は 5km に換算して並べている。段階の境目は docs/athlete_profile.md の「段階的なペースの引き上げ」の表、②③④は「キロ4分の位置を動かす」の表から読んでいる。</p>
+      </div>
+    </section>`;
+  }
+
+  /* ======================================================================
+     体感メモ（ホーム）。脚の張り・きつさ・痛み・補強・メモを、その日の1件として db（runs の note-YYYY-MM-DD）に書く。
+     データ（Garmin）では分からない「脚」の情報を、12:00 のコーチに渡すためのもの。
+     ====================================================================== */
+  // memoDirty … 開いてから何か入力したか。入力していなければ、db を読み終えたときに保存済みの値で描き直す
+  let memoDay = null, memoDraft = null, memoDirty = false, memoMsg = { t: "", cls: "" }, memoBusy = false;
+  // 保存時刻（ISO・UTC）を「10/26 21:05」の JST で出す
+  const jstStamp = (at) => { const t = Date.parse(at); if (!isFinite(t)) return ""; const j = new Date(t + 9 * 3600e3).toISOString(); return `${mdOf(j.slice(0, 10))} ${j.slice(11, 16)}`; };
+  const noteSummary = (n) => {
+    if (!n) return "";
+    const bits = [];
+    if (n.legs != null) bits.push(`脚の張り <b>${esc(n.legs)}</b>/10`);
+    if (n.rpe != null) bits.push(`きつさ <b>${esc(n.rpe)}</b>/10`);
+    if (n.pain === true) bits.push(`<b>痛みあり</b>${n.painWhere ? `（${esc(n.painWhere)}）` : ""}`);
+    else if (n.pain === false) bits.push("痛みなし");
+    if (n.strength) bits.push("補強 ✓");
+    if (n.memo) bits.push(esc(n.memo));
+    return bits.join("・");
+  };
+  function memoBody() {
+    const days = [viewDay, isoAdd(viewDay, -1)];
+    if (!days.includes(memoDay)) memoDay = viewDay;
+    if (!memoDraft || memoDraft.d !== memoDay || !memoDirty) memoDraft = { ...(notesMap[memoDay] || {}), d: memoDay };
+    const n = memoDraft;
+    const can = !!dbRef && notesOk();
+    const scale = (k, from, to, label) => `<div class="scale${to - from === 9 ? " s10" : ""}" role="group" aria-label="${esc(label)}">${Array.from({ length: to - from + 1 }, (_, i) => from + i)
+      .map(v => `<button type="button" data-memo="${k}" data-v="${v}" aria-pressed="${n[k] === v}">${v}</button>`).join("")}</div>`;
+    const chip = (k, v, label) => `<button type="button" class="chipbtn" data-memo="${k}" data-v="${v}" aria-pressed="${n[k] === v}">${esc(label)}</button>`;
+    const saved = notesMap[memoDay];
+    const mon = mondayOf(viewDay);
+    const weekStrength = noteDays(mon, viewDay).filter(x => x.strength).length;
+    const g = ((D.season && D.season.goals) || []).find(x => /補強/.test(x.label));
+    return `
+      <div class="memo-days">${days.map((d, i) => `<button type="button" class="chipbtn" data-memo-day="${d}" aria-pressed="${d === memoDay}">${i ? "昨日" : "今日"} ${mdOf(d)}(${dowOf(d)})</button>`).join("")}</div>
+      <div class="memo-row"><span class="memo-l">脚の張り<span>0 なし 〜 10 強い</span></span>${scale("legs", 0, 10, "脚の張り")}</div>
+      <div class="memo-row"><span class="memo-l">走りのきつさ（RPE）<span>1 とても楽 〜 10 限界</span></span>${scale("rpe", 1, 10, "きつさ")}</div>
+      <div class="memo-row"><span class="memo-l">痛み・違和感</span>
+        <div class="memo-days">${chip("pain", false, "なし")}${chip("pain", true, "あり")}${chip("strength", true, "補強をした")}</div>
+        ${n.pain === true ? `<input class="memo-in" type="text" data-memo-text="painWhere" maxlength="60" placeholder="部位と様子（例: 右ふくらはぎ・押すと痛い）" value="${esc(n.painWhere || "")}">` : ""}
+      </div>
+      <div class="memo-row"><span class="memo-l">メモ<span>補給（ジェルの本数・間隔）、睡眠、気温など</span></span>
+        <textarea class="memo-txt" data-memo-text="memo" maxlength="300" placeholder="例: ジェル 45分ごとに4本。30km から太もも裏が張った">${esc(n.memo || "")}</textarea></div>
+      <div class="memo-foot">
+        <button type="button" class="memo-save" data-memo-save="1" ${can && !memoBusy ? "" : "disabled"}>保存</button>
+        <span class="memo-st ${memoMsg.cls}">${memoMsg.t ? esc(memoMsg.t) : saved ? `保存済み（${esc(jstStamp(saved.at))}）` : can ? "未保存" : notesState === "loading" ? "読み込んでいます…" : "この画面では保存できません（claude.ai で開くと保存できる）"}</span>
+      </div>
+      <p class="hnote">次の 12:00 の分析でコーチが読み、評価と翌日以降のメニューに使う。痛みは「あり」にしたうえで、走るのをやめる判断を優先すること。${g ? ` 今週（月〜）の補強 <b>${weekStrength}</b> / ${esc(g.target)}。` : ""}</p>`;
+  }
+  function memoCard() {
+    if (!viewDay) return "";
+    return `<section class="card">
+      <div class="card-head"><h2>体感メモ</h2><span class="sub">脚の張り・きつさ・痛みをコーチに渡す</span></div>
+      <div class="card-body" id="memo">${memoBody()}</div>
+    </section>`;
+  }
+  async function saveMemo() {
+    if (!dbRef || memoBusy) return;
+    const n = memoDraft || {};
+    const doc = {
+      kind: "note", d: memoDay, legs: Number.isInteger(n.legs) ? n.legs : null, rpe: Number.isInteger(n.rpe) ? n.rpe : null,
+      pain: typeof n.pain === "boolean" ? n.pain : null, painWhere: n.pain === true ? String(n.painWhere || "").slice(0, 60) : "",
+      strength: n.strength === true, memo: String(n.memo || "").slice(0, 300), at: new Date().toISOString()
+    };
+    memoBusy = true; memoMsg = { t: "保存しています…", cls: "" }; repaintMemo();
+    try {
+      await dbRef.collection("runs").doc(NOTE_PREFIX + memoDay).set(doc);
+      notesMap[memoDay] = doc; memoDraft = { ...doc }; memoDirty = false;
+      memoMsg = { t: "保存しました。次の 12:00 の分析で読みます", cls: "ok" };
+    } catch (e) {
+      const code = e && e.code;
+      memoMsg = { t: code === "quota_exceeded" ? "保存できる件数の上限に達しています" : `保存できませんでした（${code || "error"}）`, cls: "err" };
+    }
+    memoBusy = false;
+    repaintMemo();
+    const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
+    set("cal", calendarHtml()); set("kpi", kpiHtml()); set("longs", longsHtml());
+  }
+  function repaintMemo() { const el = document.getElementById("memo"); if (el) el.innerHTML = memoBody(); }
+
   function growPanel() {
     return `<section class="card">
         <div class="card-head"><h2>トレーニングカレンダー</h2><span class="sub">週は月曜始まり</span></div>
         <div class="card-body" id="cal">${calendarHtml()}</div>
       </section>
+      <div class="stack" id="longs">${longsHtml()}</div>
+      <div class="stack" id="ladder">${ladderHtml()}</div>
       <div class="stack" id="rec">${recordsHtml()}</div>
       <div class="stack" id="wkly">${weeklyHtml()}</div>
       <div class="stack" id="mix">${intensityHtml()}</div>
@@ -2517,6 +3102,9 @@ footer {
     set("pb", pbHtml());
     set("kpi", kpiHtml());
     set("cal", calendarHtml());
+    set("longs", longsHtml());
+    set("ladder", ladderHtml());
+    set("memo", memoBody());
     set("rec", recordsHtml());
     set("wkly", weeklyHtml());
     set("mix", intensityHtml());
@@ -2548,8 +3136,8 @@ footer {
     const healthWarn = ((D.health && D.health.summary) || []).some(s => s.state === "warn" || s.state === "crit");
     // ホームの並び: 分析した日のうちは「走り → 明日」、翌朝以降は「今日のメニュー → 体調 → 昨日の走り」
     const home = MODE === "same"
-      ? [goalBlock(), runCard(), menuCard(), condMini(), kpiCard(), newsCard()]
-      : [goalBlock(), menuCard(), condMini(), runCard(), kpiCard(), newsCard()];
+      ? [goalBlock(), runCard(), menuCard(), memoCard(), condMini(), kpiCard(), newsCard()]
+      : [goalBlock(), menuCard(), condMini(), runCard(), memoCard(), kpiCard(), newsCard()];
     const tabDefs = [
       { id: "home",   label: "ホーム",         short: "ホーム", body: home.join("") },
       { id: "run",    label: "走りの詳細",     short: "走り",   warn: runWarn, body: runPanel() },
@@ -2634,7 +3222,27 @@ footer {
       showMonth(to === undefined ? null : to, "[data-cal-step='" + step.dataset.calStep + "']");
       return;
     }
-    if (t.closest("[data-arch-more]")) { archShow += 10; document.getElementById("arch").innerHTML = archiveHtml(); }
+    if (t.closest("[data-arch-more]")) { archShow += 10; document.getElementById("arch").innerHTML = archiveHtml(); return; }
+    // 体感メモ。値のボタンは押し直すと外れる（未記入に戻す）
+    const mday = t.closest("[data-memo-day]");
+    if (mday) { memoDay = mday.dataset.memoDay; memoDraft = null; memoDirty = false; memoMsg = { t: "", cls: "" }; repaintMemo(); refocus(`[data-memo-day="${memoDay}"]`); return; }
+    const mm = t.closest("[data-memo]");
+    if (mm && memoDraft) {
+      const k = mm.dataset.memo, raw = mm.dataset.v;
+      const v = raw === "true" ? true : raw === "false" ? false : Number(raw);
+      memoDraft[k] = memoDraft[k] === v ? (k === "strength" ? false : null) : v;
+      memoDirty = true;
+      memoMsg = { t: "", cls: "" };
+      repaintMemo(); refocus(`[data-memo="${k}"][data-v="${raw}"]`);
+      return;
+    }
+    if (t.closest("[data-memo-save]")) { saveMemo(); return; }
+  });
+  const refocus = (sel) => { const el = document.querySelector("#memo " + sel); if (el) el.focus({ preventScroll: true }); };
+  // メモの文字は打つたびに下書きへ（描き直さない。入力中のカーソルを動かさないため）
+  appEl.addEventListener("input", (e) => {
+    const t = e.target;
+    if (t && t.dataset && t.dataset.memoText && memoDraft) { memoDraft[t.dataset.memoText] = t.value; memoDirty = true; }
   });
   // カレンダーの表示期間を切り替えて描き直す。focus は操作したボタンを探すセレクタ（押せなくなっていたら選択欄へ）
   function showMonth(ym, focus) {

@@ -22,7 +22,8 @@ graph LR
         Coach[docs/daily_coach_routine.md<br>の手順どおりに分析]
     end
     Dash[ダッシュボード<br>Artifact・固定URL]
-    DB[(Artifact の db<br>評価の履歴)]
+    DB[(Artifact の db<br>評価の履歴・体感メモ)]
+    Me((自分))
     NotionPage[Notion<br>ウィジェット用ページ]
     Widget[iPhone ウィジェット]
 
@@ -30,20 +31,22 @@ graph LR
     Doc --> Coach
     Coach --> Dash & DB & NotionPage
     DB --> Dash
+    DB -->|体感メモ| Coach
+    Me -->|体感メモを書く| Dash
     NotionPage --> Widget
 ```
 
 | 時刻（JST） | 担当 | すること |
 |------------|------|---------|
-| 8:30 | GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`） | Garmin から走行・ラップ・睡眠・HRV などを取り、Google ドライブのドキュメントとスプレッドシートを書き換える |
-| 12:00 | Claude Routine | ドキュメントを読んで講評・明日のメニュー・1週間の予定・今日の読みものを作り、ダッシュボードを更新する。評価を db に1件、ウィジェット用データを Notion に書く |
-| いつでも | 自分 | ダッシュボードかウィジェットを見る。翌朝に開くと「今日のメニュー」が先頭に出る |
+| 8:30（実際は 10〜11時ごろ） | GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`） | Garmin から走行・ラップ・睡眠・HRV などを取り、Google ドライブのドキュメントとスプレッドシートを書き換える。GitHub の予約実行は混雑で1〜2時間遅れる |
+| 12:00 | Claude Routine | ドキュメントと体感メモを読んで講評・明日のメニュー・1週間の予定・今日の読みものを作り、ダッシュボードを更新する。評価を db に1件、ウィジェット用データを Notion に書く |
+| いつでも | 自分 | ダッシュボードかウィジェットを見る。翌朝に開くと「今日のメニュー」が先頭に出る。走ったらホームの**体感メモ**に脚の張り・きつさ・痛み・補強を書く（Garmin では分からない脚の情報を、次の 12:00 のコーチが読む） |
 
 ## どこを直せばよいか
 
 | 変えたいこと | 直すファイル |
 |-------------|-------------|
-| 目標レース・目標タイム・ペースゾーン・ロードマップ | [`docs/athlete_profile.md`](docs/athlete_profile.md)（**前提条件の唯一の正**。ほかに書き写さない） |
+| 目標レース・目標タイム・ペースゾーン・ロードマップ・月間計画・積み上げの目標 | [`docs/athlete_profile.md`](docs/athlete_profile.md)（**前提条件の唯一の正**。ほかに書き写さない。ダッシュボードは表を直接読む） |
 | 講評のやり方（練習種別の判定・評価軸・出力の形） | [`docs/claude_project_running_instructions.md`](docs/claude_project_running_instructions.md) |
 | Routine の手順（何を読み、何を書き、どこへ出すか） | [`docs/daily_coach_routine.md`](docs/daily_coach_routine.md) |
 | ダッシュボードの見た目・グラフ | [`dashboard/index.html`](dashboard/index.html) の描画部分（DATA 以外）。PR で main に入れると翌日の更新から反映される |

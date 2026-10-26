@@ -12,7 +12,7 @@
  *      publish ラッパーや重複した </body></html> が残っていれば外す
  *   2. 行全体が <script id="coach-data"> の行から、次の </script> の行までの中身を
  *      data_block.js の中身（const DATA = {...}; まで）で置き換える
- *   3. docs/athlete_profile.md からシーズンの骨格（フェーズ・レース・Mペース量の目標・ペース帯）を読み、
+ *   3. docs/athlete_profile.md からシーズンの骨格（フェーズ・レース・Mペース量の目標・ペース帯・月間計画・段階・判定の機会・積み上げの目標）を読み、
  *      `DATA.season = {...};` として DATA ブロックの末尾に足す（profile_season.js）。
  *      読めなければ警告だけ出して season なしで続ける
  *   4. check_dashboard.js で骨格と DATA を検証し、NG なら書き出さずに終了コード 1
@@ -98,7 +98,8 @@ try {
   data += "\n// docs/athlete_profile.md から splice_dashboard.js が機械的に差し込む。手で書かない。\n"
     + `DATA.season = ${JSON.stringify(season)};`;
   console.log(`  · season: フェーズ ${season.phases.length} / レース ${season.races.length} / Mペース目標 ${season.mTargets.length}`
-    + ` / ペース帯 ${season.zones ? `段階${season.zones.stage || "?"}` : "読めず（既定値で描く）"}`);
+    + ` / ペース帯 ${season.zones ? `段階${season.zones.stage || "?"}${season.zones.S ? "（ステディあり）" : ""}` : "読めず（既定値で描く）"}`
+    + ` / 月間計画 ${season.months.length} / 段階 ${season.stages.length} / 判定 ${season.milestones.length} / 積み上げ ${season.goals.length}`);
 } catch (e) {
   console.log(`  ⚠ プロファイルからシーズンを読めなかった（season なしで続ける）: ${e.message}`);
 }

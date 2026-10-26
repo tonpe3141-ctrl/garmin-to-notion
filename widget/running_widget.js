@@ -13,7 +13,7 @@ const DASHBOARD_URL = "https://claude.ai/code/artifact/eedcbce5-cbe3-45f2-8181-4
 const TOKEN_KEY = "sub3coach_notion_token";
 const CACHE_FILE = "sub3coach_widget_cache.json";
 
-// ダッシュボードと同じ配色（dashboard/index.html の :root。ゾーン色は --z-e / --z-m / --z-t / --z-r）
+// ダッシュボードと同じ配色（dashboard/index.html の :root。ゾーン色は --z-e / --z-s / --z-m / --z-t / --z-r）
 // ダッシュボードの配色を変えたら、ここも同じ値に直すこと
 const C = {
   bg:    Color.dynamic(new Color("#f2f4f3"), new Color("#161c1a")),
@@ -28,6 +28,7 @@ const C = {
 };
 const ZONE = {
   E:    { color: new Color("#149169"), label: "E" },
+  S:    { color: new Color("#4a6fd0"), label: "S" },   // ステディ（ロング専用の帯。2026-10-26〜）
   M:    { color: new Color("#c2951a"), label: "M" },
   T:    { color: new Color("#c8432e"), label: "T" },
   R:    { color: new Color("#7a3d93"), label: "R" },
@@ -114,7 +115,10 @@ function view(data) {
   // Routine が止まっても、手元の週間計画から今日以降の最初の日を拾う
   const up = plan.find(p => p.date >= today) || null;
   const detail = up && data.next && data.next.date === up.date ? data.next : null;
-  const race = (data.races || []).find(r => r.date >= today) || null;
+  const upcoming = (data.races || []).filter(r => r.date >= today);
+  const race = upcoming[0] || null;
+  // 本命（いちばん後ろのレース）。直近のレースと違うときだけ足して出す
+  const main = upcoming.length > 1 ? upcoming[upcoming.length - 1] : null;
 
   // 12:00 更新なので、昼過ぎに前日付のままなら遅れている
   const gen = String(data.generatedAt || "").slice(0, 10);
@@ -132,6 +136,7 @@ function view(data) {
     },
     later: up ? plan.filter(p => p.date > up.date) : [],
     race: race && { ...race, days: daysBetween(today, race.date) },
+    main: main && { ...main, days: daysBetween(today, main.date) },
     updated: data.generatedAt ? `${md(gen)} ${String(data.generatedAt).slice(11, 16)}` : "—",
   };
 }
@@ -275,7 +280,8 @@ function weekCaption(wk) {
 function footer(w, v, error) {
   const f = w.addStack();
   f.centerAlignContent();
-  if (v.race) text(f, `${v.race.name}まで ${v.race.days}日`, 10, { semibold: true, color: C.accent });
+  if (v.race) text(f, `${v.race.name}まで ${v.race.days}日${v.main ? ` · ${v.main.name} ${v.main.days}日` : ""}`, 10,
+    { semibold: true, color: C.accent, shrink: 0.7 });
   f.addSpacer();
   const warn = error || v.stale;
   text(f, error ? `⚠ ${error}` : `${v.stale ? "⚠ " : ""}${v.updated} 更新`, 9,
