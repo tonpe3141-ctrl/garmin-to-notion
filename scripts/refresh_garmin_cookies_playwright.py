@@ -548,6 +548,22 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
     intercepted_activities: list = []
     intercepted_splits: dict = {}
     spa_request_headers: dict = {}  # SPA が使うリクエストヘッダー（後続 fetch に再利用）
+    seen_ids: set = set()
+
+    # ⚠ 下のページネーションで page.evaluate から呼ぶ fetch のレスポンスも page.on("response") に届く。
+    #   以前はそれを素通しで extend していたため、同じ50件が2回入り、次の start も倍に進んで
+    #   その先の50件が丸ごと抜けていた（2026-08〜10 のドキュメントの週次サマリーが実際の2倍になっていた）。
+    #   activityId で重複を落とし、件数（＝次の start）は重複を除いた数で数える。
+    def _add_activities(items) -> int:
+        added = 0
+        for a in items:
+            aid = a.get("activityId") if isinstance(a, dict) else None
+            if aid is None or aid in seen_ids:
+                continue
+            seen_ids.add(aid)
+            intercepted_activities.append(a)
+            added += 1
+        return added
 
     def _capture_response(response):
         try:
@@ -562,8 +578,9 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
                 try:
                     data = response.json()
                     if isinstance(data, list):
-                        intercepted_activities.extend(data)
-                        print(f"  ✓ intercepted: +{len(data)} (total {len(intercepted_activities)})")
+                        added = _add_activities(data)
+                        if added:
+                            print(f"  ✓ intercepted: +{added} (total {len(intercepted_activities)})")
                 except Exception:
                     pass
             elif "activity-service/activity/" in path and "/splits" in path:
@@ -618,9 +635,15 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
                     break
                 if not isinstance(result, list) or len(result) == 0:
                     break
-                intercepted_activities.extend(result)
-                print(f"  ✓ ページネーション: +{len(result)} (total {len(intercepted_activities)})")
+                # レスポンスの捕捉側で先に入っていることもあるので、増えた数は件数の差で見る
+                _add_activities(result)
+                grew = len(intercepted_activities) - start
+                print(f"  ✓ ページネーション: start={start} +{grew} (total {len(intercepted_activities)})")
                 if len(result) < 50:
+                    break
+                if grew == 0:
+                    # 同じページしか返ってこない（start が効いていない）。無限ループを避ける
+                    print("  ⚠ 新しい活動が増えないのでページネーションを打ち切る")
                     break
             except Exception as e:
                 print(f"  ✗ ページネーションエラー: {e}")
@@ -638,6 +661,9 @@ def prefetch_garmin_data(page, activities_limit: int = None) -> bool:
                     break
             except Exception:
                 break
+
+    # 上限を超えた分は保存しないので、ラップも取りにいかない
+    del intercepted_activities[activities_limit:]
 
     # ── ランニング活動のスプリット（ラップ）を取得 ───────────────────────────────
     # GarminPreloadedClient はラップが必須。ブラウザの SPA ヘッダーで直接 fetch する。

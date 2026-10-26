@@ -106,7 +106,28 @@ def get_all_activities(garmin_client: GarminClient, max_limit: int = 2000) -> Li
                 break
 
     print(f"Total fetched: {len(all_activities)}")
-    return all_activities
+    return dedupe_activities(all_activities)
+
+
+def dedupe_activities(activities: List[dict]) -> List[dict]:
+    """activityId が同じ活動を1件にまとめ、新しい順に並べる。
+
+    2026-08〜10 に Playwright の事前取得が同じ活動を2回入れていて、ドキュメントの週次サマリーが
+    実際の2倍（9/21〜27 が 84km → 167km）になっていた。取得経路が増えても二重に数えないよう、ここでも落とす。
+    """
+    seen = set()
+    out = []
+    for a in activities:
+        aid = a.get('activityId')
+        if aid is not None:
+            if aid in seen:
+                continue
+            seen.add(aid)
+        out.append(a)
+    if len(out) != len(activities):
+        print(f"  ⚠ 重複した活動を {len(activities) - len(out)} 件除いた（activityId が同じもの）")
+    out.sort(key=lambda a: a.get('startTimeGMT') or '', reverse=True)
+    return out
 
 def format_activity_type(activity_type: str, activity_name: str = "") -> tuple[str, str]:
     formatted_type = activity_type.replace('_', ' ').title() if activity_type else "Unknown"
@@ -1258,13 +1279,17 @@ def sync_doc_from_garmin(
                 print(f"  Warning: Skipping recent activity: {e}")
                 continue
 
-        # ── セクション2: 4週以前（週次サマリーのみ） ──
-        if older_runs:
+        # ── セクション2: 週次サマリー（月曜始まり・全期間） ──
+        # 以前は「4週より前の走り」だけを集計していたので、4週の境目の週が途中で切れ
+        # （例: 9/28〜10/4 が「2回 / 2.1km」）、週の距離として読めなかった。直近の週も含めて全週を出す。
+        if running_acts:
             lines.append("---\n\n")
-            lines.append("## 過去のランニング（週次サマリー）\n\n")
+            lines.append("## 週次サマリー（月曜始まり・全期間。今週は途中の値）\n\n")
 
             week_groups: dict = {}
-            for act_dt, activity in older_runs:
+            for act_dt, activity in recent_runs + older_runs:
+                if act_dt.year < 2000:
+                    continue  # 日付を読めなかった活動
                 week_start = (act_dt - timedelta(days=act_dt.weekday())).date()
                 week_groups.setdefault(week_start, []).append(activity)
 
