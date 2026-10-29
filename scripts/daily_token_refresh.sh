@@ -1,4 +1,7 @@
 #!/bin/bash
+# 【2026-10-29 以降は不要】毎朝の取得を Mac（scripts/mac/daily_sync.sh）に移したので、GitHub Actions 用の
+# トークンを毎日作る必要はなくなった。launchd に入れている場合は外す（朝の Garmin ログインが二重になり、制限されやすくなる）。
+#
 # Garmin トークンを毎日自動更新してGitHub Secretsにアップロードするスクリプト。
 # launchd (macOS cron) から実行される。
 # 実行タイミング: 毎日 7:00 AM JST（GitHub Actions 実行の1.5時間前）

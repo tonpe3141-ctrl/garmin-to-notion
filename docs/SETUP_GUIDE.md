@@ -1,6 +1,6 @@
 # セットアップガイド
 
-Garmin のデータを毎朝 Google ドライブへ取り込むまでの設定です（GitHub Actions 側）。
+Garmin のデータを毎朝 Google ドライブへ取り込むまでの設定です（取得は Mac で動かす。5 を参照）。
 分析とダッシュボード（Claude Routine 側）の設定は最後の「6」にまとめています。
 
 ## 1. Google Cloud プロジェクトの準備
@@ -46,13 +46,24 @@ Garmin のデータを毎朝 Google ドライブへ取り込むまでの設定�
 | `GH_PAT_SECRETS` | 任意 | リポジトリのシークレットを書ける Personal Access Token。あれば、取得に成功したトークンで `GARTH_TOKENS_B64` を毎回書き換える |
 | `GARMIN_SESSION_COOKIES` | 任意 | ブラウザのセッション Cookie（`scripts/extract_garmin_cookies.py`）。他の方法がすべて失敗するときの最後の手段 |
 
-## 5. 動かして確かめる
+## 5. Mac で毎朝動かす
 
-1. **Actions** タブ →「Running Log」→「Run workflow」で手動実行する。
-2. 成功したら、ドライブのドキュメントの先頭行 `最終更新:` が今の時刻になっていることを確かめる。
-3. 以降は毎朝 8:30 JST に自動で動く（`.github/workflows/sync_garmin_to_notion.yml` の `cron`）。
+2026-10-28 から、GitHub Actions からは Garmin のログインが弾かれる（Cloudflare の人間確認・403・429）。
+毎朝の取得は家の Mac で行う。上の 4（GitHub のシークレット）は手動実行用で、毎朝の取得には要らない。
 
-手元で試すときは `.example.env` を `.env` にコピーして値を入れ、`python src/ガーミン活動データ取得.py` を実行する。
+1. リポジトリを Mac に clone し、`.example.env` を `.env` にコピーして値を入れる。
+   - `GOOGLE_SERVICE_ACCOUNT_JSON` には、2 でダウンロードした鍵ファイルのパスを書く
+     （例: `~/.config/garmin/service-account.json`。JSON の中身をそのまま書いてもよい）。
+2. `bash scripts/mac/install.sh` を1回実行する。依存を入れて launchd に登録し、その場で1回同期する。
+3. ドライブのドキュメントの先頭行 `最終更新:` が今の時刻になっていることを確かめる。
+4. 以降は毎朝 7:30 に動く。失敗したら 9:30・11:30 にもう一度試し、Mac がスリープ中なら起きたときに動く。
+   失敗すると Mac に通知が出る。ログは `~/Library/Logs/garmin-sync.log`。
+
+以前 `scripts/daily_token_refresh.sh`（GitHub Actions 用のトークン更新）を launchd に入れていた場合は外す。
+朝の Garmin ログインが二重になり、制限されやすくなる（`launchctl list | grep -i garmin` で探して `launchctl bootout gui/$(id -u)/<ラベル>`）。
+
+やめるときは `launchctl bootout gui/$(id -u)/com.tonpe3141.garmin-sync`。
+GitHub Actions 版は **Actions** タブ →「Running Log」→「Run workflow」で手動実行できる（Garmin 側が戻ったか試す用）。
 
 ## 6. 分析とダッシュボード（Claude Routine）
 

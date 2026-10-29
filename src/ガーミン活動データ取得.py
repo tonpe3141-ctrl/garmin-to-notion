@@ -520,6 +520,11 @@ def fetch_race_predictions(garmin_client: GarminClient) -> dict:
 
 def get_google_credentials(service_account_json_str):
     try:
+        # .env ではファイルのパスでもよい（Mac での同期。JSON を1行に収めなくて済む）
+        path = os.path.expanduser(service_account_json_str.strip())
+        if os.path.isfile(path):
+            with open(path) as f:
+                service_account_json_str = f.read()
         info = json.loads(service_account_json_str)
         creds = Credentials.from_service_account_info(
             info, scopes=[

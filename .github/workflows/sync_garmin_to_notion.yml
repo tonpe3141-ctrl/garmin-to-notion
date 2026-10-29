@@ -1,8 +1,9 @@
 name: Running Log
 
 on:
-  schedule:
-    - cron: '30 23 * * *' # Daily at 8:30 AM JST (23:30 UTC)
+  # 毎朝の同期は Mac（scripts/mac/daily_sync.sh）に移した。2026-10-28 から GitHub Actions の IP からは
+  # Garmin のログインが弾かれ（Cloudflare の人間確認・403・429）、毎日失敗するため予約実行は止めている。
+  # Garmin 側が戻ったか試すときは手動で実行する。
   workflow_dispatch:
 env:
   # 日付の区切りは JST。Montreal のままだと 8:30 JST 実行時に「今日」が前日になる。
