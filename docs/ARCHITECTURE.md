@@ -82,9 +82,11 @@ Garmin はプログラムからのログインを頻繁に制限する（429）�
 失敗してもジョブは続く）。そのうえで本体は次の順に試す。
 
 Playwright のログインは、まず新しいサインイン画面（`sso.garmin.com/portal/...`、JS で描画される）にフォーム入力する。
-だめなら旧 SSO（`/sso/signin`）でチケットを取ってブラウザに渡す。旧 SSO の `/app` 向けログインは 2026-10-28 から 403 を返すことがあり、
-その場合は embed 向けにログインし、できた SSO セッションで `/app` 用のチケットを取り直す。
-GitHub Actions からの OAuth（3〜5）は 429 で通らない日が多いので、実質この Playwright の段が頼り。
+だめなら旧 SSO（`/sso/signin`）でチケットを取ってブラウザに渡す。
+
+2026-10-28 から、GitHub Actions からはどれも通らなくなった。新しいサインイン画面は Cloudflare の人間確認
+（「Just a moment...」）で止まり、旧 SSO の `/app` 向けログインは 403、OAuth（3〜5）は 429。
+Garmin がデータセンターの IP からのログインを弾いているため、コードの修正では直らない。
 
 1. Playwright が先に取っておいた活動データ（OAuth 不要。健康データは 2 以降のクライアントで補う）
 2. セッション Cookie（Playwright が保存したもの、無ければ `GARMIN_SESSION_COOKIES`）

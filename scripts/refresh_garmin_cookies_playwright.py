@@ -181,23 +181,6 @@ def _do_sso_login(s, params: dict) -> tuple:
     return sso_cookies, ticket_url
 
 
-def _app_ticket_from_session(s):
-    """ログイン済みの SSO セッションで /app 用のサービスチケットを発行させる。取れなければ None。"""
-    print("[SSO-3] /app 用チケットを SSO セッションから取得...")
-    try:
-        r = s.get(f"{SSO_BASE}/signin", params=SIGNIN_PARAMS, timeout=20, allow_redirects=False)
-    except Exception as e:
-        print(f"      ⚠ 失敗: {e}")
-        return None
-    loc = r.headers.get("Location", "")
-    m = re.search(r'ticket=(ST-[A-Za-z0-9\-_]+)', loc + " " + r.text)
-    if not m:
-        print(f"      ⚠ チケットなし (status={r.status_code})")
-        return None
-    print(f"      ✓ /app チケット: {m.group(1)[:40]}")
-    return f"{CONNECT_BASE}/app?ticket={m.group(1)}"
-
-
 def get_sso_ticket() -> tuple:
     """
     SSO エンドポイントでログインし (sso_cookies, ticket_url) を返す。
@@ -214,15 +197,6 @@ def get_sso_ticket() -> tuple:
         print("      → /app SSO 失敗。embed フローで再試行...")
         s2 = _make_session()
         sso_cookies, ticket_url = _do_sso_login(s2, SIGNIN_PARAMS_EMBED)
-        # embed 用のチケットでは connect.garmin.com のセッションが作れない（2026-10-28〜29 の失敗）。
-        # embed ログインでできた SSO セッション (CASTGC) で /app 用のチケットを取り直す。
-        if ticket_url:
-            app_ticket_url = _app_ticket_from_session(s2)
-            if app_ticket_url:
-                ticket_url = app_ticket_url
-                sso_cookies = {
-                    c.name: c.value for c in s2.cookies if "garmin.com" in getattr(c, "domain", "")
-                }
 
     # レガシーフォールバック: /app への手動補完
     if ticket_url and "/modern?ticket=" in ticket_url:
