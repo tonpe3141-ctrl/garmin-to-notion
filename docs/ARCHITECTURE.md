@@ -81,6 +81,11 @@ Garmin はプログラムからのログインを頻繁に制限する（429）�
 実際にログインし、セッション Cookie と活動データを取っておく（`scripts/refresh_garmin_cookies_playwright.py`。
 失敗してもジョブは続く）。そのうえで本体は次の順に試す。
 
+Playwright のログインは、まず新しいサインイン画面（`sso.garmin.com/portal/...`、JS で描画される）にフォーム入力する。
+だめなら旧 SSO（`/sso/signin`）でチケットを取ってブラウザに渡す。旧 SSO の `/app` 向けログインは 2026-10-28 から 403 を返すことがあり、
+その場合は embed 向けにログインし、できた SSO セッションで `/app` 用のチケットを取り直す。
+GitHub Actions からの OAuth（3〜5）は 429 で通らない日が多いので、実質この Playwright の段が頼り。
+
 1. Playwright が先に取っておいた活動データ（OAuth 不要。健康データは 2 以降のクライアントで補う）
 2. セッション Cookie（Playwright が保存したもの、無ければ `GARMIN_SESSION_COOKIES`）
 3. `~/.garth` のトークン（Actions のキャッシュに前回分が残る）

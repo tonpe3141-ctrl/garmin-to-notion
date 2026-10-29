@@ -181,6 +181,23 @@ def _do_sso_login(s, params: dict) -> tuple:
     return sso_cookies, ticket_url
 
 
+def _app_ticket_from_session(s):
+    """ログイン済みの SSO セッションで /app 用のサービスチケットを発行させる。取れなければ None。"""
+    print("[SSO-3] /app 用チケットを SSO セッションから取得...")
+    try:
+        r = s.get(f"{SSO_BASE}/signin", params=SIGNIN_PARAMS, timeout=20, allow_redirects=False)
+    except Exception as e:
+        print(f"      ⚠ 失敗: {e}")
+        return None
+    loc = r.headers.get("Location", "")
+    m = re.search(r'ticket=(ST-[A-Za-z0-9\-_]+)', loc + " " + r.text)
+    if not m:
+        print(f"      ⚠ チケットなし (status={r.status_code})")
+        return None
+    print(f"      ✓ /app チケット: {m.group(1)[:40]}")
+    return f"{CONNECT_BASE}/app?ticket={m.group(1)}"
+
+
 def get_sso_ticket() -> tuple:
     """
     SSO エンドポイントでログインし (sso_cookies, ticket_url) を返す。
@@ -197,6 +214,15 @@ def get_sso_ticket() -> tuple:
         print("      → /app SSO 失敗。embed フローで再試行...")
         s2 = _make_session()
         sso_cookies, ticket_url = _do_sso_login(s2, SIGNIN_PARAMS_EMBED)
+        # embed 用のチケットでは connect.garmin.com のセッションが作れない（2026-10-28〜29 の失敗）。
+        # embed ログインでできた SSO セッション (CASTGC) で /app 用のチケットを取り直す。
+        if ticket_url:
+            app_ticket_url = _app_ticket_from_session(s2)
+            if app_ticket_url:
+                ticket_url = app_ticket_url
+                sso_cookies = {
+                    c.name: c.value for c in s2.cookies if "garmin.com" in getattr(c, "domain", "")
+                }
 
     # レガシーフォールバック: /app への手動補完
     if ticket_url and "/modern?ticket=" in ticket_url:
@@ -206,6 +232,100 @@ def get_sso_ticket() -> tuple:
         raise RuntimeError("チケット URL が取得できませんでした")
 
     return sso_cookies, ticket_url
+
+
+EMAIL_SELECTOR = (
+    'input[name="username"], input#username, input[type="email"], '
+    'input[name="email"], input#email'
+)
+PASSWORD_SELECTOR = 'input[type="password"]'
+SUBMIT_SELECTOR = (
+    'button[type="submit"], input[type="submit"], '
+    '#login-btn-signin, a#login-btn-signin'
+)
+
+
+def _find_visible(page, selector: str, timeout_s: float):
+    """全フレームから selector に合う表示中の要素を探す。見つかるまで timeout_s 秒待つ。
+
+    新ポータル (sso.garmin.com/portal/...) は JS で描画されるので、
+    domcontentloaded 直後にはフォームがまだ無い（2026-10 まで毎回 email field not found）。
+    旧ウィジェットは iframe 内なので、フレームも順に見る。
+    """
+    deadline = time.time() + timeout_s
+    while True:
+        for frame in page.frames:
+            try:
+                for el in frame.query_selector_all(selector):
+                    if el.is_visible():
+                        return frame, el
+            except Exception:
+                pass
+        if time.time() >= deadline:
+            return None, None
+        time.sleep(0.5)
+
+
+def _describe_login_page(page):
+    """フォームが見つからないときの手がかり（入力欄・ボタンの種類だけ。値は出さない）。"""
+    try:
+        print(f"      title={page.title()!r} | URL: {page.url[:90]}")
+        for frame in page.frames:
+            inputs = frame.query_selector_all("input")
+            buttons = frame.query_selector_all("button")
+            desc = [
+                f"{i.get_attribute('type')}:{i.get_attribute('name') or i.get_attribute('id')}"
+                for i in inputs[:10]
+            ]
+            labels = [(b.inner_text() or "").strip()[:20] for b in buttons[:6]]
+            print(f"      frame {frame.url[:60]} inputs={desc} buttons={labels}")
+        page.screenshot(path="/tmp/garmin_pw_debug.png")
+        print("      スクリーンショット: /tmp/garmin_pw_debug.png")
+    except Exception as e:
+        print(f"      (ページ情報の取得に失敗: {e})")
+
+
+def _submit(frame, field):
+    for el in frame.query_selector_all(SUBMIT_SELECTOR):
+        try:
+            if el.is_visible() and el.is_enabled():
+                el.click(timeout=5000)
+                print("      submit clicked")
+                return
+        except Exception:
+            pass
+    field.press("Enter")
+    print("      submit: pressed Enter")
+
+
+def fill_login_form(page, wait_s: float = 30) -> bool:
+    """SSO ログインフォームにメール/パスワードを入れて送信する。送信できたら True。
+
+    メールとパスワードが同じ画面にある形と、メール → 次へ → パスワード の2段階の両方に対応する。
+    """
+    frame, email = _find_visible(page, EMAIL_SELECTOR, wait_s)
+    if not email:
+        print("      ⚠ email field not found")
+        _describe_login_page(page)
+        return False
+    email.fill(EMAIL)
+    print("      email filled")
+
+    pw_frame, pw = _find_visible(page, PASSWORD_SELECTOR, 0)
+    if not pw:
+        # 2段階のログイン: 先にメールを送ってからパスワード欄を待つ
+        _submit(frame, email)
+        pw_frame, pw = _find_visible(page, PASSWORD_SELECTOR, 15)
+        if not pw:
+            print("      ⚠ password field not found")
+            _describe_login_page(page)
+            return False
+    frame = pw_frame
+    pw.fill(PASSWORD)
+    print("      password filled")
+    time.sleep(0.5)  # フォーム入力後の短い待機
+    _submit(frame, pw)
+    return True
 
 
 def get_jwt_via_browser_login() -> dict:
@@ -265,83 +385,21 @@ def get_jwt_via_browser_login() -> dict:
 
             # Step 2: ログインフォームへの入力
             print("[PW-D3] Filling login form...")
-            email_selectors = [
-                'input[name="username"]', 'input[id="username"]',
-                'input[type="email"]', '#email',
-            ]
-            password_selectors = [
-                'input[name="password"]', 'input[id="password"]',
-                'input[type="password"]',
-            ]
-            submit_selectors = [
-                'button[type="submit"]', 'input[type="submit"]',
-                'button#login-btn-signin', '#login-btn-signin',
-                'a[id="login-btn-signin"]',
-            ]
-
-            email_filled = False
-            for sel in email_selectors:
-                try:
-                    el = page.query_selector(sel)
-                    if el and el.is_visible():
-                        el.fill(EMAIL)
-                        email_filled = True
-                        print(f"      email filled ({sel})")
-                        break
-                except Exception:
-                    pass
-
-            if not email_filled:
-                print("      ⚠ email field not found; taking screenshot")
-                try:
-                    page.screenshot(path="/tmp/garmin_pw_debug.png")
-                    print("      スクリーンショット: /tmp/garmin_pw_debug.png")
-                except Exception:
-                    pass
-
-            pw_filled = False
-            for sel in password_selectors:
-                try:
-                    el = page.query_selector(sel)
-                    if el and el.is_visible():
-                        el.fill(PASSWORD)
-                        pw_filled = True
-                        print(f"      password filled ({sel})")
-                        break
-                except Exception:
-                    pass
-
-            if email_filled and pw_filled:
-                time.sleep(0.5)  # フォーム入力後の短い待機
-                submitted = False
-                for sel in submit_selectors:
-                    try:
-                        el = page.query_selector(sel)
-                        if el and el.is_visible():
-                            el.click()
-                            submitted = True
-                            print(f"      submit clicked ({sel})")
-                            break
-                    except Exception:
-                        pass
-                if not submitted:
-                    page.keyboard.press("Enter")
-                    print("      submit: pressed Enter")
-            else:
+            if not fill_login_form(page):
                 print("      ⚠ フォーム入力失敗。ログインをスキップします。")
 
-            # Step 3: JWT_WEB が設定されるまで最大 25 秒待機
+            # Step 3: JWT_WEB が設定されるまで最大 40 秒待機
             # URLがSSO sign-inページのまま変化しない場合は早期終了（ログイン失敗）
-            print("[PW-D4] Waiting for JWT_WEB (up to 25s)...")
+            print("[PW-D4] Waiting for JWT_WEB (up to 40s)...")
             signin_url_prefix = "sso.garmin.com"
-            for i in range(25):
+            for i in range(40):
                 cookies_now = context.cookies(["https://connect.garmin.com"])
                 if any(c["name"] == "JWT_WEB" for c in cookies_now):
                     print(f"      ✓ JWT_WEB 取得成功 ({i}s) | URL: {page.url[:60]}")
                     jwt_found = True
                     break
-                # SSO ページに留まっている場合は 15 秒後に早期終了
-                if i == 15 and signin_url_prefix in page.url:
+                # SSO ページに留まっている場合は 25 秒後に早期終了
+                if i == 25 and signin_url_prefix in page.url:
                     print(f"      ⚠ SSO ページのまま変化なし → Strategy 1 早期終了")
                     break
                 if i % 10 == 0:
@@ -350,11 +408,7 @@ def get_jwt_via_browser_login() -> dict:
 
             if not jwt_found:
                 print(f"      ⚠ JWT_WEB が取得できませんでした | URL: {page.url}")
-                try:
-                    page.screenshot(path="/tmp/garmin_pw_debug.png")
-                    print("      スクリーンショット: /tmp/garmin_pw_debug.png")
-                except Exception:
-                    pass
+                _describe_login_page(page)
             else:
                 # JWT_WEB 取得後にデータプリフェッチ
                 try:
