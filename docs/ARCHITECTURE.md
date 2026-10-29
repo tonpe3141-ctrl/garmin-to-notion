@@ -1,16 +1,15 @@
 # システム構成
 
 Garmin のデータを毎朝 Google ドライブへ取り込み、毎日 12:00 JST に Claude Routine が分析して
-ダッシュボードとウィジェットへ出す。取得（Mac）と分析（Routine）を分けているのは、
+ダッシュボードとウィジェットへ出す。取得（GitHub Actions）と分析（Routine）を分けているのは、
 Routine の実行環境から Garmin へ接続できないため（egress プロキシが `*.garmin.com` を拒否する）。
-取得は 2026-10-28 まで GitHub Actions だったが、Garmin がそこからのログインを弾くようになったので Mac に移した（下の「認証まわり」）。
 
 ## 全体像
 
 ```mermaid
 graph TD
-    subgraph "取得 — Mac の launchd 毎日 7:30（失敗・スリープ時は 9:30 / 11:30 / 起動時）"
-        Auth[認証<br>~/.garth のトークン → パスワード]
+    subgraph "取得 — GitHub Actions 毎日 8:30 JST（実際は 10〜11時ごろ）"
+        Auth[認証<br>Playwright → Cookie → トークン → パスワード の順に試す]
         Sync[src/ガーミン活動データ取得.py]
         Auth --> Sync
     end
@@ -63,14 +62,12 @@ graph TD
 | その日の分析（DATA） | 公開済みの Artifact | 毎日の DATA はコミットしない。リポジトリの DATA は古いスナップショット |
 | 過去の評価（カレンダー・推移） | Artifact の db（`runs`） | 1日1件。2026-09-02 より前の距離は `BASE_KM`（`scripts/export_base_km.py`） |
 | ウィジェットの表示内容 | Notion のウィジェット用ページの JSON | Routine が `scripts/export_widget_data.js` の出力で丸ごと置き換える |
-| Garmin の生データ | Google ドライブのドキュメントとスプレッドシート | Mac の同期（`scripts/mac/daily_sync.sh`）が毎朝上書きする |
+| Garmin の生データ | Google ドライブのドキュメントとスプレッドシート | GitHub Actions が毎朝上書きする |
 
 ## 取得の時刻
 
-Mac の launchd が 7:30 / 9:30 / 11:30 に `scripts/mac/daily_sync.sh` を呼ぶ。その日成功していれば残りは何もしない。
-Mac がスリープしていて時刻が過ぎた分は、起きたときに1回呼ばれる。入れ方は `bash scripts/mac/install.sh`
-（ログは `~/Library/Logs/garmin-sync.log`、失敗すると Mac の通知が出る）。
-12:00 までに Mac が一度も起きなければ、その日の分析は前日のデータで行われる（ダッシュボードに「データが最新ではありません」）。
+ワークフローの予約は 23:30 UTC（8:30 JST）だが、GitHub の予約実行は混雑で遅れ、2026-10 は毎日 10:15〜11:00 JST ごろに走っている。
+12:00 の Routine には間に合っているが、12:00 を過ぎるとその日の分析は前日のデータで行われる（ダッシュボードに「データが最新ではありません」）。
 
 ## 活動の重複（2026-10-26 に修正）
 
@@ -80,25 +77,26 @@ Playwright の事前取得（`scripts/refresh_garmin_cookies_playwright.py`）�
 
 ## 認証まわり
 
-Garmin はプログラムからのログインを頻繁に制限する。GitHub Actions で取っていた頃は、ログインが通らなくなるたびに
-回避策を足していた（Playwright で事前ログイン、Cookie、トークンの持ち回りなど）。
-2026-10-28 からは GitHub Actions からはどれも通らなくなった。新しいサインイン画面（`sso.garmin.com/portal/...`）は
-Cloudflare の人間確認（「Just a moment...」）で止まり、旧 SSO の `/app` 向けログインは 403、OAuth は 429。
-Garmin がデータセンターの IP からのログインを弾いているので、コードの回避策では直らない（人間確認を自動で突破することはしない）。
-そこで取得を Mac（家の回線）に移した。Mac からは普通のログインとして通る。
+Garmin はプログラムからのログインを頻繁に制限する（429）。取得ジョブは先に Playwright のヘッドレスブラウザで
+実際にログインし、セッション Cookie と活動データを取っておく（`scripts/refresh_garmin_cookies_playwright.py`。
+失敗してもジョブは続く）。そのうえで本体は次の順に試す。
 
-本体（`src/ガーミン活動データ取得.py`）は次の順に試す。Mac では 3 と 5 だけが効く
-（1・2・4 は GitHub Actions 用で、Mac には該当するファイルや環境変数が無いので飛ばされる）。
+Playwright のログインは、まず新しいサインイン画面（`sso.garmin.com/portal/...`、JS で描画される）にフォーム入力する。
+だめなら旧 SSO（`/sso/signin`）でチケットを取ってブラウザに渡す。
+
+2026-10-28 から、GitHub Actions からはどれも通らなくなった。新しいサインイン画面は Cloudflare の人間確認
+（「Just a moment...」）で止まり、旧 SSO の `/app` 向けログインは 403、OAuth（3〜5）は 429。
+Garmin がデータセンターの IP からのログインを弾いているため、コードの修正では直らない。
 
 1. Playwright が先に取っておいた活動データ（OAuth 不要。健康データは 2 以降のクライアントで補う）
 2. セッション Cookie（Playwright が保存したもの、無ければ `GARMIN_SESSION_COOKIES`）
-3. `~/.garth` のトークン（前回ログインしたときに保存される）
+3. `~/.garth` のトークン（Actions のキャッシュに前回分が残る）
 4. `GARTH_TOKENS_B64`（OAuth トークン）
 5. メールアドレスとパスワード（指数バックオフ付き）
 
-Mac でもログインが通らないとき（パスワード変更・2段階認証など）は、`scripts/generate_garth_token_browser.py` で
-ブラウザから手でログインしてトークンを取り直す（`~/.garth` に保存される）。
-GitHub Actions のワークフローは手動実行だけ残している（Garmin 側が戻ったか試す用）。
+成功したトークンは `GH_PAT_SECRETS` が設定されていれば `GARTH_TOKENS_B64` に書き戻す。
+すべて失敗したときは、手元の Mac で `scripts/generate_garth_token_browser.py` などを使ってトークンを取り直す
+（手順は各スクリプトの冒頭）。
 
 ## Notion について
 

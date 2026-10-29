@@ -11,7 +11,7 @@ Garmin のランニング記録と健康データを毎朝取り込み、Claude 
 ```mermaid
 graph LR
     Garmin[(Garmin Connect)]
-    subgraph "7:30 JST — Mac の launchd"
+    subgraph "8:30 JST — GitHub Actions"
         Sync[src/ガーミン活動データ取得.py]
     end
     subgraph "Google ドライブ"
@@ -38,7 +38,7 @@ graph LR
 
 | 時刻（JST） | 担当 | すること |
 |------------|------|---------|
-| 7:30（失敗・スリープ時は 9:30 / 11:30 / 起動時） | Mac（`scripts/mac/daily_sync.sh`。入れ方は `bash scripts/mac/install.sh`） | Garmin から走行・ラップ・睡眠・HRV などを取り、Google ドライブのドキュメントとスプレッドシートを書き換える。GitHub Actions からは 2026-10-28 以降 Garmin のログインが弾かれるので Mac で取る |
+| 8:30（実際は 10〜11時ごろ） | GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`） | Garmin から走行・ラップ・睡眠・HRV などを取り、Google ドライブのドキュメントとスプレッドシートを書き換える。GitHub の予約実行は混雑で1〜2時間遅れる |
 | 12:00 | Claude Routine | ドキュメントと体感メモを読んで講評・明日のメニュー・1週間の予定・今日の読みものを作り、ダッシュボードを更新する。評価を db に1件、ウィジェット用データを Notion に書く |
 | いつでも | 自分 | ダッシュボードかウィジェットを見る。翌朝に開くと「今日のメニュー」が先頭に出る。走ったらホームの**体感メモ**に脚の張り・きつさ・痛み・補強を書く（Garmin では分からない脚の情報を、次の 12:00 のコーチが読む） |
 
@@ -58,7 +58,7 @@ graph LR
 ## ディレクトリ
 
 ```
-.github/workflows/   Garmin 取得の GitHub Actions 版（手動実行のみ。毎朝の取得は scripts/mac/）
+.github/workflows/   毎朝の Garmin 取得（GitHub Actions）
 src/                 Garmin → Google ドライブの同期本体と、その認証クライアント
 scripts/             Routine が使う検証・書き出しスクリプト（*.js）と、Garmin 認証の復旧スクリプト（*.py / *.sh）
 dashboard/           ダッシュボードの HTML（描画レイヤーの正。DATA は毎日の公開時に差し込む）
@@ -72,7 +72,7 @@ docs/                前提条件・分析手順・Routine 手順・構成・セ
 
 | 症状 | 見るところ |
 |------|-----------|
-| ダッシュボードに「データが最新ではありません」 | Mac の `~/Library/Logs/garmin-sync.log`（12:00 までに Mac が起きていたか）。ログインで失敗が続くときは `python scripts/generate_garth_token_browser.py` でトークンを取り直し、`bash scripts/mac/daily_sync.sh --force` で取り直す |
+| ダッシュボードに「データが最新ではありません」 | GitHub Actions の実行履歴。Garmin の認証で 429 が続くときは `python scripts/generate_garth_token_browser.py` でトークンを取り直し、`GARTH_TOKENS_B64` を更新する |
 | ダッシュボードが昼を過ぎても更新されない | https://claude.ai/code/routines の実行履歴（承認待ちで止まっていないか） |
 | ウィジェットに ⚠ が出る | [`widget/README.md`](widget/README.md) の「困ったとき」 |
 
