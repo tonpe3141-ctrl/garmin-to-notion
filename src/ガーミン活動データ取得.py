@@ -1369,7 +1369,9 @@ def _load_from_cache(token_dir):
 HEALTH_FETCH_DAYS = int(os.getenv("GARMIN_HEALTH_FETCH_DAYS", "14"))
 
 # リトライ設定
-AUTH_MAX_RETRIES = 3
+# GitHub Actions からの OAuth は 2026-04 以降ほぼ毎回 429。リトライは Garmin へのログイン回数を
+# 増やして制限を厳しくするだけなので1回にする（データは Playwright の事前取得で取るのが本線）。
+AUTH_MAX_RETRIES = 1 if os.getenv("GITHUB_ACTIONS") == "true" else 3
 AUTH_INITIAL_BACKOFF = 60  # 60s → 120s → 240s
 
 

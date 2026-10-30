@@ -81,11 +81,35 @@ Garmin はプログラムからのログインを頻繁に制限する（429）�
 実際にログインし、セッション Cookie と活動データを取っておく（`scripts/refresh_garmin_cookies_playwright.py`。
 失敗してもジョブは続く）。そのうえで本体は次の順に試す。
 
+### Playwright のログイン（本線）
+
+Connect のウェブのセッション（`JWT_WEB`）を作れれば、データはブラウザ経由で取れる（OAuth は要らない）。順に試す。
+
+1. 新しいサインイン画面（`sso.garmin.com/portal/...`）にフォーム入力する。
+   Cloudflare の人間確認（「Just a moment...」）が出てフォームが出なければ、あきらめて次へ（突破はしない）。
+2. 旧 SSO（`/sso/signin`）にパスワードでログインする。`/app` 向けが断られたら embed 向け（garth と同じ）で入り直す。
+   パスワードを送るのは最大2回（何度も送るとログイン制限が厳しくなる）。
+3. ログインでできた SSO セッション（`CASTGC`）を使って、Connect 用のチケットを出させる（CAS の普通の仕組み。パスワードは送らない）。
+   Garmin は Connect のサービス URL を何度か変えている（2026-05 は `/modern`、その後 `/app`）ので、
+   `/app`・`/modern/`・`/modern` と `/sso/login`・`/sso/signin` の組み合わせを順に試す。
+4. チケットをブラウザで開いて `JWT_WEB` を受け取る。チケットが取れなくても、SSO のクッキーをドメインとパスのまま
+   ブラウザに渡し、ブラウザ側で CAS のログイン URL → `/app/home` を開く。新しいサインイン画面に着いてフォームが出ていれば入力する。
+
+どの経路がどう断られたか（ステータス・ページのタイトル・リダイレクト先）を Actions のログに出す。
+次に Garmin が変わったときは、まずこのログで、どの経路が生きているかを見る。
+
+経緯: 2026-05 は 2 だけで通っていた（`/modern`→`/app`）。2026-10-28 から 2 の `/app` 向けが 403
+（Cloudflare の「Attention Required!」）、1 は人間確認で止まるようになった。embed 向けのログインは通り続けていたので、3 を足した。
+2026-10-30 の実行で「embed でログイン → `/sso/login?service=/app` が 302 でチケット → `JWT_WEB`」の経路で通ることを確かめた。
+
+### 本体の認証
+
 1. Playwright が先に取っておいた活動データ（OAuth 不要。健康データは 2 以降のクライアントで補う）
 2. セッション Cookie（Playwright が保存したもの、無ければ `GARMIN_SESSION_COOKIES`）
 3. `~/.garth` のトークン（Actions のキャッシュに前回分が残る）
 4. `GARTH_TOKENS_B64`（OAuth トークン）
-5. メールアドレスとパスワード（指数バックオフ付き）
+5. メールアドレスとパスワード（GitHub Actions では1回だけ。3〜5 は 2026-04 以降 Actions からはほぼ毎回 429 で、
+   再試行はログイン回数を増やすだけなので）
 
 成功したトークンは `GH_PAT_SECRETS` が設定されていれば `GARTH_TOKENS_B64` に書き戻す。
 すべて失敗したときは、手元の Mac で `scripts/generate_garth_token_browser.py` などを使ってトークンを取り直す

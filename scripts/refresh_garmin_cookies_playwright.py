@@ -127,6 +127,9 @@ def _do_sso_login(s, params: dict) -> tuple:
         allow_redirects=False,
     )
     print(f"      status={r.status_code}")
+    if r.status_code >= 400:
+        # Cloudflare に止められたのか Garmin に断られたのかを見分ける手がかり
+        print(f"      title={_page_title(r.text)!r}")
 
     ticket_url = None
 
@@ -181,31 +184,171 @@ def _do_sso_login(s, params: dict) -> tuple:
     return sso_cookies, ticket_url
 
 
+def _page_title(html: str) -> str:
+    m = re.search(r"<title[^>]*>(.*?)</title>", html or "", re.S | re.I)
+    return m.group(1).strip()[:60] if m else ""
+
+
+# Connect のサービス URL。Garmin は何度か変えている（2026-05 は /modern、その後 /app）。
+CONNECT_SERVICES = [f"{CONNECT_BASE}/app", f"{CONNECT_BASE}/modern/", f"{CONNECT_BASE}/modern"]
+
+
+def _ticket_from_sso_session(s):
+    """ログイン済みの SSO セッション (CASTGC) で、Connect 用のサービスチケットを発行させる。
+
+    CAS の普通の使い方で、パスワードは送らない。2026-10-28 から /app 向けのパスワードログインが 403 になったが、
+    embed 向けのログインは通る。そのセッションから Connect 用のチケットを取る。
+    サービス URL とエンドポイントの組み合わせを順に試し、どれが通ったかをログに残す。
+    """
+    print("[SSO-3] SSO セッションから Connect 用のチケットを取得...")
+    for svc in CONNECT_SERVICES:
+        for path, params in (
+            ("login", {"service": svc}),
+            ("signin", {"service": svc, "webhost": CONNECT_BASE, "gauthHost": SSO_BASE,
+                        "clientId": "GarminConnect", "consumeServiceTicket": "false"}),
+        ):
+            label = f"/sso/{path} service={svc.replace(CONNECT_BASE, '')}"
+            try:
+                r = s.get(f"{SSO_BASE}/{path}", params=params, timeout=20, allow_redirects=False)
+            except Exception as e:
+                print(f"      {label}: {e}")
+                continue
+            loc = r.headers.get("Location", "")
+            m = re.search(r"ticket=(ST-[A-Za-z0-9\-_]+)", loc + " " + r.text)
+            if m:
+                print(f"      ✓ {label}: status={r.status_code} チケットあり")
+                return loc if "ticket=" in loc else f"{svc}?ticket={m.group(1)}"
+            print(f"      {label}: status={r.status_code} チケットなし"
+                  f" location={loc.split('?')[0][:70]!r} title={_page_title(r.text)!r}")
+            time.sleep(1)
+    return None
+
+
+def _cookie_list(s) -> list:
+    """requests のクッキーを、ドメインとパスを保ったまま Playwright に渡せる形にする。"""
+    return [
+        {"name": c.name, "value": c.value, "domain": c.domain, "path": c.path or "/", "secure": bool(c.secure)}
+        for c in s.cookies
+    ]
+
+
 def get_sso_ticket() -> tuple:
     """
-    SSO エンドポイントでログインし (sso_cookies, ticket_url) を返す。
+    旧 SSO でパスワードログインし、(sso_cookies, ticket_url, cookie_list) を返す。
 
-    戦略:
-      1. SIGNIN_PARAMS (/app サービス) で試行
-      2. 失敗なら SIGNIN_PARAMS_EMBED (garth 互換 embed) で再試行
+    パスワードを送るのは原則1回（/app が断られたときだけ embed でもう1回）。
+      1. /app サービス向けにログイン → そのままチケットが出れば使う
+      2. 断られたら embed（garth と同じ）でログインし、そのセッションから Connect 用のチケットを取る
+    チケットが取れなくても、ログイン済みのクッキーはブラウザ側（get_jwt_via_playwright）で使う。
     """
     s = _make_session()
-
     sso_cookies, ticket_url = _do_sso_login(s, SIGNIN_PARAMS)
 
     if not ticket_url:
         print("      → /app SSO 失敗。embed フローで再試行...")
-        s2 = _make_session()
-        sso_cookies, ticket_url = _do_sso_login(s2, SIGNIN_PARAMS_EMBED)
+        s = _make_session()
+        sso_cookies, embed_ticket = _do_sso_login(s, SIGNIN_PARAMS_EMBED)
+        if not embed_ticket and "CASTGC" not in sso_cookies:
+            raise RuntimeError("SSO ログインに失敗しました")
+        # embed のチケットは sso/embed 向けで、Connect のセッションは作れない
+        ticket_url = _ticket_from_sso_session(s)
+        sso_cookies = {c["name"]: c["value"] for c in _cookie_list(s)}
 
-    # レガシーフォールバック: /app への手動補完
-    if ticket_url and "/modern?ticket=" in ticket_url:
-        ticket_url = ticket_url.replace("/modern?ticket=", "/app?ticket=")
+    return sso_cookies, ticket_url, _cookie_list(s)
 
-    if not ticket_url:
-        raise RuntimeError("チケット URL が取得できませんでした")
 
-    return sso_cookies, ticket_url
+EMAIL_SELECTOR = (
+    'input[name="username"], input#username, input[type="email"], '
+    'input[name="email"], input#email'
+)
+PASSWORD_SELECTOR = 'input[type="password"]'
+SUBMIT_SELECTOR = (
+    'button[type="submit"], input[type="submit"], '
+    '#login-btn-signin, a#login-btn-signin'
+)
+
+
+def _find_visible(page, selector: str, timeout_s: float):
+    """全フレームから selector に合う表示中の要素を探す。見つかるまで timeout_s 秒待つ。
+
+    新ポータル (sso.garmin.com/portal/...) は JS で描画されるので、
+    domcontentloaded 直後にはフォームがまだ無い（2026-10 まで毎回 email field not found）。
+    旧ウィジェットは iframe 内なので、フレームも順に見る。
+    """
+    deadline = time.time() + timeout_s
+    while True:
+        for frame in page.frames:
+            try:
+                for el in frame.query_selector_all(selector):
+                    if el.is_visible():
+                        return frame, el
+            except Exception:
+                pass
+        if time.time() >= deadline:
+            return None, None
+        time.sleep(0.5)
+
+
+def _describe_login_page(page):
+    """フォームが見つからないときの手がかり（入力欄・ボタンの種類だけ。値は出さない）。"""
+    try:
+        print(f"      title={page.title()!r} | URL: {page.url[:90]}")
+        for frame in page.frames:
+            inputs = frame.query_selector_all("input")
+            buttons = frame.query_selector_all("button")
+            desc = [
+                f"{i.get_attribute('type')}:{i.get_attribute('name') or i.get_attribute('id')}"
+                for i in inputs[:10]
+            ]
+            labels = [(b.inner_text() or "").strip()[:20] for b in buttons[:6]]
+            print(f"      frame {frame.url[:60]} inputs={desc} buttons={labels}")
+        page.screenshot(path="/tmp/garmin_pw_debug.png")
+        print("      スクリーンショット: /tmp/garmin_pw_debug.png")
+    except Exception as e:
+        print(f"      (ページ情報の取得に失敗: {e})")
+
+
+def _submit(frame, field):
+    for el in frame.query_selector_all(SUBMIT_SELECTOR):
+        try:
+            if el.is_visible() and el.is_enabled():
+                el.click(timeout=5000)
+                print("      submit clicked")
+                return
+        except Exception:
+            pass
+    field.press("Enter")
+    print("      submit: pressed Enter")
+
+
+def fill_login_form(page, wait_s: float = 30) -> bool:
+    """SSO ログインフォームにメール/パスワードを入れて送信する。送信できたら True。
+
+    メールとパスワードが同じ画面にある形と、メール → 次へ → パスワード の2段階の両方に対応する。
+    """
+    frame, email = _find_visible(page, EMAIL_SELECTOR, wait_s)
+    if not email:
+        print("      ⚠ email field not found")
+        _describe_login_page(page)
+        return False
+    email.fill(EMAIL)
+    print("      email filled")
+
+    pw_frame, pw = _find_visible(page, PASSWORD_SELECTOR, 0)
+    if not pw:
+        # 2段階のログイン: 先にメールを送ってからパスワード欄を待つ
+        _submit(frame, email)
+        pw_frame, pw = _find_visible(page, PASSWORD_SELECTOR, 15)
+        if not pw:
+            print("      ⚠ password field not found")
+            _describe_login_page(page)
+            return False
+    frame = pw_frame
+    pw.fill(PASSWORD)
+    print("      password filled")
+    time.sleep(0.5)  # フォーム入力後の短い待機
+    _submit(frame, pw)
+    return True
 
 
 def get_jwt_via_browser_login() -> dict:
@@ -265,83 +408,22 @@ def get_jwt_via_browser_login() -> dict:
 
             # Step 2: ログインフォームへの入力
             print("[PW-D3] Filling login form...")
-            email_selectors = [
-                'input[name="username"]', 'input[id="username"]',
-                'input[type="email"]', '#email',
-            ]
-            password_selectors = [
-                'input[name="password"]', 'input[id="password"]',
-                'input[type="password"]',
-            ]
-            submit_selectors = [
-                'button[type="submit"]', 'input[type="submit"]',
-                'button#login-btn-signin', '#login-btn-signin',
-                'a[id="login-btn-signin"]',
-            ]
-
-            email_filled = False
-            for sel in email_selectors:
-                try:
-                    el = page.query_selector(sel)
-                    if el and el.is_visible():
-                        el.fill(EMAIL)
-                        email_filled = True
-                        print(f"      email filled ({sel})")
-                        break
-                except Exception:
-                    pass
-
-            if not email_filled:
-                print("      ⚠ email field not found; taking screenshot")
-                try:
-                    page.screenshot(path="/tmp/garmin_pw_debug.png")
-                    print("      スクリーンショット: /tmp/garmin_pw_debug.png")
-                except Exception:
-                    pass
-
-            pw_filled = False
-            for sel in password_selectors:
-                try:
-                    el = page.query_selector(sel)
-                    if el and el.is_visible():
-                        el.fill(PASSWORD)
-                        pw_filled = True
-                        print(f"      password filled ({sel})")
-                        break
-                except Exception:
-                    pass
-
-            if email_filled and pw_filled:
-                time.sleep(0.5)  # フォーム入力後の短い待機
-                submitted = False
-                for sel in submit_selectors:
-                    try:
-                        el = page.query_selector(sel)
-                        if el and el.is_visible():
-                            el.click()
-                            submitted = True
-                            print(f"      submit clicked ({sel})")
-                            break
-                    except Exception:
-                        pass
-                if not submitted:
-                    page.keyboard.press("Enter")
-                    print("      submit: pressed Enter")
-            else:
+            submitted = fill_login_form(page)
+            if not submitted:
                 print("      ⚠ フォーム入力失敗。ログインをスキップします。")
 
-            # Step 3: JWT_WEB が設定されるまで最大 25 秒待機
+            # Step 3: JWT_WEB が設定されるまで最大 40 秒待機（送信できなかったときは待たない）
             # URLがSSO sign-inページのまま変化しない場合は早期終了（ログイン失敗）
-            print("[PW-D4] Waiting for JWT_WEB (up to 25s)...")
+            print("[PW-D4] Waiting for JWT_WEB (up to 40s)...")
             signin_url_prefix = "sso.garmin.com"
-            for i in range(25):
+            for i in range(40 if submitted else 0):
                 cookies_now = context.cookies(["https://connect.garmin.com"])
                 if any(c["name"] == "JWT_WEB" for c in cookies_now):
                     print(f"      ✓ JWT_WEB 取得成功 ({i}s) | URL: {page.url[:60]}")
                     jwt_found = True
                     break
-                # SSO ページに留まっている場合は 15 秒後に早期終了
-                if i == 15 and signin_url_prefix in page.url:
+                # SSO ページに留まっている場合は 25 秒後に早期終了
+                if i == 25 and signin_url_prefix in page.url:
                     print(f"      ⚠ SSO ページのまま変化なし → Strategy 1 早期終了")
                     break
                 if i % 10 == 0:
@@ -350,11 +432,7 @@ def get_jwt_via_browser_login() -> dict:
 
             if not jwt_found:
                 print(f"      ⚠ JWT_WEB が取得できませんでした | URL: {page.url}")
-                try:
-                    page.screenshot(path="/tmp/garmin_pw_debug.png")
-                    print("      スクリーンショット: /tmp/garmin_pw_debug.png")
-                except Exception:
-                    pass
+                _describe_login_page(page)
             else:
                 # JWT_WEB 取得後にデータプリフェッチ
                 try:
@@ -382,14 +460,26 @@ def get_jwt_via_browser_login() -> dict:
         return result
 
 
-def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
+def _wait_for_jwt(context, page, seconds: int) -> bool:
+    for i in range(seconds):
+        if any(c["name"] == "JWT_WEB" for c in context.cookies([CONNECT_BASE])):
+            print(f"      ✓ JWT_WEB 取得成功 ({i}s) | URL: {page.url[:70]}")
+            return True
+        if i % 5 == 0:
+            print(f"      waiting {i}s | URL: {page.url[:70]}")
+        time.sleep(1)
+    return False
+
+
+def get_jwt_via_playwright(ticket_url, sso_cookies: dict, cookie_list: list = None) -> dict:
     """
-    Playwright でチケット URL または /app/home に移動し、connect.garmin.com の JS に
+    SSO でログインしたクッキーを持ったブラウザで Connect に入り、connect.garmin.com の JS に
     JWT_WEB をセットさせて回収する。
 
     戦略:
-      1. チケット URL (/app?ticket=... など) に移動
-      2. JWT_WEB が現れなければ /app/home に移動（新アプリ経由で SSO 再認証）
+      1. チケット URL（/app?ticket=... など）があれば移動
+      2. だめなら CAS のログイン URL → /app/home の順に移動（SSO セッションでチケットが出る）
+      3. 新しいサインイン画面に着き、フォームが出ていれば入力する
     """
     try:
         from playwright.sync_api import sync_playwright
@@ -397,7 +487,7 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
         print("  ❌ Playwright 未インストール")
         return {}
 
-    print(f"[PW-1] Navigate: {ticket_url[:80]}")
+    print(f"[PW-1] Navigate: {(ticket_url or '(チケットなし)')[:80]}")
 
     with sync_playwright() as p:
         browser = p.chromium.launch(
@@ -410,17 +500,19 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
             locale="en-US",
         )
 
-        # SSO クッキーをコンテキストに注入（全 Garmin ドメイン）
-        for name, value in sso_cookies.items():
-            for domain in [".garmin.com", ".sso.garmin.com", "sso.garmin.com",
-                           ".connect.garmin.com", "connect.garmin.com"]:
+        # SSO クッキーを、requests が受け取ったときのドメインとパスのまま渡す。
+        # 以前は全ドメイン・パス "/" にばらまいていたため、同名のクッキーが重なって SSO が
+        # ログイン済みと認識しないことがあった。
+        if cookie_list:
+            for c in cookie_list:
                 try:
-                    context.add_cookies([{
-                        "name": name,
-                        "value": value,
-                        "domain": domain,
-                        "path": "/",
-                    }])
+                    context.add_cookies([c])
+                except Exception as e:
+                    print(f"      ⚠ クッキー {c['name']} を渡せませんでした: {e}")
+        else:
+            for name, value in sso_cookies.items():
+                try:
+                    context.add_cookies([{"name": name, "value": value, "domain": ".garmin.com", "path": "/"}])
                 except Exception:
                     pass
 
@@ -443,54 +535,41 @@ def get_jwt_via_playwright(ticket_url: str, sso_cookies: dict) -> dict:
 
         page.on("response", _on_response)
 
-        try:
-            page.goto(ticket_url, wait_until="networkidle", timeout=45000)
-        except Exception as e:
-            print(f"      goto warning (continuing): {e}")
-
-        print(f"      URL after nav: {page.url}")
-
-        # Phase 1: /modern?ticket=... で JWT_WEB を待機（最大15秒）
-        print("[PW-2] Phase 1: Waiting for JWT_WEB at ticket URL (15s)...")
+        # Phase 1: チケット URL で JWT_WEB を待機（最大15秒）
         jwt_found = False
-        for i in range(15):
-            cookies_now = context.cookies(["https://connect.garmin.com"])
-            if any(c["name"] == "JWT_WEB" for c in cookies_now):
-                print(f"      ✓ JWT_WEB 取得成功 (Phase 1, {i}s)")
-                jwt_found = True
-                break
-            time.sleep(1)
-
-        # Phase 2: JWT_WEB がなければ /app/home に移動（新 Garmin Connect アプリ）
-        # CASTGC などの SSO クッキーがあれば、/app/home へのアクセスで
-        # SSO が自動的にチケットを発行して JWT_WEB がセットされる。
-        if not jwt_found:
-            app_home_url = f"{CONNECT_BASE}/app/home"
-            print(f"[PW-3] Phase 2: Navigating to new app ({app_home_url})...")
+        if ticket_url:
             try:
-                page.goto(app_home_url, wait_until="networkidle", timeout=45000)
+                page.goto(ticket_url, wait_until="networkidle", timeout=45000)
             except Exception as e:
                 print(f"      goto warning (continuing): {e}")
             print(f"      URL after nav: {page.url}")
+            print("[PW-2] Phase 1: Waiting for JWT_WEB at ticket URL (15s)...")
+            jwt_found = _wait_for_jwt(context, page, 15)
 
-            for i in range(30):
-                cookies_now = context.cookies(["https://connect.garmin.com"])
-                if any(c["name"] == "JWT_WEB" for c in cookies_now):
-                    print(f"      ✓ JWT_WEB 取得成功 (Phase 2, {i}s)")
-                    jwt_found = True
-                    break
-                if i % 5 == 0:
-                    print(f"      waiting {i}s | URL: {page.url[:70]}")
-                time.sleep(1)
+        # Phase 2: JWT_WEB がなければ、ブラウザ側でも SSO セッションから入る。
+        #   a. CAS のログイン URL（ログイン済みならチケット付きで Connect に戻される）
+        #   b. /app/home（新アプリ経由。SSO が自動でチケットを出すことがある）
+        for label, url in (("CAS", f"{SSO_BASE}/login?service={CONNECT_BASE}/app"),
+                           ("app/home", f"{CONNECT_BASE}/app/home")):
+            if jwt_found:
+                break
+            print(f"[PW-3] Phase 2 ({label}): {url}")
+            try:
+                page.goto(url, wait_until="domcontentloaded", timeout=45000)
+            except Exception as e:
+                print(f"      goto warning (continuing): {e}")
+            jwt_found = _wait_for_jwt(context, page, 20)
+
+        # Phase 3: 新しいサインイン画面に着いていて、フォームが出ていれば入力する。
+        # Cloudflare の人間確認がブラウザ自身で通ったときだけ（突破はしない）。
+        if not jwt_found and "sso.garmin.com/portal" in page.url:
+            print("[PW-4] Phase 3: 新しいサインイン画面でログイン...")
+            if fill_login_form(page, wait_s=20):
+                jwt_found = _wait_for_jwt(context, page, 40)
 
         if not jwt_found:
             print(f"      ⚠ JWT_WEB が取得できませんでした | URL: {page.url}")
-            # スクリーンショット保存（デバッグ用）
-            try:
-                page.screenshot(path="/tmp/garmin_pw_debug.png")
-                print("      スクリーンショット: /tmp/garmin_pw_debug.png")
-            except Exception:
-                pass
+            _describe_login_page(page)
 
         # JWT_WEB 取得後にアクティビティデータを事前取得（Python から /gc-api/ が 403 になるため）
         if jwt_found:
@@ -948,26 +1027,25 @@ def main():
     if "JWT_WEB" not in merged:
         # 戦略2: cloudscraper で SSO チケット取得 → Playwright でチケット処理（フォールバック）
         print("\n[Strategy 2] SSO ticket + Playwright (fallback)...")
-        sso_cookies, ticket_url = {}, None
-        for attempt in range(3):
+        # パスワードを何度も送るとログイン制限が厳しくなるので、再試行は通信エラーのときに1回だけ
+        sso_cookies, ticket_url, cookie_list = {}, None, []
+        for attempt in range(2):
             try:
-                sso_cookies, ticket_url = get_sso_ticket()
-                if ticket_url:
-                    break
+                sso_cookies, ticket_url, cookie_list = get_sso_ticket()
+                break
             except Exception as e:
                 print(f"  SSO 試行 {attempt+1} 失敗: {e}")
-                if attempt < 2:
-                    wait = 30 * (attempt + 1)
-                    print(f"  {wait}s 待機して再試行...")
-                    time.sleep(wait)
+                if attempt == 0:
+                    print("  30s 待機して再試行...")
+                    time.sleep(30)
 
-        if ticket_url:
-            print(f"\nTicket URL: {ticket_url[:100]}")
-            pw_cookies = get_jwt_via_playwright(ticket_url, sso_cookies)
+        if ticket_url or "CASTGC" in sso_cookies:
+            print(f"\nTicket URL: {(ticket_url or '(なし。SSO セッションで入る)')[:100]}")
+            pw_cookies = get_jwt_via_playwright(ticket_url, sso_cookies, cookie_list)
             merged = {**sso_cookies, **pw_cookies}
             print(f"  取得クッキー: {list(merged.keys())}")
         else:
-            print("  ⚠ SSO チケット取得に失敗しました（戦略2 スキップ）")
+            print("  ⚠ SSO ログインに失敗しました（戦略2 スキップ）")
 
     # API テスト
     print("\n[API テスト]")
