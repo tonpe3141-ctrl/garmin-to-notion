@@ -33,12 +33,13 @@
     ここの race / phase を編集しても反映されません。プロファイルを直してください。
 
   画面の構成（2026-09-30 に再構築）— 1つの情報は1か所にだけ出す:
-    ホーム       … カウントダウン（本命の前のレースが14日を切ったらそちらを大きく）/ 今日の走り（結論と要点）/
-                   次のメニュー / 体感メモ（本人が書く。2026-10-26〜）/ 体調 /
-                   現在地（フル予測と途中の関門・走力 VDOT と次の判定・Mペース・直近7日・今月・積み上げの目標）/ 今日の読みもの
+    2026-11-02 の見直し: 文章は読まれていなかったので、ホームは数字・色・札だけにし、文章は畳み（details）か別タブへ。
+    ホーム       … カウントダウン（本命の前のレースが14日を切ったらそちらを大きく）/ 今日の走り（判定・4指標・ラップの帯・要点の札）/
+                   次のメニュー（区間の帯・帯ごとの目標。区間の一覧・切り替え条件・準備は畳む）/ 体感メモ（本人が書く。2026-10-26〜）/ 体調 /
+                   現在地（フル予測・走力 VDOT・Mペースの3枚と直近7日・今月）/ 今日の読みもの
                    開いた時刻が翌朝なら「今日のメニュー」を先頭に出す（分析は前日12:00のものなので）
-    走りの詳細   … 全指標・ラップ・4軸の評価・週とシーズンの視点
-    予定         … シーズンの帯とフェーズ・この先1週間
+    走りの詳細   … 講評（結論の1文と要点の本文）・全指標・ラップ・4軸の評価・週とシーズンの視点
+    予定         … この先1週間・シーズンの帯とフェーズ
     コンディション … 健康データ
     成長の記録   … トレーニングカレンダー（月を選べる）・ロングと積み上げの目標・走力の階段・自己記録・週間走行距離の推移・
                    強度の配分・月間走行距離・Mペースの持続力（M帯の区間の心拍も）・有酸素の効率・読みものの記録
@@ -534,7 +535,7 @@ body {
 
 /* ---------- ホーム: 現在地 ---------- */
 .ktiles {
-  display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
   gap: 1px; background: var(--line-soft); border: 1px solid var(--line-soft);
   border-radius: 4px; overflow: hidden;
 }
@@ -852,6 +853,92 @@ svg.ladder { display: block; width: 100%; height: auto; }
 .note-line { font-size: 12.5px; color: var(--ink-2); background: var(--surface); border-radius: 4px; padding: 7px 10px; line-height: 1.7; }
 .note-line b { color: var(--ink); }
 
+/* ---------- 一目で読む部品（2026-11-02 の見直し）----------
+   文章は読まれていなかったので、ホームは数字・色・札だけにして、文章は「畳み」（details）に入れる。 */
+/* 要点の札。○ 良かった点 / △ 外した点 / ・ 留保。押すと「走りの詳細」の本文へ */
+.ptags { display: flex; flex-wrap: wrap; gap: 6px; }
+.ptag {
+  appearance: none; border: 1px solid transparent; cursor: pointer;
+  display: inline-flex; align-items: baseline; gap: 5px;
+  font-family: var(--jp); font-size: 12.5px; font-weight: 700; line-height: 1.5;
+  border-radius: 4px; padding: 3px 9px;
+}
+.ptag i { font-style: normal; font-family: var(--num); font-size: 11px; }
+.ptag.bad { background: var(--warn-soft); color: #7d5218; }
+.ptag.bad i { color: var(--warn); }
+.ptag.good { background: var(--good-soft); color: var(--good); }
+.ptag.note { background: var(--surface-2); color: var(--ink-2); }
+.ptag:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+/* ラップの帯（ホーム） */
+.lstrip-wrap { display: flex; flex-direction: column; gap: 4px; }
+.lstrip { display: flex; gap: 2px; height: 92px; align-items: stretch; }
+.ls { flex: 1 1 0; min-width: 0; display: flex; flex-direction: column; align-items: center; justify-content: flex-end; }
+.ls-p { font-family: var(--num); font-size: 9.5px; font-weight: 700; color: var(--ink-2); line-height: 1.3; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.ls-b { width: 100%; max-width: 34px; border-radius: 3px 3px 0 0; flex: 0 0 auto; max-height: calc(100% - 30px); }
+.ls-h { font-family: var(--num); font-size: 10px; color: var(--ink-3); line-height: 1.5; font-variant-numeric: tabular-nums; min-height: 15px; }
+.ls-h.over { color: var(--crit); font-weight: 700; }
+.lstrip.dense { height: 64px; gap: 1px; }
+.lstrip.dense .ls-b { max-height: 100%; }
+.lstrip.dense .ls-p, .lstrip.dense .ls-h { display: none; }
+.lstrip-cap { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--ink-3); }
+.lstrip-cap .over { color: var(--crit); font-weight: 700; }
+/* メニュー: 区間の帯と、帯ごとの目標 */
+.segbar { display: flex; gap: 2px; height: 22px; border-radius: 4px; overflow: hidden; }
+.sb { min-width: 4px; display: grid; place-items: center; font-family: var(--num); font-size: 11px; font-weight: 700; color: #fff; }
+.sb.E { background: var(--z-e); } .sb.S { background: var(--z-s); } .sb.M { background: var(--z-m); }
+.sb.T { background: var(--z-t); } .sb.R, .sb.I { background: var(--z-r); } .sb.rest { background: var(--line); color: var(--ink-2); }
+.ztargets { display: flex; flex-direction: column; border: 1px solid var(--line-soft); border-radius: 4px; }
+.zt { display: grid; grid-template-columns: 34px 1fr auto auto; align-items: baseline; gap: 10px; padding: 8px 10px; border-bottom: 1px solid var(--line-soft); }
+.zt:last-child { border-bottom: 0; }
+.zt .tp { align-self: center; }
+.zt-p { font-family: var(--num); font-weight: 700; font-size: 18px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.zt-p i { font-style: normal; font-family: var(--jp); font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin-left: 4px; }
+.zt-h { font-family: var(--mono); font-size: 12.5px; color: var(--ink); white-space: nowrap; }
+.zt-k { font-family: var(--num); font-weight: 700; font-size: 15px; text-align: right; white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 4.2em; }
+.zt-k em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-3); margin: 0 1px; }
+/* 畳み */
+.folds { display: flex; flex-direction: column; border-top: 1px solid var(--line-soft); }
+.folds:empty { display: none; }
+.fold { border-bottom: 1px solid var(--line-soft); }
+.fold > summary {
+  cursor: pointer; list-style: none; padding: 10px 0; font-size: 13px; font-weight: 700; color: var(--ink-2);
+  display: flex; align-items: baseline; gap: 8px;
+}
+.fold > summary::-webkit-details-marker { display: none; }
+.fold > summary::before { content: "▸"; color: var(--ink-3); width: 1em; transition: transform .15s; display: inline-block; }
+.fold[open] > summary::before { transform: rotate(90deg); }
+.fold > summary em { font-style: normal; font-weight: 400; font-size: 11.5px; color: var(--ink-3); }
+.fold-b { padding: 0 0 12px; display: flex; flex-direction: column; gap: 10px; }
+.expl > summary { cursor: pointer; list-style: none; font-size: 11.5px; color: var(--ink-3); display: inline-block; }
+.expl > summary::-webkit-details-marker { display: none; }
+.expl > summary::before { content: "ⓘ "; }
+.expl[open] > summary { margin-bottom: 4px; }
+.memo-done { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--surface-2); border-radius: 4px; padding: 8px 10px; }
+.memo-sum { font-size: 13px; color: var(--ink-2); line-height: 1.6; }
+.memo-sum b { color: var(--ink); font-family: var(--num); }
+.memo-wk { margin: 0; font-size: 12px; color: var(--ink-3); }
+.memo-wk b { color: var(--ink); font-family: var(--num); }
+/* 4軸: 名前と判定だけを並べ、押すと根拠 */
+details.axis { border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 12px; }
+details.axis > summary { cursor: pointer; list-style: none; justify-content: space-between; }
+details.axis > summary::-webkit-details-marker { display: none; }
+details.axis[open] > summary { margin-bottom: 4px; }
+details.axis.warn { border-color: #e7cfa6; } details.axis.crit { border-color: #e6bdb6; }
+/* 1週間: メモは押したときだけ */
+.plan-row.has-note { cursor: pointer; }
+.plan-row.has-note .plan-t::after { content: " ▸"; color: var(--ink-3); font-weight: 400; font-size: 11px; }
+.plan-row.has-note.open .plan-t::after { content: " ▾"; }
+.plan-row.has-note:not(.open) .plan-n { display: none; }
+.plan-row:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 2px; }
+/* 成長の記録: 見出しへ飛ぶ札 */
+.gnav { display: flex; flex-wrap: wrap; gap: 6px; }
+.gnav button {
+  appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2); cursor: pointer;
+  border-radius: 99px; padding: 3px 11px; font-family: var(--jp); font-size: 12px; font-weight: 700; line-height: 1.6;
+}
+.gnav button:hover { color: var(--accent-ink); border-color: var(--accent); }
+.panel section.card, .panel .stack { scroll-margin-top: 56px; }
+
 footer {
   font-size: 11.5px; color: var(--ink-3); font-family: var(--mono);
   border-top: 1px solid var(--line); padding-top: 12px;
@@ -925,6 +1012,14 @@ footer {
   .longs .lt { text-align: left; }
   .longs .lx { grid-column: 1 / -1; }
   .scale button { height: 32px; font-size: 12px; }
+  .ktiles:not(.rtiles) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+  .ktile { padding: 9px 9px 10px; }
+  .ktile-l { font-size: 10.5px; }
+  .ktile-v { font-size: 20px; }
+  .ktile-n { font-size: 11px; line-height: 1.45; }
+  .ktile-s { font-size: 10px; line-height: 1.45; }
+  .zt { grid-template-columns: 30px 1fr auto; grid-template-areas: "t p k" "t h k"; gap: 0 10px; padding: 7px 10px; }
+  .zt .tp { grid-area: t; } .zt-p { grid-area: p; font-size: 17px; } .zt-h { grid-area: h; font-size: 11.5px; } .zt-k { grid-area: k; align-self: center; }
   footer { font-size: 10.5px; gap: 4px 12px; }
 }
 
@@ -1669,7 +1764,6 @@ footer {
         <div class="verdict ${vcls(t.verdict)}" aria-label="総合評価 ${esc(t.verdict)} ${esc(t.verdictLabel)}"><span class="vm">${esc(t.verdict)}</span><span class="vl">${esc(t.verdictLabel)}</span></div>
       </div>
       <div class="card-body">
-        <p class="headline">${esc(t.headline)}</p>
         ${t.plan && t.plan.title ? `<div class="planline">処方 <b>${esc(t.plan.title)}</b>${numOf(t.plan.km) && !/km/.test(t.plan.title) ? `（${esc(t.plan.km)}km）` : ""}<span class="arrow">→</span>実走 <b>${kmStat ? esc(kmStat.value) + "km" : "なし"}</b></div>` : ""}
         <span class="hero-pb" id="pb">${pbHtml()}</span>
         ${ks.length ? `<div class="kstats">${ks.map(s => `<div class="kstat ${s.state === "ok" ? "" : esc(s.state)}">
@@ -1677,11 +1771,45 @@ footer {
             <div class="kstat-v">${esc(s.value)}${s.unit ? `<em>${esc(s.unit)}</em>` : ""}</div>
             ${s.state !== "ok" && s.note ? `<div class="kstat-n">${esc(s.note)}</div>` : ""}
           </div>`).join("")}</div>` : ""}
-        ${pointsList(t.points)}
+        ${lapStrip(t.laps, t.type)}
+        ${pointTags(t.points)}
         ${extras.length ? `<div class="extra-line">同じ日のほかの記録: ${extras.map(x => `${esc(x.type)} ${esc(x.verdict || "")}`).join(" ／ ")}</div>` : ""}
-        <button class="more" type="button" data-go="run">ラップ・全指標・4軸の評価 →</button>
+        <button class="more" type="button" data-go="run">講評・ラップ・全指標 →</button>
       </div>
     </section>`;
+  }
+
+  /* 要点はホームではラベルだけを札で並べる（2026-11-02〜）。文章は読まれていなかったので、
+     本文（points[].text）と結論の1文（headline）は「走りの詳細」タブにだけ出す。札を押すとそこへ飛ぶ。 */
+  function pointTags(pts) {
+    if (!pts || !pts.length) return "";
+    const order = { bad: 0, good: 1, note: 2 };
+    return `<div class="ptags">${pts.slice().sort((a, b) => (order[a.tone] ?? 2) - (order[b.tone] ?? 2)).map(p =>
+      `<button type="button" class="ptag ${esc(p.tone || "note")}" data-go="run" title="${esc(p.text || "")}"><i>${toneMark[p.tone] || toneMark.note}</i>${esc(p.label)}</button>`).join("")}</div>`;
+  }
+
+  /* ラップの帯（ホーム用の小さい版）。1本＝1本の棒で、色は帯（ゾーン）、高さは速さ、下の数字は心拍。
+     帯の心拍上限を超えたラップは心拍を赤字にする。全体のグラフと一覧は「走りの詳細」。 */
+  function lapStrip(laps, type) {
+    laps = expandLaps(laps);
+    if (!laps || laps.length < 2) return "";
+    // E の日（題が E 系で、M ペースの連続も無い日）は、どのラップも E の上限で見る。処方が E なので、
+    // ステディ帯に寄ったラップを帯ごとの上限（155）で見ると、E の心拍を守れなかったことが見えなくなる
+    const eDay = zoneOfType(type, laps) === "E";
+    const capFor = (z) => eDay ? E_CAP : CAP[z];
+    const secs = laps.map(l => l.sec).filter(Number.isFinite);
+    const fast = Math.min(...secs), slow = Math.max(...secs);
+    const showTxt = laps.length <= 16;
+    const over = laps.filter(l => { const c = capFor(zoneOf(l.sec)); return l.hr != null && c != null && l.hr > c; }).length;
+    return `<div class="lstrip-wrap">
+      <div class="lstrip${showTxt ? "" : " dense"}" role="img" aria-label="ラップ ${laps.length}本。帯の心拍上限超え ${over}本">${laps.map(l => {
+        const z = zoneOf(l.sec);
+        const h = slow > fast ? 30 + (slow - l.sec) / (slow - fast) * 70 : 70;
+        const o = l.hr != null && capFor(z) != null && l.hr > capFor(z);
+        return `<div class="ls"><span class="ls-p">${showTxt ? esc(l.pace || mmssOf(l.sec)) : ""}</span><span class="ls-b" style="height:${h.toFixed(0)}%;background:var(--${z})"></span><span class="ls-h${o ? " over" : ""}">${showTxt && l.hr != null ? l.hr : ""}</span></div>`;
+      }).join("")}</div>
+      <div class="lstrip-cap"><span>ラップ ${laps.length}本 ・ 色＝帯 ・ 下＝心拍</span>${over ? `<span class="over">${eDay ? `E上限 ${E_CAP} 超え` : "帯の心拍上限超え"} ${over}本</span>` : `<span>心拍上限の超えなし</span>`}</div>
+    </div>`;
   }
 
   function menuCard() {
@@ -1694,16 +1822,62 @@ footer {
         ${km ? `<span class="rx-km">${Math.round(km * 10) / 10}<em>km</em></span>` : ""}</div>
       <div class="card-body">
         <h3 class="rx-title">${esc(tm.title)}</h3>
+        ${segBar(tm.segments)}
+        ${zoneTargets(tm.segments)}
         ${tm.headline ? `<p class="rx-headline">${esc(tm.headline)}</p>` : ""}
-        ${segTable(tm.segments)}
-        ${(tm.prescription || []).length ? `<dl class="rx-list">${tm.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}</dl>` : ""}
-        ${Array.isArray(tm.alt) && tm.alt.length
-          ? `<div class="blk"><b>当日の状態で切り替える</b><ol class="alts">${tm.alt.map(x => `<li>${esc(x)}</li>`).join("")}</ol></div>`
-          : prose("当日の状態で切り替える", tm.alt)}
-        ${prose("なぜこの内容か", tm.why)}
+        <div class="folds">
+          ${(tm.segments || []).length ? fold(`区間ごとの指示<em>${tm.segments.length}区間</em>`, segTable(tm.segments)) : ""}
+          ${Array.isArray(tm.alt) && tm.alt.length
+            ? fold(`当日の状態で切り替える<em>${tm.alt.length}件</em>`, `<ol class="alts">${tm.alt.map(x => `<li>${esc(x)}</li>`).join("")}</ol>`)
+            : tm.alt ? fold("当日の状態で切り替える", `<p class="lead">${esc(tm.alt)}</p>`) : ""}
+          ${(tm.prescription || []).length || tm.why ? fold(`準備・補強・ねらい`,
+            `${(tm.prescription || []).length ? `<dl class="rx-list">${tm.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}</dl>` : ""}${prose("なぜこの内容か", tm.why)}`) : ""}
+        </div>
         <button class="more" type="button" data-go="plan">この先1週間とフェーズ →</button>
       </div>
     </section>`;
+  }
+
+  // 畳んでおく文章。見出しの1行だけを出し、押すと開く
+  const fold = (title, body) => body ? `<details class="fold"><summary>${title}</summary><div class="fold-b">${body}</div></details>` : "";
+
+  // メニューの区間を距離に比例した帯で並べる（色＝帯）。区間の中身は畳んだ一覧に
+  function segBar(segs) {
+    const ss = (segs || []).filter(s => Number(s.km) > 0);
+    if (ss.length < 2) return "";
+    const total = ss.reduce((a, s) => a + Number(s.km), 0);
+    return `<div class="segbar" role="img" aria-label="区間の構成">${ss.map(s => {
+      const z = s.zone === "rest" ? "rest" : String(s.zone || "E");
+      return `<span class="sb ${esc(z)}" style="flex:${Number(s.km)}" title="${esc(s.label || "")} ${esc(s.km)}km">${Number(s.km) / total >= 0.07 ? `${esc(s.km)}` : ""}</span>`;
+    }).join("")}</div>`;
+  }
+
+  /* 帯ごとの目標（ペース・心拍・距離）。同じ帯の区間をまとめ、同じ距離の繰り返しは「2km×4」と書く。
+     メニューで実際に見るのはこの数字なので、区間の一覧より先に大きく出す。 */
+  function zoneTargets(segs) {
+    const ss = (segs || []).filter(s => s && s.zone && s.zone !== "rest");
+    if (!ss.length) return "";
+    const order = ["R", "I", "T", "M", "S", "E"];
+    const groups = [];
+    ss.forEach(s => {
+      let g = groups.find(x => x.zone === s.zone);
+      if (!g) { g = { zone: s.zone, segs: [] }; groups.push(g); }
+      g.segs.push(s);
+    });
+    groups.sort((a, b) => (order.indexOf(a.zone) + 9) % 9 - (order.indexOf(b.zone) + 9) % 9);
+    const uniq = (xs) => [...new Set(xs.filter(x => x && x !== "—"))];
+    return `<div class="ztargets">${groups.map(g => {
+      const kms = g.segs.map(s => Number(s.km) || 0);
+      const tot = kms.reduce((a, b) => a + b, 0);
+      const same = kms.length > 1 && kms.every(k => k === kms[0]) && g.zone !== "E";
+      const paces = uniq(g.segs.map(s => s.pace)), hrs = uniq(g.segs.map(s => s.hr));
+      return `<div class="zt">
+        <span class="tp ${esc(g.zone)}">${esc(g.zone)}</span>
+        <span class="zt-p">${paces.length ? esc(paces[0]) : "—"}${paces.length > 1 ? `<i>他${paces.length - 1}</i>` : ""}</span>
+        <span class="zt-h">${hrs.length ? `HR ${esc(hrs[0])}` : ""}</span>
+        <span class="zt-k">${same ? `${kms[0]}<em>km</em>×${kms.length}` : `${Math.round(tot * 10) / 10}<em>km</em>`}</span>
+      </div>`;
+    }).join("")}</div>`;
   }
 
   const CHIP_LABEL = { "HRV（前夜平均）": "HRV", "安静時心拍": "安静心拍", "睡眠スコア": "睡眠", "トレーニング準備度": "準備度", "ボディバッテリー最低": "BB最低", "平均ストレス": "ストレス" };
@@ -1723,8 +1897,7 @@ footer {
       <div class="card-head"><h2>体調</h2><span class="sub">${latest ? `${esc(latest.d)} の値` : ""}</span></div>
       <div class="card-body">
         <div class="cchips">${chips}</div>
-        ${MODE !== "same" ? `<p class="hnote">今朝の HRV と安静心拍はウォッチで確かめ、メニューの「切り替える」条件に当てはめる。</p>` : ""}
-        <button class="more" type="button" data-go="health">睡眠・HRV の推移と読み取り →</button>
+        <button class="more" type="button" data-go="health">推移と読み取り →</button>
       </div>
     </section>`;
   }
@@ -1757,19 +1930,17 @@ footer {
     const predNow = secOf(fit().race && fit().race.full);
     if (predNow && goalSec) {
       const gap = predNow - goalSec;
-      // 4週間前の予測と比べる（毎日の数秒の揺れより、流れのほうが意味がある）
+      // 関門が無いときは4週間前の予測と比べる（毎日の数秒の揺れより、流れのほうが意味がある）
       const base = runs.filter(r => r.pred && r.d < today && dayDiff(r.d, today) <= 28)[0];
-      const trend = base && base.pred !== predNow
-        ? `${mdOf(base.d)} の ${hmsOf(base.pred)} から ${predNow < base.pred ? "−" : "+"}${mmssOf(Math.abs(predNow - base.pred))}` : "";
       // 目標までが遠いときは、途中の関門（サブ3 など）までの差も出す。遠い目標だけだと縮み方が見えにくいため
       const ms = milestoneOf(predNow, goalSec);
       // 記録上いちばん古い予測から目標までのうち、どこまで縮めたか（メーター）
       const first = runs.find(r => r.pred);
       const pct = first && first.pred > goalSec && first.pred > predNow ? (first.pred - predNow) / (first.pred - goalSec) * 100 : null;
-      const sub = [ms ? `次の関門 ${esc(ms.name)}（${hmsOf(ms.sec)}）まで あと ${gapOf(predNow - ms.sec)}` : "", esc(trend),
-        pct != null ? `${mdOf(first.d)} の ${hmsOf(first.pred)} から目標までの ${Math.round(pct)}% を縮めた` : ""].filter(Boolean).join("<br>");
-      tiles.push(tile("Garmin フル予測", esc(hmsOf(predNow)), "",
-        gap > 0 ? `${esc(goalName)}（${esc(D.race.goal)}）まで あと ${gapOf(gap)}` : "目標タイムを上回っている", gap > 0 ? "warn" : "good", sub, pct));
+      // 文は出さない。差・関門・4週の変化を数字だけで（2026-11-02〜）
+      const sub = ms ? `${esc(ms.name)}まで −${mmssOf(predNow - ms.sec)}` : base && base.pred !== predNow ? `4週で ${predNow < base.pred ? "−" : "+"}${mmssOf(Math.abs(predNow - base.pred))}` : "";
+      tiles.push(tile("フル予測", esc(hmsOf(predNow)), "",
+        gap > 0 ? `${esc(goalName)}まで −${mmssOf(gap)}` : "目標を上回った", gap > 0 ? "warn" : "good", sub, pct));
     }
     // 走力（VDOT）と次の判定。履歴が無くても Garmin の 5K 予測だけで出す
     const fm = fitnessModel(haveHist ? runs : todayRows().map(h => ({ ...h, km: Number(h.km) || 0, laps: expandLaps(h.laps), raw: h })), today);
@@ -1779,25 +1950,23 @@ footer {
       const goalV = fm.goal ? fm.goal.v : null;
       const t5 = fm.speed ? timeAt(fm.speed.v, 5000) : fm.pred5.sec;
       const nmT = nm && nm.k5 && nm.k5.length ? Math.max(...nm.k5) : null;
-      const n = nm ? `次の判定 ${esc(nm.when)}（あと${dayDiff(today, nm.date)}日）${nmT ? `: 5km ${mmssOf(nmT)}${t5 > nmT ? ` まで あと ${mmssOf(t5 - nmT)}` : " に届いている"}` : ""}` : "";
-      const sub = [fm.speed ? `実測 ${esc(fm.speed.label)} ${timeOf(fm.speed.sec)}（${mdOf(fm.speed.d)}）` : "",
-        fm.pred5 ? `Garmin 5K 予測 ${mmssOf(fm.pred5.sec)}（VDOT ${v1(fm.pred5.v)}）` : "",
-        goalV ? `${esc(goalName)}は VDOT ${v1(goalV)}` : ""].filter(Boolean).join("<br>");
+      const n = nmT ? (t5 > nmT ? `5km ${mmssOf(nmT)} まで −${mmssOf(t5 - nmT)}` : `5km ${mmssOf(nmT)} に届いた`) : "";
+      const sub = nm ? `判定 ${mdOf(nm.date)}・あと${dayDiff(today, nm.date)}日` : goalV ? `目標 ${v1(goalV)}` : "";
       // メーターは「キロ4分の位置」の表の起点（① 今の VDOT）から目標までのうち、どこまで来たか
       const ms0 = ((D.season && D.season.milestones) || [])[0];
       const baseV = ms0 && ms0.vdot && ms0.vdot.length ? ms0.vdot[0] : null;
-      tiles.push(tile(`走力（VDOT・${fm.speed ? "実測" : "予測"}）`, v1(v), "", n, nmT && t5 <= nmT ? "good" : "", sub,
+      tiles.push(tile(`走力 VDOT${fm.speed ? "" : "（予測）"}`, v1(v), "", n, nmT && t5 <= nmT ? "good" : "", sub,
         goalV && baseV != null && goalV > baseV ? Math.max(0, (v - baseV) / (goalV - baseV) * 100) : null));
     }
     if (haveHist) {
       const m = mStatus(runs, today);
       const bestKm = m.best ? m.best.streak.km : 0;
-      tiles.push(tile(`Mペース（${M_EDGE_TXT}以内）の連続 最長`, m.best ? bestKm : "—", "km",
-        m.aimT ? `次の目標 ${m.aimT.km}km（${esc(m.aimT.label)}・あと${dayDiff(today, m.aimT.until)}日）` : "", "",
-        m.best ? `${mdOf(m.best.d)}・平均 ${mmssOf(m.best.streak.sec)}${m.best.streak.hr ? `・HR${m.best.streak.hr}` : ""}　／　直近2週の最長 ${m.recentBest}km` : "",
+      tiles.push(tile(`M 連続最長`, m.best ? bestKm : "—", "km",
+        m.aimT ? `次 ${m.aimT.km}km（${esc(m.aimT.label)}）` : "", "",
+        m.best ? `直近2週 ${m.recentBest}km` : "",
         m.aimT ? (bestKm / m.aimT.km) * 100 : null));
     } else {
-      tiles.push(tile(`Mペース（${M_EDGE_TXT}以内）の連続 最長`, "…", "", "", "", histState === "loading" ? "履歴を読み込んでいます" : "この画面では履歴を読めません"));
+      tiles.push(tile(`M 連続最長`, "…", "", "", "", histState === "loading" ? "読み込み中" : "履歴なし"));
     }
 
     let week = "";
@@ -1831,10 +2000,8 @@ footer {
         ${bar}
         ${monthGoalHtml(wk)}`;
     }
-    // 積み上げの目標（プロファイルの表）。ロングの本数・後半ステディ・週80km・補強
-    const gs = haveHist ? goalsModel(runs, today).filter(g => g.started) : [];
-    const goals = gs.length ? `<div class="sub-h">積み上げの目標</div>${goalsListHtml(gs)}` : "";
-    return `${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}${week}${goals}`;
+    // 積み上げの目標は「成長の記録」のロングのカードにだけ出す（2026-11-02〜。ホームでは重複していた）
+    return `${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}${week}`;
   }
 
   /* 今月の距離と月間目標。目標はプロファイルの月ごとの計画（10月 340・3月 230 など）を優先し、無い月だけ week.monthTargetKm を使う
@@ -1884,9 +2051,11 @@ footer {
         ${url ? `<a class="news-title" href="${esc(url)}" target="_blank" rel="noopener noreferrer">${esc(n.title)}<span class="ext" aria-hidden="true">↗</span></a>`
               : `<span class="news-title">${esc(n.title)}</span>`}
         <div class="news-meta">${esc(n.source || "")}${n.published ? `　${esc(n.published)}` : ""}</div>
-        ${n.summary ? `<p class="news-sum">${esc(n.summary)}</p>` : ""}
-        ${n.takeaway ? `<div class="news-take"><b>いまの練習に引きつけると</b>${esc(n.takeaway)}</div>` : ""}
-        ${more.length ? `<div class="blk"><b>ほかの話題</b><ul class="news-more">${more.map(x => `<li><a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><span>${esc(x.source || "")}</span></li>`).join("")}</ul></div>` : ""}
+        ${n.takeaway ? `<div class="news-take">${esc(n.takeaway)}</div>` : ""}
+        <div class="folds">
+          ${n.summary ? fold("要約", `<p class="news-sum">${esc(n.summary)}</p>`) : ""}
+          ${more.length ? fold(`ほかの話題<em>${more.length}件</em>`, `<ul class="news-more">${more.map(x => `<li><a href="${esc(safeUrl(x.url))}" target="_blank" rel="noopener noreferrer">${esc(x.title)}</a><span>${esc(x.source || "")}</span></li>`).join("")}</ul>`) : ""}
+        </div>
       </div>
     </section>`;
   }
@@ -1914,19 +2083,25 @@ footer {
     const extraCards = extras.map((x, i) => runDetailCard(x, t.date, t.dow, `${i + 2}本目`).replace("</section>",
       `<div class="card-body">${x.headline ? `<p class="headline">${esc(x.headline)}</p>` : ""}${pointsList(x.points)}</div></section>`)).join("");
     const axes = (D.axes || []).length ? `<section class="card">
-      <div class="card-head"><h2>4軸の評価</h2><span class="sub">総合評価はホーム</span></div>
-      <div class="card-body"><div class="axes">${D.axes.map(a => `<div class="axis">
-          <div class="axis-h"><b>${esc(a.name)}</b><span class="pill ${esc(a.state)}">${esc(stateName[a.state] || a.state)}</span></div>
-          <p>${esc(a.summary || a.text || "")}</p></div>`).join("")}</div></div>
+      <div class="card-head"><h2>4軸の評価</h2><span class="sub">押すと根拠</span></div>
+      <div class="card-body"><div class="axes">${D.axes.map(a => `<details class="axis ${esc(a.state)}">
+          <summary class="axis-h"><b>${esc(a.name)}</b><span class="pill ${esc(a.state)}">${esc(stateName[a.state] || a.state)}</span></summary>
+          <p>${esc(a.summary || a.text || "")}</p></details>`).join("")}</div></div>
     </section>` : "";
     const view = ((D.good || []).length || (D.issues || []).length) ? `<section class="card">
       <div class="card-head"><h2>週とシーズンの視点</h2></div>
       <div class="card-body"><div class="cols">
-        ${(D.good || []).length ? `<div class="blk"><b>手応え</b><ul class="lst">${D.good.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}
         ${(D.issues || []).length ? `<div class="blk"><b>課題</b><ul class="lst neg">${D.issues.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}
+        ${(D.good || []).length ? `<div class="blk"><b>手応え</b><ul class="lst">${D.good.map(x => `<li><span>${esc(x)}</span></li>`).join("")}</ul></div>` : ""}
       </div></div>
     </section>` : "";
-    return runDetailCard(t, t.date, t.dow, extras.length ? "1本目" : "走りのデータ") + extraCards + axes + view;
+    // 結論の1文と要点の本文はここにだけ出す（ホームは要点のラベルだけ）
+    const review = t.headline || (t.points || []).length ? `<section class="card">
+      <div class="card-head"><h2>講評</h2><span class="sub">${t.date ? `${mdOf(t.date)}(${esc(t.dow)})` : ""}</span>
+        <span class="pill ${t.verdict === "—" ? "rest" : vcls(t.verdict).replace("v-", "")}">${esc(t.verdict || "")} ${esc(t.verdictLabel || "")}</span></div>
+      <div class="card-body">${t.headline ? `<p class="headline">${esc(t.headline)}</p>` : ""}${pointsList(t.points)}</div>
+    </section>` : "";
+    return review + runDetailCard(t, t.date, t.dow, extras.length ? "1本目" : "走りのデータ") + extraCards + axes + view;
   }
 
   /* ======================================================================
@@ -2001,11 +2176,11 @@ footer {
         ${seasonChart(season, today)}
         ${ph ? `<dl class="phase-now">
           <dt>いま</dt><dd><b>${esc(ph.name)}</b>（${mdOf(ph.from)}〜${mdOf(ph.to)}・残り ${dayDiff(today, ph.to) + 1}日）</dd>
-          <dt>方針</dt><dd>${esc(ph.policy)}</dd>
-          <dt>規定</dt><dd>週 ${esc(ph.km)}${/km/.test(ph.km) ? "" : " km"} ／ 質練習 ${esc(ph.quality)} ／ 休養 ${esc(ph.rest)}</dd>
-          ${nx ? `<dt>次</dt><dd>${esc(nx.name)}（${mdOf(nx.from)}〜・あと ${dayDiff(today, nx.from)}日）— ${esc(nx.policy)}</dd>` : ""}
-          ${nextRace ? `<dt>次のレース</dt><dd>${esc(nextRace.name)}（${mdOf(nextRace.date)}・あと ${dayDiff(today, nextRace.date)}日）— ${esc(nextRace.aim)}</dd>` : ""}
-        </dl>` : ""}
+          <dt>規定</dt><dd>週 <b>${esc(ph.km)}${/km/.test(ph.km) ? "" : " km"}</b> ／ 質 ${esc(String(ph.quality).replace(/（.*）$/, ""))} ／ 休養 ${esc(ph.rest)}</dd>
+          ${nx ? `<dt>次</dt><dd>${esc(nx.name)}（${mdOf(nx.from)}〜・あと ${dayDiff(today, nx.from)}日）</dd>` : ""}
+          ${nextRace ? `<dt>次のレース</dt><dd>${esc(nextRace.name)}（${mdOf(nextRace.date)}・あと ${dayDiff(today, nextRace.date)}日）</dd>` : ""}
+        </dl>
+        <div class="folds">${fold("このフェーズの方針", `<p class="lead">${esc(ph.policy)}</p><p class="lead">質練習: ${esc(ph.quality)}</p>`)}${nx ? fold("次のフェーズの方針", `<p class="lead">${esc(nx.policy)}</p>`) : ""}${nextRace && nextRace.aim ? fold("次のレースのねらい", `<p class="lead">${esc(nextRace.aim)}</p>`) : ""}</div>` : ""}
       </div>
     </section>`;
   }
@@ -2015,7 +2190,7 @@ footer {
     if (!p || !p.days || !p.days.length) return "";
     const tag = MODE === "same" ? "明日" : "今日";
     const firstIso = D.tomorrow && D.tomorrow.date;
-    const rows = p.days.map((d, i) => `<div class="plan-row ${d.type === "rest" ? "rest" : ""}${/🏁/.test(d.title) ? " race" : ""}">
+    const rows = p.days.map((d, i) => `<div class="plan-row ${d.type === "rest" ? "rest" : ""}${/🏁/.test(d.title) ? " race" : ""}${d.note ? " has-note" : ""}"${d.note ? ` tabindex="0" role="button" aria-expanded="false" data-plan-note` : ""}>
         <span class="plan-d">${esc(d.d)}(${esc(d.dow)})${i === 0 && MODE !== "stale" ? `<span class="tm">${tag}</span>` : ""}${i === 1 && MODE === "morning" ? `<span class="tm">明日</span>` : ""}</span>
         <span class="tp ${esc(d.type)}">${d.type === "rest" ? "休" : esc(d.type)}</span>
         <span class="plan-t">${esc(d.title)}</span>
@@ -2029,9 +2204,9 @@ footer {
     return `<section class="card">
       <div class="card-head"><h2>この先1週間</h2><span class="sub">${esc(p.label || (firstIso ? mdOf(firstIso) + "〜" : ""))}</span></div>
       <div class="card-body">
-        ${p.aim ? prose("この週のねらい", p.aim) : ""}
         <div class="plan-sum"><span>予定 <b>${esc(p.totalKm || sumKm)}</b> km</span><span>質練習 <b>${quality}</b> 本</span><span>走る日 <b>${p.days.length - restDays}</b> 日</span><span>休養 <b>${restDays}</b> 日</span></div>
         <div class="plan">${rows}</div>
+        <div class="folds">${p.aim ? fold("この週のねらい", `<p class="lead">${esc(p.aim)}</p>`) : ""}</div>
       </div>
     </section>`;
   }
@@ -2069,7 +2244,7 @@ footer {
             ${cmp(s)}
             <div class="hstat-n">${s.note ? esc(s.note) : "&nbsp;"}</div>
           </div>`).join("")}</div>
-        ${prose("読み取り", h.read)}
+        <div class="folds">${h.read ? fold("読み取り", `<p class="lead">${esc(h.read)}</p>`) : ""}</div>
         <div class="divider"></div>
         <div class="sub-h">睡眠</div>
         ${sleepChart(h)}
@@ -2077,7 +2252,7 @@ footer {
         ${hrvChart(h)}
         <div class="sub-h">日次データ</div>
         ${condTable(h.days, { ...(h.baseline || {}), sleepTargetMin: h.sleepTargetMin })}
-        <p class="hnote">色付きの値は警戒側（睡眠が目標未満・HRV がバランス域の下・BB最低 20 未満・準備度 50 未満${h.days.some(d => d.steps != null) ? `・歩数 ${STEPS_HIGH.toLocaleString("en-US")} 以上` : ""}）。「—」は取れていない日（当日の BB最低・ストレス・歩数は一日が終わるまで確定しないので空けてある）。</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">色付きの値は警戒側（睡眠が目標未満・HRV がバランス域の下・BB最低 20 未満・準備度 50 未満${h.days.some(d => d.steps != null) ? `・歩数 ${STEPS_HIGH.toLocaleString("en-US")} 以上` : ""}）。「—」は取れていない日（当日の BB最低・ストレス・歩数は一日が終わるまで確定しないので空けてある）。</p></details>
         ${(f.vo2max != null || races) ? `<div class="divider"></div>
         <div class="fitrow">
           ${f.vo2max != null ? `<div><span class="n">${esc(f.vo2max)}</span><span class="l">VO2max${vo2delta !== null ? `（週初 ${esc(f.vo2maxPrev)} → ${vo2delta >= 0 ? "+" : ""}${vo2delta}）` : ""}</span></div>` : ""}
@@ -2357,7 +2532,7 @@ footer {
           <span><i style="background:var(--ink);height:3px;opacity:.55;vertical-align:3px"></i>月間計画（プロファイル）</span>
         </div>` : ""}
         ${barChart(bars, { aria: "月ごとの走行距離" })}
-        <p class="hnote">薄い棒は今月（途中の値）。Garmin のランニングの記録を月ごとに合計している。1週ごとの量ではなく、積み上げが月単位で続いているかを見る。${hasPlan ? "横線は docs/athlete_profile.md の「月間距離について」の見込み。" : ""}</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">薄い棒は今月（途中の値）。Garmin のランニングの記録を月ごとに合計している。1週ごとの量ではなく、積み上げが月単位で続いているかを見る。${hasPlan ? "横線は docs/athlete_profile.md の「月間距離について」の見込み。" : ""}</p></details>
       </div>
     </section>`;
   }
@@ -2415,7 +2590,7 @@ footer {
         </div>
         ${barChart(bars, { aria: "週ごとの走行距離とフェーズの規定" })}
         ${histCaveat()}
-        <p class="hnote">規定は docs/athlete_profile.md のロードマップの週間距離（下限。回復・テーパー・レース週は上限）。9月より前の週は規定が無いので線を引いていない。</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">規定は docs/athlete_profile.md のロードマップの週間距離（下限。回復・テーパー・レース週は上限）。9月より前の週は規定が無いので線を引いていない。</p></details>
       </div>
     </section>`;
   }
@@ -2498,7 +2673,7 @@ footer {
           <line x1="${padL}" x2="${W - padR}" y1="${padT + ih}" y2="${padT + ih}" stroke="var(--line)"/>
           ${body}
         </svg>
-        <p class="hnote">帯の境目はラップの色分けと同じ（${esc(stageTxt || "現在の段階")}: R と T の境 ${paceTxt(ZONE_EDGE.r)}・T と M ${paceTxt(ZONE_EDGE.t)}・${HAS_S ? `M とステディ ${paceTxt(ZONE_EDGE.m)}・ステディと E ${paceTxt(ZONE_EDGE.s)}` : `M と E ${paceTxt(ZONE_EDGE.m)}`}）。帯と帯の間のペースは近いほうに入る。流し（3:20/km より速いラップ）は数えない。プロファイルの閾値走の考え方（ダニエルズのクルーズインターバル）では、T は合計で週間距離の 10% までが目安。練習の8割以上は E で積む（Haugen et al. 2022）。</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">帯の境目はラップの色分けと同じ（${esc(stageTxt || "現在の段階")}: R と T の境 ${paceTxt(ZONE_EDGE.r)}・T と M ${paceTxt(ZONE_EDGE.t)}・${HAS_S ? `M とステディ ${paceTxt(ZONE_EDGE.m)}・ステディと E ${paceTxt(ZONE_EDGE.s)}` : `M と E ${paceTxt(ZONE_EDGE.m)}`}）。帯と帯の間のペースは近いほうに入る。流し（3:20/km より速いラップ）は数えない。プロファイルの閾値走の考え方（ダニエルズのクルーズインターバル）では、T は合計で週間距離の 10% までが目安。練習の8割以上は E で積む（Haugen et al. 2022）。</p></details>
       </div>
     </section>`;
   }
@@ -2544,7 +2719,7 @@ footer {
         <div class="sub-h">距離別の最速タイム</div>
         <div class="ktiles rtiles">${pbTiles.join("")}</div>
         ${histCaveat()}
-        <p class="hnote">Garmin の記録（${esc(dm.start.slice(0, 7).replace("-", "/"))}〜）と評価の履歴から数えている。NEW は直近7日以内に出た記録。最速タイムは1km ごとのラップから、連続した区間のいちばん速いところを数えた値（ラップの区切りから測る。ワークアウトなどラップが1km 刻みでない走りは数えない）。${Object.keys(BASE_PB).length ? "ラップを読めない期間は Garmin の自己記録で補っている。" : "評価の履歴にある走り（2026/9/2〜）だけが対象。"}</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">Garmin の記録（${esc(dm.start.slice(0, 7).replace("-", "/"))}〜）と評価の履歴から数えている。NEW は直近7日以内に出た記録。最速タイムは1km ごとのラップから、連続した区間のいちばん速いところを数えた値（ラップの区切りから測る。ワークアウトなどラップが1km 刻みでない走りは数えない）。${Object.keys(BASE_PB).length ? "ラップを読めない期間は Garmin の自己記録で補っている。" : "評価の履歴にある走り（2026/9/2〜）だけが対象。"}</p></details>
       </div>
     </section>`;
   }
@@ -2642,7 +2817,7 @@ footer {
     return `<div class="divider"></div><div class="sub-h">M帯で走った区間の平均心拍</div>
       <p class="take">${take}</p>
       ${lineChart(pts, { aria: "M帯の連続区間の平均心拍の推移", color: "var(--z-m)", minSpan: 10, line: { v: cap, label: `M上限 ${cap}` } })}
-      <p class="hnote">数字は区間の平均心拍。ロングの後半（E のあと）の M は単発の M より心拍が上がりやすいので、並びで見る。同じ M帯で HR が明らかに下がってきたら、プロファイルでは判定の TT を前倒ししてよいとしている。</p>`;
+      <details class="expl"><summary>見かた</summary><p class="hnote">数字は区間の平均心拍。ロングの後半（E のあと）の M は単発の M より心拍が上がりやすいので、並びで見る。同じ M帯で HR が明らかに下がってきたら、プロファイルでは判定の TT を前倒ししてよいとしている。</p></details>`;
   }
 
   function progressHtml() {
@@ -2676,7 +2851,7 @@ footer {
         ${take ? `<p class="take">${take}</p>` : `<p class="hnote">${M_EDGE_TXT}/km 以内のラップが2本以上続いた記録はまだありません。</p>`}
         ${barChart(sBars, { aria: `走行ごとの${M_EDGE_TXT}以内の連続距離`, line: m.aimT ? { v: m.aimT.km, label: `目標 ${m.aimT.km}km` } : null })}
         ${steps ? `<div class="sub-h">1回あたりのMペース量の到達目標</div><ul class="steps">${steps}</ul>` : ""}
-        <p class="hnote">1kmラップのうち ${M_EDGE_TXT}/km 以内（流し・短いレペを除く）が何本続いたか。閾値走の本セットも含む。マラソンは目標ペース（${esc((D.race && D.race.pace) || "")}）を 42km 続ける競技なので、本数ではなくこの長さを伸ばす。${M_EDGE_TXT} は現在の${esc(stageTxt || "段階")}の M 帯（${bandTxt(ZN.M)}）の遅い側で、段階が上がればプロファイルの表から自動で変わる。</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">1kmラップのうち ${M_EDGE_TXT}/km 以内（流し・短いレペを除く）が何本続いたか。閾値走の本セットも含む。マラソンは目標ペース（${esc((D.race && D.race.pace) || "")}）を 42km 続ける競技なので、本数ではなくこの長さを伸ばす。${M_EDGE_TXT} は現在の${esc(stageTxt || "段階")}の M 帯（${bandTxt(ZN.M)}）の遅い側で、段階が上がればプロファイルの表から自動で変わる。</p></details>
         ${mHrHtml(m)}
       </div>
     </section>`);
@@ -2701,7 +2876,7 @@ footer {
         ${eTake ? `<p class="take">${eTake}</p>` : ""}
         ${ePts.length >= 2 ? lineChart(ePts, { aria: "E帯ラップの平均心拍の推移", color: "var(--z-e)", minSpan: 6, line: { v: E_CAP, label: `E上限 ${E_CAP}` } })
           : `<p class="hnote">E帯のラップが3本以上ある走りが2本たまると表示します。</p>`}
-        <p class="hnote">同じ帯を低い心拍で走れていれば、有酸素の土台が伸びている。暑さ・睡眠不足・疲労でも上がるので、1本ではなく並びで見る。Eだけの日に限り、1本目（アップ）は除いている。</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">同じ帯を低い心拍で走れていれば、有酸素の土台が伸びている。暑さ・睡眠不足・疲労でも上がるので、1本ではなく並びで見る。Eだけの日に限り、1本目（アップ）は除いている。</p></details>
         ${pPts.length >= 2 ? `<div class="divider"></div><div class="sub-h">Garmin フル予測の推移</div>
           ${lineChart(pPts, { aria: "Garmin フル予測の推移", color: "var(--z-t)", fmt: hmsOf, minSpan: 60,
             lines: [goalSec ? { v: goalSec, label: `目標 ${D.race.goal}` } : null,
@@ -2886,14 +3061,14 @@ footer {
     return `<section class="card">
       <div class="card-head"><h2>ロングと積み上げの目標</h2><span class="sub">30km 以降に持つ脚</span></div>
       <div class="card-body">
-        ${gs.length ? `<div class="sub-h">積み上げの目標</div>${goalsListHtml(gs)}<p class="hnote">目標はプロファイルの「確度を上げる条件」の表。</p><div class="divider"></div>` : ""}
+        ${gs.length ? `<div class="sub-h">積み上げの目標</div>${goalsListHtml(gs)}<div class="divider"></div>` : ""}
         ${take ? `<p class="take">${take}</p>` : ""}
         ${bars.length >= 2 ? `<div class="chart-legend" style="padding:0">
             <span><i style="background:var(--accent)"></i>30km 以上</span><span><i style="background:var(--z-e);opacity:.55"></i>20〜30km</span>
             <span class="ref">棒の高さ＝走った時間（レースは公式タイム）</span></div>
           ${barChart(bars, { aria: "ロングごとの走った時間", line: goalSec ? { v: goalSec / 60, label: `板橋の目標 ${hmsOf(goalSec)}`, at: "start" } : null })}` : ""}
         ${rows ? `<div class="sub-h">最近のロング（20km 以上）</div><ul class="longs">${rows}</ul>` : ""}
-        <p class="hnote">「ステディ以上」は ${paceTxt(S_EDGE)}/km より速いラップ（流しを除く）が続いた区間。給水などで1本だけ外れたラップは区間を切らない。プロファイルでは、ステディのロングで後半の HR が ${CAP["z-s"] || 155} を超えて戻らなければ、そこでステディを切って E に落とす。保てた距離が、指宿・板橋の入りのペースを決める材料になる。</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">「ステディ以上」は ${paceTxt(S_EDGE)}/km より速いラップ（流しを除く）が続いた区間。給水などで1本だけ外れたラップは区間を切らない。プロファイルでは、ステディのロングで後半の HR が ${CAP["z-s"] || 155} を超えて戻らなければ、そこでステディを切って E に落とす。保てた距離が、指宿・板橋の入りのペースを決める材料になる。</p></details>
       </div>
     </section>`;
   }
@@ -2994,7 +3169,7 @@ footer {
         ${ladderSvg(fm, stages, miles)}
         ${steps ? `<div class="sub-h">キロ4分の位置を動かす（判定の機会）</div><ul class="steps">${steps}</ul>` : ""}
         ${endur ? `<div class="divider"></div><div class="sub-h">距離への耐性</div><p class="lead">${endur}</p>` : ""}
-        <p class="hnote">VDOT はダニエルズの式でタイムから出した走力。10km・ハーフの実測は 5km に換算して並べている。段階の境目は docs/athlete_profile.md の「段階的なペースの引き上げ」の表、②③④は「キロ4分の位置を動かす」の表から読んでいる。</p>
+        <details class="expl"><summary>見かた</summary><p class="hnote">VDOT はダニエルズの式でタイムから出した走力。10km・ハーフの実測は 5km に換算して並べている。段階の境目は docs/athlete_profile.md の「段階的なペースの引き上げ」の表、②③④は「キロ4分の位置を動かす」の表から読んでいる。</p></details>
       </div>
     </section>`;
   }
@@ -3005,6 +3180,8 @@ footer {
      ====================================================================== */
   // memoDirty … 開いてから何か入力したか。入力していなければ、db を読み終えたときに保存済みの値で描き直す
   let memoDay = null, memoDraft = null, memoDirty = false, memoMsg = { t: "", cls: "" }, memoBusy = false;
+  // memoEdit … 保存済みの日でも入力欄を開いているか。保存済みの日は1行の要約だけを出す（2026-11-02〜）
+  let memoEdit = false;
   // 保存時刻（ISO・UTC）を「10/26 21:05」の JST で出す
   const jstStamp = (at) => { const t = Date.parse(at); if (!isFinite(t)) return ""; const j = new Date(t + 9 * 3600e3).toISOString(); return `${mdOf(j.slice(0, 10))} ${j.slice(11, 16)}`; };
   const noteSummary = (n) => {
@@ -3031,6 +3208,15 @@ footer {
     const mon = mondayOf(viewDay);
     const weekStrength = noteDays(mon, viewDay).filter(x => x.strength).length;
     const g = ((D.season && D.season.goals) || []).find(x => /補強/.test(x.label));
+    const dayBtns = `<div class="memo-days">${days.map((d, i) => `<button type="button" class="chipbtn" data-memo-day="${d}" aria-pressed="${d === memoDay}">${i ? "昨日" : "今日"} ${mdOf(d)}(${dowOf(d)})</button>`).join("")}</div>`;
+    const wk = g ? `<p class="memo-wk">今週（月〜）の補強 <b>${weekStrength}</b> / ${esc(g.target)}</p>` : "";
+    if (saved && !memoEdit && !memoDirty) {
+      return `${dayBtns}
+      <div class="memo-done"><span class="memo-sum">${noteSummary(saved) || "記入なし"}</span>
+        <button type="button" class="chipbtn" data-memo-edit="1">直す</button></div>
+      <span class="memo-st ${memoMsg.cls}">${memoMsg.t ? esc(memoMsg.t) : `保存済み（${esc(jstStamp(saved.at))}）`}</span>
+      ${wk}`;
+    }
     return `
       <div class="memo-days">${days.map((d, i) => `<button type="button" class="chipbtn" data-memo-day="${d}" aria-pressed="${d === memoDay}">${i ? "昨日" : "今日"} ${mdOf(d)}(${dowOf(d)})</button>`).join("")}</div>
       <div class="memo-row"><span class="memo-l">脚の張り<span>0 なし 〜 10 強い</span></span>${scale("legs", 0, 10, "脚の張り")}</div>
@@ -3045,12 +3231,12 @@ footer {
         <button type="button" class="memo-save" data-memo-save="1" ${can && !memoBusy ? "" : "disabled"}>保存</button>
         <span class="memo-st ${memoMsg.cls}">${memoMsg.t ? esc(memoMsg.t) : saved ? `保存済み（${esc(jstStamp(saved.at))}）` : can ? "未保存" : notesState === "loading" ? "読み込んでいます…" : "この画面では保存できません（claude.ai で開くと保存できる）"}</span>
       </div>
-      <p class="hnote">次の 12:00 の分析でコーチが読み、評価と翌日以降のメニューに使う。痛みは「あり」にしたうえで、走るのをやめる判断を優先すること。${g ? ` 今週（月〜）の補強 <b>${weekStrength}</b> / ${esc(g.target)}。` : ""}</p>`;
+      ${wk}`;
   }
   function memoCard() {
     if (!viewDay) return "";
     return `<section class="card">
-      <div class="card-head"><h2>体感メモ</h2><span class="sub">脚の張り・きつさ・痛みをコーチに渡す</span></div>
+      <div class="card-head"><h2>体感メモ</h2><span class="sub">12:00 の分析でコーチが読む</span></div>
       <div class="card-body" id="memo">${memoBody()}</div>
     </section>`;
   }
@@ -3065,7 +3251,7 @@ footer {
     memoBusy = true; memoMsg = { t: "保存しています…", cls: "" }; repaintMemo();
     try {
       await dbRef.collection("runs").doc(NOTE_PREFIX + memoDay).set(doc);
-      notesMap[memoDay] = doc; memoDraft = { ...doc }; memoDirty = false;
+      notesMap[memoDay] = doc; memoDraft = { ...doc }; memoDirty = false; memoEdit = false;
       memoMsg = { t: "保存しました。次の 12:00 の分析で読みます", cls: "ok" };
     } catch (e) {
       const code = e && e.code;
@@ -3078,8 +3264,12 @@ footer {
   }
   function repaintMemo() { const el = document.getElementById("memo"); if (el) el.innerHTML = memoBody(); }
 
+  // 成長の記録は縦に長いので、先頭に見出しへ飛ぶ札を置く（2026-11-02〜）
+  const GNAV = [["gcal", "カレンダー"], ["longs", "ロング"], ["ladder", "走力"], ["rec", "自己記録"], ["wkly", "週間"],
+    ["mix", "強度"], ["mon", "月間"], ["prog", "M・効率・予測"], ["garch", "読みもの"]];
   function growPanel() {
-    return `<section class="card">
+    return `<nav class="gnav" aria-label="成長の記録の見出し">${GNAV.map(([id, l]) => `<button type="button" data-jump="${id}">${l}</button>`).join("")}</nav>
+      <section class="card" id="gcal">
         <div class="card-head"><h2>トレーニングカレンダー</h2><span class="sub">週は月曜始まり</span></div>
         <div class="card-body" id="cal">${calendarHtml()}</div>
       </section>
@@ -3090,7 +3280,7 @@ footer {
       <div class="stack" id="mix">${intensityHtml()}</div>
       <div class="stack" id="mon">${monthlyHtml()}</div>
       <div class="stack" id="prog">${progressHtml()}</div>
-      <section class="card">
+      <section class="card" id="garch">
         <div class="card-head"><h2>読みものの記録</h2></div>
         <div class="card-body" id="arch">${archiveHtml()}</div>
       </section>`;
@@ -3141,7 +3331,7 @@ footer {
     const tabDefs = [
       { id: "home",   label: "ホーム",         short: "ホーム", body: home.join("") },
       { id: "run",    label: "走りの詳細",     short: "走り",   warn: runWarn, body: runPanel() },
-      { id: "plan",   label: "予定",           short: "予定",   body: seasonCard() + planCard() },
+      { id: "plan",   label: "予定",           short: "予定",   body: planCard() + seasonCard() },
       { id: "health", label: "コンディション", short: "体調",   warn: healthWarn, body: condCard() },
       { id: "grow",   label: "成長の記録",     short: "成長",   body: growPanel() }
     ].filter(x => x.body);
@@ -3207,6 +3397,15 @@ footer {
     if (!t) return;
     const go = t.closest("[data-go]");
     if (go) { const i = tabIds.indexOf(go.dataset.go); if (i >= 0) select(i, false, true); return; }
+    const jump = t.closest("[data-jump]");
+    if (jump) {
+      const el = document.getElementById(jump.dataset.jump);
+      const card = el && (el.matches("section") ? el : el.querySelector("section.card"));
+      if (card) card.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    const pn = t.closest("[data-plan-note]");
+    if (pn) { pn.classList.toggle("open"); pn.setAttribute("aria-expanded", String(pn.classList.contains("open"))); return; }
     const day = t.closest(".cday[data-day]");
     if (day) {
       calSel = calSel === day.dataset.day ? null : day.dataset.day;
@@ -3225,7 +3424,8 @@ footer {
     if (t.closest("[data-arch-more]")) { archShow += 10; document.getElementById("arch").innerHTML = archiveHtml(); return; }
     // 体感メモ。値のボタンは押し直すと外れる（未記入に戻す）
     const mday = t.closest("[data-memo-day]");
-    if (mday) { memoDay = mday.dataset.memoDay; memoDraft = null; memoDirty = false; memoMsg = { t: "", cls: "" }; repaintMemo(); refocus(`[data-memo-day="${memoDay}"]`); return; }
+    if (t.closest("[data-memo-edit]")) { memoEdit = true; memoMsg = { t: "", cls: "" }; repaintMemo(); refocus(`[data-memo="legs"]`); return; }
+    if (mday) { memoDay = mday.dataset.memoDay; memoDraft = null; memoDirty = false; memoEdit = false; memoMsg = { t: "", cls: "" }; repaintMemo(); refocus(`[data-memo-day="${memoDay}"]`); return; }
     const mm = t.closest("[data-memo]");
     if (mm && memoDraft) {
       const k = mm.dataset.memo, raw = mm.dataset.v;
@@ -3237,6 +3437,10 @@ footer {
       return;
     }
     if (t.closest("[data-memo-save]")) { saveMemo(); return; }
+  });
+  appEl.addEventListener("keydown", (e) => {
+    const pn = e.target && e.target.closest && e.target.closest("[data-plan-note]");
+    if (pn && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pn.click(); }
   });
   const refocus = (sel) => { const el = document.querySelector("#memo " + sel); if (el) el.focus({ preventScroll: true }); };
   // メモの文字は打つたびに下書きへ（描き直さない。入力中のカーソルを動かさないため）
