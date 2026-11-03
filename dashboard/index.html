@@ -34,11 +34,11 @@
 
   画面の構成（2026-09-30 に再構築）— 1つの情報は1か所にだけ出す:
     2026-11-02 の見直し: 文章は読まれていなかったので、ホームは数字・色・札だけにし、文章は畳み（details）か別タブへ。
-    ホーム       … カウントダウン（本命の前のレースが14日を切ったらそちらを大きく）/ 今日の走り（判定・4指標・ラップの帯・要点の札）/
+    ホーム       … カウントダウン（本命の前のレースが14日を切ったらそちらを大きく）/ 今日の走り（判定・4指標・ラップの帯・要点の札・次の一手）/
                    次のメニュー（区間の帯・帯ごとの目標。区間の一覧・切り替え条件・準備は畳む）/ 体感メモ（本人が書く。2026-10-26〜）/ 体調 /
                    現在地（フル予測・走力 VDOT・Mペースの3枚と直近7日・今月）/ 今日の読みもの
                    開いた時刻が翌朝なら「今日のメニュー」を先頭に出す（分析は前日12:00のものなので）
-    走りの詳細   … 講評（結論の1文と要点の本文）・全指標・ラップ・4軸の評価・週とシーズンの視点
+    走りの詳細   … 講評（要は → 課題と次の一手 → 良かった点。2026-11-03〜）・全指標・ラップ・4軸の評価・週とシーズンの視点
     予定         … この先1週間・シーズンの帯とフェーズ
     コンディション … 健康データ
     成長の記録   … トレーニングカレンダー（月を選べる）・ロングと積み上げの目標・走力の階段・自己記録・週間走行距離の推移・
@@ -456,18 +456,6 @@ body {
 .kstat-v em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
 .kstat-n { font-size: 10.5px; color: var(--warn); line-height: 1.45; }
 
-/* 要点リスト。○=良かった点 / △=外した点 / ・=留保 */
-.pts { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 9px; }
-.pt {
-  display: grid; grid-template-columns: 16px minmax(7em, max-content) 1fr;
-  gap: 2px 11px; align-items: baseline; font-size: 13.5px; line-height: 1.75;
-}
-.pt-i { font-family: var(--num); font-weight: 700; font-size: 12px; text-align: center; }
-.pt.good .pt-i { color: var(--good); }
-.pt.bad  .pt-i { color: var(--warn); }
-.pt.note .pt-i { color: var(--ink-3); }
-.pt-l { font-weight: 700; color: var(--ink); }
-.pt-t { color: var(--ink-2); max-width: 60ch; }
 .extra-line { font-size: 12.5px; color: var(--ink-2); }
 
 /* ---------- ホーム: 次のメニュー ---------- */
@@ -918,6 +906,28 @@ svg.ladder { display: block; width: 100%; height: auto; }
 .memo-sum b { color: var(--ink); font-family: var(--num); }
 .memo-wk { margin: 0; font-size: 12px; color: var(--ink-3); }
 .memo-wk b { color: var(--ink); font-family: var(--num); }
+/* 講評: 要は → 課題と次の一手 → 良かった点 */
+.gist { display: flex; flex-direction: column; gap: 2px; border-left: 4px solid var(--accent); padding: 2px 0 2px 12px; }
+.gist span, .rv-k { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--accent); }
+.gist p { margin: 0; font-size: 17px; font-weight: 700; line-height: 1.6; color: var(--ink); text-wrap: pretty; }
+.gist.sm p { font-size: 14.5px; }
+.rv { display: flex; flex-direction: column; gap: 14px; }
+.rv-sec { display: flex; flex-direction: column; gap: 8px; }
+.rv-i { border: 1px solid var(--line-soft); border-left: 3px solid var(--ink-3); border-radius: 4px; padding: 9px 12px; display: flex; flex-direction: column; gap: 3px; }
+.rv-i.bad { border-left-color: var(--warn); }
+.rv-h { font-size: 14.5px; font-weight: 700; display: flex; gap: 7px; align-items: baseline; }
+.rv-h i { font-style: normal; font-family: var(--num); font-size: 12px; color: var(--ink-3); }
+.rv-i.bad .rv-h i { color: var(--warn); }
+.rv-why { margin: 0; font-size: 13px; color: var(--ink-2); line-height: 1.7; }
+.rv-act { margin: 2px 0 0; font-size: 13.5px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); border-radius: 3px; padding: 5px 9px; line-height: 1.6; }
+.rv-act b { font-size: 11px; margin-right: 8px; letter-spacing: .06em; }
+.rv-goods { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.rv-goods li { font-size: 13px; line-height: 1.6; color: var(--ink-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
+.rv-goods li::before { content: "○"; font-family: var(--num); font-weight: 700; font-size: 11px; color: var(--good); }
+.rv-goods b { color: var(--ink); }
+.nexts { display: flex; flex-direction: column; gap: 4px; background: var(--accent-soft); border-radius: 4px; padding: 8px 12px; }
+.nexts ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 2px; }
+.nexts li { font-size: 13.5px; font-weight: 700; color: var(--accent-ink); line-height: 1.6; }
 /* 4軸: 名前と判定だけを並べ、押すと根拠 */
 details.axis { border: 1px solid var(--line-soft); border-radius: 4px; padding: 8px 12px; }
 details.axis > summary { cursor: pointer; list-style: none; justify-content: space-between; }
@@ -968,8 +978,6 @@ footer {
   .kstats { grid-template-columns: repeat(2, 1fr); }
   .kstat:nth-child(2n) { border-right: 0; }
   .kstat:nth-child(-n+2) { border-bottom: 1px solid var(--line-soft); }
-  .pt { grid-template-columns: 15px 1fr; grid-template-areas: "i l" ". t"; gap: 1px 8px; font-size: 13px; }
-  .pt-i { grid-area: i; } .pt-l { grid-area: l; } .pt-t { grid-area: t; }
   .rx-top { padding: 12px 14px 0; }
   .rx-title { font-size: 19px; }
   .rx-list { grid-template-columns: 1fr; gap: 0; }
@@ -1421,14 +1429,24 @@ footer {
       </div>`).join("")}</div>`;
   }
 
+  /* 講評（2026-11-03 に作り直し）。「数字を並べただけの文は読まれない」という指摘で、
+     課題（△ と ・）は「何が悪かったか（label）→ なぜ（text）→ 次どうする（action）」の3段で出し、
+     良かった点（○）は1行ずつに縮める。action の無い古い履歴は text だけを出す。 */
   function pointsList(pts) {
     if (!pts || !pts.length) return "";
-    return `<ul class="pts">${pts.map(p => `<li class="pt ${esc(p.tone || "note")}">
-        <span class="pt-i">${toneMark[p.tone] || toneMark.note}</span>
-        <span class="pt-l">${esc(p.label)}</span>
-        <span class="pt-t">${esc(p.text)}</span>
-      </li>`).join("")}</ul>`;
+    const issues = pts.filter(p => p.tone !== "good"), goods = pts.filter(p => p.tone === "good");
+    return `<div class="rv">
+      ${issues.length ? `<div class="rv-sec"><span class="rv-k">課題と次の一手</span>${issues.map(p => `<div class="rv-i ${esc(p.tone || "note")}">
+          <div class="rv-h"><i>${toneMark[p.tone] || toneMark.note}</i>${esc(p.label)}</div>
+          ${p.text ? `<p class="rv-why">${esc(p.text)}</p>` : ""}
+          ${p.action ? `<p class="rv-act"><b>次は</b>${esc(p.action)}</p>` : ""}
+        </div>`).join("")}</div>` : ""}
+      ${goods.length ? `<div class="rv-sec"><span class="rv-k">良かった点</span><ul class="rv-goods">${goods.map(p =>
+          `<li><b>${esc(p.label)}</b>${p.text ? `<span>${esc(p.text)}</span>` : ""}</li>`).join("")}</ul></div>` : ""}
+    </div>`;
   }
+  // 結論の1文。「要は」として大きく出す
+  const gist = (h, small) => h ? `<div class="gist${small ? " sm" : ""}"><span>要は</span><p>${esc(h)}</p></div>` : "";
 
   // 履歴のラップは "sec:hr,sec:hr,…" の1行で持つ。ペースは秒から復元できるので保存しない
   function expandLaps(v) {
@@ -1773,6 +1791,7 @@ footer {
           </div>`).join("")}</div>` : ""}
         ${lapStrip(t.laps, t.type)}
         ${pointTags(t.points)}
+        ${nextActions(t.points)}
         ${extras.length ? `<div class="extra-line">同じ日のほかの記録: ${extras.map(x => `${esc(x.type)} ${esc(x.verdict || "")}`).join(" ／ ")}</div>` : ""}
         <button class="more" type="button" data-go="run">講評・ラップ・全指標 →</button>
       </div>
@@ -1788,15 +1807,24 @@ footer {
       `<button type="button" class="ptag ${esc(p.tone || "note")}" data-go="run" title="${esc(p.text || "")}"><i>${toneMark[p.tone] || toneMark.note}</i>${esc(p.label)}</button>`).join("")}</div>`;
   }
 
+  // 課題ごとの「次は」だけをホームに出す（理由は「走りの詳細」）。行動につながる部分なので畳まない
+  function nextActions(pts) {
+    const acts = (pts || []).filter(p => p.tone !== "good" && p.action).slice(0, 3);
+    if (!acts.length) return "";
+    return `<div class="nexts"><span class="rv-k">次の一手</span><ul>${acts.map(p => `<li>${esc(p.action)}</li>`).join("")}</ul></div>`;
+  }
+
   /* ラップの帯（ホーム用の小さい版）。1本＝1本の棒で、色は帯（ゾーン）、高さは速さ、下の数字は心拍。
      帯の心拍上限を超えたラップは心拍を赤字にする。全体のグラフと一覧は「走りの詳細」。 */
   function lapStrip(laps, type) {
-    laps = expandLaps(laps);
+    // 端数のラップ（最後の 0.01km など）は棒にしない
+    laps = expandLaps(laps).filter(l => !(l.km != null && Number(l.km) < 0.3));
     if (!laps || laps.length < 2) return "";
     // E の日（題が E 系で、M ペースの連続も無い日）は、どのラップも E の上限で見る。処方が E なので、
     // ステディ帯に寄ったラップを帯ごとの上限（155）で見ると、E の心拍を守れなかったことが見えなくなる
     const eDay = zoneOfType(type, laps) === "E";
-    const capFor = (z) => eDay ? E_CAP : CAP[z];
+    // 質練習の日の E のラップはアップ・つなぎ・ダウンなので、心拍の上限では見ない（つなぎで 140 を超えるのは普通）
+    const capFor = (z) => eDay ? E_CAP : z === "z-e" ? null : CAP[z];
     const secs = laps.map(l => l.sec).filter(Number.isFinite);
     const fast = Math.min(...secs), slow = Math.max(...secs);
     const showTxt = laps.length <= 16;
@@ -2081,7 +2109,7 @@ footer {
     const extras = Array.isArray(t.extra) ? t.extra : [];
     // 2本目以降は結論と要点もここにしか出ない（ホームは1本目だけ）
     const extraCards = extras.map((x, i) => runDetailCard(x, t.date, t.dow, `${i + 2}本目`).replace("</section>",
-      `<div class="card-body">${x.headline ? `<p class="headline">${esc(x.headline)}</p>` : ""}${pointsList(x.points)}</div></section>`)).join("");
+      `<div class="card-body">${gist(x.headline)}${pointsList(x.points)}</div></section>`)).join("");
     const axes = (D.axes || []).length ? `<section class="card">
       <div class="card-head"><h2>4軸の評価</h2><span class="sub">押すと根拠</span></div>
       <div class="card-body"><div class="axes">${D.axes.map(a => `<details class="axis ${esc(a.state)}">
@@ -2099,7 +2127,7 @@ footer {
     const review = t.headline || (t.points || []).length ? `<section class="card">
       <div class="card-head"><h2>講評</h2><span class="sub">${t.date ? `${mdOf(t.date)}(${esc(t.dow)})` : ""}</span>
         <span class="pill ${t.verdict === "—" ? "rest" : vcls(t.verdict).replace("v-", "")}">${esc(t.verdict || "")} ${esc(t.verdictLabel || "")}</span></div>
-      <div class="card-body">${t.headline ? `<p class="headline">${esc(t.headline)}</p>` : ""}${pointsList(t.points)}</div>
+      <div class="card-body">${gist(t.headline)}${pointsList(t.points)}</div>
     </section>` : "";
     return review + runDetailCard(t, t.date, t.dow, extras.length ? "1本目" : "走りのデータ") + extraCards + axes + view;
   }
@@ -2282,7 +2310,7 @@ footer {
     return `<div class="run1">
       <div class="detail-head"><b>${mdOf(h.d)}(${esc(h.dow || dowOf(h.d))})${h.seq > 1 ? ` ${h.seq}本目` : ""}</b><span>${esc(h.type || "")}</span>
         <span class="pill ${h.verdict === "—" || !h.verdict ? "rest" : vcls(h.verdict).replace("v-", "")}">${esc(h.verdict || "")} ${esc(h.verdictLabel || "")}</span></div>
-      ${h.headline ? `<p class="headline" style="font-size:14px">${esc(h.headline)}</p>` : ""}
+      ${gist(h.headline, true)}
       ${statsGrid(h.stats)}
       ${h.effect && h.effect !== "—" ? `<div class="effect">トレーニング効果: ${esc(h.effect)}</div>` : ""}
       ${laps.length ? `<div class="chart-box">${lapChart(laps)}${lapTable(laps, "cal:" + key)}</div>` : ""}
