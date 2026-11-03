@@ -122,6 +122,11 @@ function check(html, opts = {}) {
     if ((arr(t.stats) || []).length) err("休養日の stats は空配列");
     if ((arr(t.laps) || []).length) err("休養日の laps は空配列");
   }
+  if (isStr(t.headline) && !rest) {
+    if (t.headline.length > 55) warn(`today.headline が ${t.headline.length} 字（「要は」の1文・40字前後まで）`);
+    const hn = (t.headline.match(/\d+(?:[.:]\d+)?/g) || []).length;
+    if (hn > 5) warn(`today.headline に数字が ${hn} 個（数字の羅列にしない。判定と次の一手を言い切る）`);
+  }
   const pts = arr(t.points);
   if (!pts) err("today.points が配列でない");
   else {
@@ -132,9 +137,16 @@ function check(html, opts = {}) {
       if (!TONES.includes(p.tone)) err(`points[${i}].tone "${p.tone}" は good/bad/note`);
       if (!isStr(p.label)) err(`points[${i}].label がない`);
       else if (p.label.length > 14) warn(`points[${i}].label が ${p.label.length} 字（6〜12字の名詞句）`);
-      else if (!/\d/.test(p.label) && p.tone === "bad") warn(`points[${i}].label に数字がない（ホームはラベルだけを札で出す。外した点は「E の心拍 7/8本」のように数字を入れる）`);
       if (!isStr(p.text)) err(`points[${i}].text がない`);
-      else if (!/\d/.test(p.text)) warn(`points[${i}].text に数字がない（規約2）`);
+      else {
+        // 数字の羅列を止める（2026-11-03）。根拠の数字は1〜2個まで、文の主役は「なぜ」
+        const nums = (p.text.match(/\d+(?:[.:]\d+)?/g) || []).length;
+        if (nums > 4) warn(`points[${i}].text に数字が ${nums} 個（数字の羅列。根拠は1〜2個に絞り、なぜを書く）`);
+        if (p.text.length > 70) warn(`points[${i}].text が ${p.text.length} 字（なぜ を1文・50字前後まで）`);
+      }
+      if (p.tone !== "good" && !isStr(p.action)) warn(`points[${i}].action がない（${p.tone === "bad" ? "△" : "・"} には「次にどうするか」を1文で書く）`);
+      if (p.tone === "good" && isStr(p.action)) warn(`points[${i}].action は good には書かない`);
+      if (isStr(p.action) && /意識する|気をつける|注意する/.test(p.action) && !/\d/.test(p.action)) warn(`points[${i}].action が抽象的（いつ・どの数字で・どうするかを書く）`);
     });
   }
   const stats = arr(t.stats) || [];
