@@ -125,12 +125,14 @@ function check(html, opts = {}) {
   const pts = arr(t.points);
   if (!pts) err("today.points が配列でない");
   else {
-    if (pts.length < 4) warn(`today.points が ${pts.length} 個（4〜7個が規定）`);
+    if (pts.length < 3) warn(`today.points が ${pts.length} 個（3〜5個が規定）`);
+    if (pts.length > 5) warn(`today.points が ${pts.length} 個（3〜5個が規定。ホームでは札として並ぶ）`);
     if (pts.length > 7) err(`today.points が ${pts.length} 個（最大7個）`);
     pts.forEach((p, i) => {
       if (!TONES.includes(p.tone)) err(`points[${i}].tone "${p.tone}" は good/bad/note`);
       if (!isStr(p.label)) err(`points[${i}].label がない`);
       else if (p.label.length > 14) warn(`points[${i}].label が ${p.label.length} 字（6〜12字の名詞句）`);
+      else if (!/\d/.test(p.label) && p.tone === "bad") warn(`points[${i}].label に数字がない（ホームはラベルだけを札で出す。外した点は「E の心拍 7/8本」のように数字を入れる）`);
       if (!isStr(p.text)) err(`points[${i}].text がない`);
       else if (!/\d/.test(p.text)) warn(`points[${i}].text に数字がない（規約2）`);
     });
@@ -231,10 +233,17 @@ function check(html, opts = {}) {
   });
   const rx = arr(tm.prescription);
   if (!rx) err("tomorrow.prescription が配列でない");
-  else rx.forEach((p, i) => { if (!isStr(p.k) || !isStr(p.v)) err(`prescription[${i}] は {k, v}`); });
+  else {
+    rx.forEach((p, i) => { if (!isStr(p.k) || !isStr(p.v)) err(`prescription[${i}] は {k, v}`); });
+    if (rx.length > 3) warn(`tomorrow.prescription が ${rx.length} 項目（最大3項目）`);
+  }
+  if (isStr(tm.why) && sentences(tm.why) > 2) warn(`tomorrow.why が ${sentences(tm.why)} 文（1〜2文が規定）`);
   const alt = arr(tm.alt);
   if (!alt || !alt.length) err("tomorrow.alt は配列（1条件1要素）");
-  else alt.forEach((s, i) => { if (/^[①②③④⑤]/.test(String(s))) warn(`alt[${i}] に丸数字がある（描画側が番号を振る）`); });
+  else {
+    alt.forEach((s, i) => { if (/^[①②③④⑤]/.test(String(s))) warn(`alt[${i}] に丸数字がある（描画側が番号を振る）`); });
+    if (alt.length > 3) warn(`tomorrow.alt が ${alt.length} 件（最大3件。起こりやすい条件だけ）`);
+  }
 
   // --- weekPlan ---
   const wp = D.weekPlan || {};
@@ -351,7 +360,7 @@ function check(html, opts = {}) {
   const f = h.fitness || {};
   if (!f.race || !Object.values(f.race).some(isStr)) warn("health.fitness.race にレース予測がない");
   if (!isStr(h.read)) err("health.read がない");
-  else if (sentences(h.read) > 3) warn(`health.read が ${sentences(h.read)} 文（2〜3文が規定）`);
+  else if (sentences(h.read) > 2) warn(`health.read が ${sentences(h.read)} 文（1〜2文が規定）`);
 
   // --- news（今日の読みもの。2026-09-30 追加。取れなかった日は null） ---
   if (D.news == null) {
