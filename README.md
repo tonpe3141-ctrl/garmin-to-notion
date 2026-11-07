@@ -11,7 +11,7 @@ Garmin のランニング記録と健康データを毎朝取り込み、Claude 
 ```mermaid
 graph LR
     Garmin[(Garmin Connect)]
-    subgraph "8:30 JST — GitHub Actions"
+    subgraph "8:17〜11:17 JST — GitHub Actions"
         Sync[src/ガーミン活動データ取得.py]
     end
     subgraph "Google ドライブ"
@@ -38,7 +38,7 @@ graph LR
 
 | 時刻（JST） | 担当 | すること |
 |------------|------|---------|
-| 8:30（実際は 10〜11時ごろ） | GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`） | Garmin から走行・ラップ・睡眠・HRV などを取り、Google ドライブのドキュメントとスプレッドシートを書き換える。GitHub の予約実行は混雑で1〜2時間遅れる |
+| 8:17〜11:17 の4回予約（最初に成功した1回だけ取得） | GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`） | Garmin から走行・ラップ・睡眠・HRV などを取り、Google ドライブのドキュメントとスプレッドシートを書き換える。GitHub の予約実行は混雑で数時間遅れることがあるので、予約を4回に分けている |
 | 12:00 | Claude Routine | ドキュメントと体感メモを読んで講評・明日のメニュー・1週間の予定・今日の読みものを作り、ダッシュボードを更新する。評価を db に1件、ウィジェット用データを Notion に書く |
 | いつでも | 自分 | ダッシュボードかウィジェットを見る。翌朝に開くと「今日のメニュー」が先頭に出る。走ったらホームの**体感メモ**に脚の張り・きつさ・痛み・補強を書く（Garmin では分からない脚の情報を、次の 12:00 のコーチが読む） |
 
