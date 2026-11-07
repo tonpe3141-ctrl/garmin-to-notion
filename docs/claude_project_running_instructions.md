@@ -23,7 +23,7 @@
 
 - ドキュメントID: `1OnOX6UxztuNBqixW8g8-N8YljathVDJ26HboLNdQISU`（ドライブ上の名前は「ランニングログ」）
 - 取得方法: Google Drive コネクタの `read_file_content`（環境によっては `google_drive_fetch`。どちらも同じ文書を読む）
-- 更新タイミング: 毎朝 8:30 JST に GitHub Actions が自動更新。先頭行の `最終更新:` で鮮度を確かめる
+- 更新タイミング: 毎朝 GitHub Actions が自動更新（8:17〜11:17 JST の予約のうち最初に成功した1回）。先頭行の `最終更新:` で鮮度を確かめる
 
 ドキュメントは以下の4セクションで構成されている（2026-10-26 に④を全期間の週次サマリーに変更）：
 

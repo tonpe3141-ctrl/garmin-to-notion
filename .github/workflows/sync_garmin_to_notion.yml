@@ -2,14 +2,54 @@ name: Running Log
 
 on:
   schedule:
-    - cron: '30 23 * * *' # Daily at 8:30 AM JST (23:30 UTC)
+    # GitHub の予約実行は混雑で遅れる（2026-11 は 23:30 UTC の予約が 02:57〜03:57 UTC＝12時前後まで遅れ、
+    # 12:00 JST のコーチ Routine に間に合わない日が続いた）。毎時 0分・30分は特に混むので避け、
+    # 8:17〜11:17 JST に1時間おきに4回予約する。最初に成功した回だけが取得し、残りは check ジョブで即終了する。
+    - cron: '17 23 * * *' # 8:17 JST
+    - cron: '17 0 * * *'  # 9:17 JST
+    - cron: '17 1 * * *'  # 10:17 JST
+    - cron: '17 2 * * *'  # 11:17 JST
   workflow_dispatch:
 env:
   # 日付の区切りは JST。Montreal のままだと 8:30 JST 実行時に「今日」が前日になる。
   TZ: 'Asia/Tokyo'
 
+# 遅れた予約がまとめて走っても、同時に Garmin へログインしない（順に並べ、後の回は check で止まる）
+concurrency:
+  group: running-log
+  cancel-in-progress: false
+
 jobs:
+  check:
+    # 予約実行のとき、今日（JST）すでに成功した取得があれば以降は走らせない。
+    # Garmin へのログイン回数を1日1回に保つため（ログインを増やすと 429・403 で弾かれやすい）。
+    # 手動実行（workflow_dispatch）は常に走らせる。
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    permissions:
+      actions: read
+    outputs:
+      run: ${{ steps.done.outputs.run }}
+    steps:
+      - id: done
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          if [ "${{ github.event_name }}" != "schedule" ]; then
+            echo "手動実行なので取得する"; echo "run=true" >> "$GITHUB_OUTPUT"; exit 0
+          fi
+          since=$(date -u -d "$(TZ=Asia/Tokyo date +%F) 00:00 +0900" +%FT%TZ)
+          n=$(gh api "repos/${GITHUB_REPOSITORY}/actions/workflows/sync_garmin_to_notion.yml/runs?status=success&created=%3E%3D${since}&per_page=20" \
+                --jq "[.workflow_runs[] | select(.id != ${GITHUB_RUN_ID})] | length" || echo 0)
+          if [ "${n:-0}" -gt 0 ]; then
+            echo "今日（JST）はすでに ${n} 回成功しているので取得しない（${since} 以降）"; echo "run=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "今日（JST）はまだ成功していないので取得する"; echo "run=true" >> "$GITHUB_OUTPUT"
+          fi
+
   sync:
+    needs: check
+    if: needs.check.outputs.run == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 30
     permissions:
