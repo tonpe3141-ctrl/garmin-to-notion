@@ -80,6 +80,11 @@ Routine が毎日 **8:12 と 10:12 JST** に `workflow_dispatch`（入力 `skip_
 `skip_if_done=true` のときは予約実行と同じく `check` を通るので、10:12 の回や遅れて来た予約は、すでに成功していれば数秒で終わる。
 4回の予約は Routine が動かなかった日の予備として残している。
 
+Routine の作りに注意: 毎回新しいセッションを立てる Routine にはリポジトリが付かず、GitHub が 403 で断る（2026-11-10 に確認）。
+そのため、リポジトリを付けた常駐セッション「Garmin 同期キック（Routine の受け口）」へ Routine が毎回メッセージを送り、
+そのセッションが GitHub MCP の `actions_run_trigger` で起動する形にしている。**このセッションはアーカイブしない。**
+消えたら、リポジトリ付きのセッションを作り直し、Routine の宛先をそのセッションにして作り直す。
+
 ## 活動の重複（2026-10-26 に修正）
 
 Playwright の事前取得（`scripts/refresh_garmin_cookies_playwright.py`）は、ページネーション用に自分で呼んだ `fetch` のレスポンスも
