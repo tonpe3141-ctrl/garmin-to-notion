@@ -8,7 +8,7 @@ Routine の実行環境から Garmin へ接続できないため（egress プロ
 
 ```mermaid
 graph TD
-    subgraph "取得 — GitHub Actions 毎日 8:17〜11:17 JST（最初に成功した1回）"
+    subgraph "取得 — GitHub Actions 毎日 8:12 JST（Routine から起動。予約は予備）"
         Auth[認証<br>Playwright → Cookie → トークン → パスワード の順に試す]
         Sync[src/ガーミン活動データ取得.py]
         Auth --> Sync
@@ -73,6 +73,12 @@ GitHub の予約実行は混雑で遅れる。2026-10 は 23:30 UTC（8:30 JST�
 最初に成功した回だけが Garmin から取得し、残りの回は `check` ジョブが「今日（JST）すでに成功した実行がある」ことを
 確かめて数秒で終わる。Garmin へのログインは1日1回のまま。取得に失敗した回は成功に数えないので、次の予約が取り直す。
 手動実行（workflow_dispatch）は check に関係なく必ず取得する。
+
+2026-11-08 からは遅れがさらに広がり（8:17 の予約が 11:30 以降、4回目は 18〜19 時）、11-10 は正午までに1回も走らなかった。
+予約を増やしても GitHub 側の遅れは避けられないので、**2026-11-10 から主の起動を Claude の Routine「Garmin 同期キック」に移した。**
+Routine が毎日 **8:12 と 10:12 JST** に `workflow_dispatch`（入力 `skip_if_done=true`）を送る。dispatch は数秒で始まり、
+`skip_if_done=true` のときは予約実行と同じく `check` を通るので、10:12 の回や遅れて来た予約は、すでに成功していれば数秒で終わる。
+4回の予約は Routine が動かなかった日の予備として残している。
 
 ## 活動の重複（2026-10-26 に修正）
 

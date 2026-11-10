@@ -50,7 +50,7 @@ Garmin のデータを毎朝 Google ドライブへ取り込むまでの設定�
 
 1. **Actions** タブ →「Running Log」→「Run workflow」で手動実行する。
 2. 成功したら、ドライブのドキュメントの先頭行 `最終更新:` が今の時刻になっていることを確かめる。
-3. 以降は毎朝 8:17〜11:17 JST に1時間おきに予約され、最初に成功した1回だけが取得する（`.github/workflows/sync_garmin_to_notion.yml` の `cron`）。
+3. 以降は毎朝 8:12・10:12 JST に Claude の Routine「Garmin 同期キック」が `workflow_dispatch`（`skip_if_done=true`）で起動し、最初に成功した1回だけが取得する。`.github/workflows/sync_garmin_to_notion.yml` の `cron` は Routine が動かなかった日の予備。
 
 手元で試すときは `.example.env` を `.env` にコピーして値を入れ、`python src/ガーミン活動データ取得.py` を実行する。
 
