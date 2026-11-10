@@ -22,7 +22,7 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 | Notion のウィジェット用ページの更新 | 可（例外） | STEP 6.8 の1ページだけ。`.claude/settings.json` のフックで、そのページの `replace_content` だけを承認なしで通す |
 | Artifact の発行・更新 | 可 | 固定URLへ上書き更新できる。更新前に既読が必須（STEP 3 の `Artifact` の `action: "read"`。使えなければ WebFetch） |
 | Artifact の db 書き込み | 可 | **承認プロンプトは `.claude/settings.json` のフックで抑止済み。** 下記参照。ツール名は `Artifact`（`action: "write_db"`）のことも `ArtifactData`（`action: "set"` / `"batch"`）のこともある（2026-09-15 にセッション途中で分割された）。**どちらでも `runs` コレクションへの書き込みはフックが通す** |
-| GitHub Actions の手動起動 | 不明 | 以前は 403。連携し直したので通る可能性がある。必要になったら確かめる |
+| GitHub Actions の手動起動 | 可（別 Routine） | 2026-11-10 から Routine「Garmin 同期キック」が毎朝 8:12・10:12 JST に `workflow_dispatch`（`skip_if_done=true`）を送っている。この Routine からは起動しない |
 | リポジトリへの push / コミット | 可 | **2026-09-06 に GitHub App を接続して解消。** それ以前は 403 だった |
 | WebSearch（今日の読みもの） | 可 | STEP 5.8。**2026-09-30 に Routine の許可ツールへ追加した。** 万一拒否されたら `news: null` にして先へ進む（許可ツールから外れていないか確認）。検索はサーバー側で行われるので egress の制限は受けない |
 | WebFetch（記事本文） | 不明 | 一般のニュースサイトは egress プロキシで拒否される可能性が高い。STEP 5.8 では試してよいが、失敗したら検索結果の情報だけで書く |
@@ -54,9 +54,9 @@ Routine のトリガー側には「このファイルを読んで、書かれて
 > Notion の**読み取り**ツール（`notion-fetch` など）も承認を求める可能性があるので呼ばないこと。
 
 **したがって Garmin からのデータ取得はこの Routine の仕事ではない。**
-取得は GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`、毎日 8:17〜11:17 JST に1時間おきに予約し、最初に成功した1回だけが取得する）が担当し、
+取得は GitHub Actions（`.github/workflows/sync_garmin_to_notion.yml`、毎朝 8:12 JST に Routine「Garmin 同期キック」が起動し、最初に成功した1回だけが取得する。予約実行は予備）が担当し、
 この Routine は **その結果を読んで分析・公開する**役割に徹する。
-予約1回だと GitHub の混雑で 12:00 を過ぎる日が出た（2026-11）ので、4回に分けて 12:00 までに1回は通るようにした。これで、これまでの「いつ分析を頼めばいいか分からない」問題は解消される。
+GitHub の予約実行は 2026-11 に数時間遅れるようになり 12:00 に間に合わない日が続いたので、2026-11-10 から Routine からの起動に切り替えた。これで、これまでの「いつ分析を頼めばいいか分からない」問題は解消される。
 
 ---
 
