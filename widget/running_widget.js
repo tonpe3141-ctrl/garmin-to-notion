@@ -19,7 +19,7 @@ const C = {
   bg:    Color.dynamic(new Color("#f2f4f3"), new Color("#161c1a")),
   ink:   Color.dynamic(new Color("#161c1a"), new Color("#eef2f0")),
   ink2:  Color.dynamic(new Color("#56635f"), new Color("#a9b6b2")),
-  ink3:  Color.dynamic(new Color("#87948f"), new Color("#78867f")),
+  ink3:  Color.dynamic(new Color("#68756f"), new Color("#78867f")),
   line:  Color.dynamic(new Color("#d5dcd9"), new Color("#2c3532")),
   accent: Color.dynamic(new Color("#0f6e5c"), new Color("#4fb39e")),
   good:  new Color("#2f7d5f"),

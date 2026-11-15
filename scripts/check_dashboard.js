@@ -147,6 +147,8 @@ function check(html, opts = {}) {
       if (p.tone !== "good" && !isStr(p.action)) warn(`points[${i}].action がない（${p.tone === "bad" ? "△" : "・"} には「次にどうするか」を1文で書く）`);
       if (p.tone === "good" && isStr(p.action)) warn(`points[${i}].action は good には書かない`);
       if (isStr(p.action) && /意識する|気をつける|注意する/.test(p.action) && !/\d/.test(p.action)) warn(`points[${i}].action が抽象的（いつ・どの数字で・どうするかを書く）`);
+      // 実行する日を M/D で書くと、その日のメニューに「この日の宿題」として出る（2026-11-15〜）。日付が無いと当日に目に入らない
+      if (p.tone !== "good" && isStr(p.action) && !/\d{1,2}\/\d{1,2}/.test(p.action)) warn(`points[${i}].action に日付（M/D）がない（実行する日を書くと、その日のメニューに宿題として出る）`);
     });
   }
   const stats = arr(t.stats) || [];

@@ -4,7 +4,7 @@
  *
  *   node scripts/export_widget_data.js <dashboard.html> <out.md> [--history <dir>]
  *
- * DATA から「直近のラン」「次のラン」「この先7日」「直近7日の距離」「レース」だけを抜き出し、
+ * DATA から「直近のラン」「次のラン」「この先7日」「直近7日の距離」「レースと次の関門」だけを抜き出し、
  * Notion の「📱 ウィジェット用データ」ページにそのまま入れられる本文（説明1行 + JSON コードブロック）を
  * <out.md> に書く。Routine はこの中身を notion-update-page の new_str に渡すだけでよい（STEP 6.8）。
  *
@@ -141,8 +141,16 @@ const shortName = (n) => {
   if (s.length > 5) s = s.slice(0, 4);
   return s || String(n || "").slice(0, 4);
 };
+/* 次の関門（判定の機会＝5km TT・10km TT・ハーフ。2026-11-15〜）。プロファイルの「キロ4分の位置を動かす」の表から
+   splice が DATA.season.milestones に入れている。まだ済んでいない最初の1件を、レースと同じ並びに足す。
+   ウィジェットは「いちばん近いもの · 本命」を出すので、本体を貼り直さなくても「5kmTTまで 6日 · 板橋 126日」になる。
+   時期がおおよそのもの（approx: 「2月中旬」など）は日数が当てにならないので足さない。 */
+const cpName = (w) => String(w || "").replace(/[（(][^）)]*[）)]/g, "").replace(/^.*?の\s*/, "").replace(/\s+/g, "").slice(0, 6);
+const cp = ((D.season && D.season.milestones) || [])
+  .find((m) => m && m.date && !m.done && !m.approx && m.date >= (t.date || today.date) && cpName(m.when));
 const races = [D.tuneup, D.race].filter((r) => r && r.date)
   .map((r) => ({ name: shortName(r.name), date: r.date }))
+  .concat(cp ? [{ name: cpName(cp.when), date: cp.date }] : [])
   .sort((a, b) => (a.date < b.date ? -1 : 1));
 
 const widget = {
