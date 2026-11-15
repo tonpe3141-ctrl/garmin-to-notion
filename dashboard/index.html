@@ -36,9 +36,13 @@
     2026-11-02 の見直し: 文章は読まれていなかったので、ホームは数字・色・札だけにし、文章は畳み（details）か別タブへ。
     2026-11-15 の見直し: 開いた最初の画面に判定と次の一手が入るよう、上端とカウントダウンを薄くした。
                    走りのカードに直近14日の評価の並び、メニューのカードにこの先1週間の並び（次の質練習）、体感メモの見出しに今週の補強の回数を出す。
-    ホーム       … カウントダウン（本命の前のレースが14日を切ったらそちらを大きく）/ 今日の走り（判定・4指標・ラップの帯・要点の札・次の一手）/
-                   次のメニュー（区間の帯・帯ごとの目標。区間の一覧・切り替え条件・準備は畳む）/ 体感メモ（本人が書く。2026-10-26〜）/ 体調 /
-                   現在地（フル予測・走力 VDOT・Mペースの3枚と直近7日・今月）/ 今日の読みもの
+                   同日（目標達成とやる気の見直し）: カウントダウンに「次の関門」（判定の機会）の札とシーズンの帯の点、メニューに「この日の宿題」
+                   （過去の講評の「次の一手」のうち、その日を名指ししたもの）、現在地に積み上げのスタンプ、フル予測は縮めた分を先に。
+                   薄い字（--ink-3）を濃くし、ホームの小さい字を 1px 上げた。
+    ホーム       … カウントダウン（次の関門の札・シーズンの帯に関門の点。本命の前のレースが14日を切ったらそちらを大きく）/
+                   今日の走り（判定・4指標・ラップの帯・要点の札・次の一手）/
+                   次のメニュー（区間の帯・帯ごとの目標・この日の宿題。区間の一覧・切り替え条件・準備は畳む）/ 体感メモ（本人が書く。2026-10-26〜）/ 体調 /
+                   現在地（フル予測・走力 VDOT・Mペースの3枚、積み上げのスタンプ、直近7日・今月）/ 今日の読みもの
                    開いた時刻が翌朝なら「今日のメニュー」を先頭に出す（分析は前日12:00のものなので）
     走りの詳細   … 講評（要は → 課題と次の一手 → 良かった点。2026-11-03〜）・全指標・ラップ・4軸の評価・週とシーズンの視点
     予定         … この先1週間・シーズンの帯とフェーズ
@@ -252,7 +256,7 @@ DATA.season = {"phases":[{"name":"Phase 4 ビルドアップ","from":"2026-09-01
   --surface-2: #eef1f0;
   --ink: #161c1a;
   --ink-2: #56635f;
-  --ink-3: #87948f;
+  --ink-3: #68756f;   /* 2026-11-15: #87948f は白地で 3.2:1 しかなく、小さい字が読みにくかった（4.8:1 に） */
   --line: #d5dcd9;
   --line-soft: #e6ebe9;
   --accent: #0f6e5c;
@@ -403,8 +407,16 @@ body {
 .chip b { font-family: var(--num); font-variant-numeric: tabular-nums; margin: 0 1px; }
 .goal.near { background: var(--z-m-ink); }
 .goal-season { flex: 1 0 100%; display: flex; align-items: center; gap: 10px; font-size: 11px; opacity: .8; }
-.goal-bar { flex: 1 1 auto; height: 4px; background: rgba(255,255,255,.18); border-radius: 99px; overflow: hidden; }
+.goal-bar { flex: 1 1 auto; height: 4px; background: rgba(255,255,255,.18); border-radius: 99px; position: relative; }
 .goal-bar i { display: block; height: 100%; background: #fff; border-radius: 99px; }
+/* 帯の上の関門。○＝判定の機会（TT・ハーフ）、◆＝レース。過ぎたものは地の色、次の判定だけ大きく */
+.goal-bar .cp { position: absolute; top: 50%; width: 7px; height: 7px; margin: -3.5px 0 0 -3.5px; border-radius: 50%; background: rgba(255,255,255,.55); }
+.goal-bar .cp.race { border-radius: 1px; transform: rotate(45deg); background: #fff; }
+.goal-bar .cp.past { background: var(--accent-ink); box-shadow: 0 0 0 1px rgba(255,255,255,.7); }
+.goal-bar .cp.next { width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; background: #fff; box-shadow: 0 0 0 3px rgba(255,255,255,.28); }
+.goal.near .goal-bar .cp.past { background: var(--z-m-ink); }
+.chip.cp-chip { background: #fff; color: var(--accent-ink); font-weight: 700; }
+.goal.near .chip.cp-chip { color: var(--z-m-ink); }
 
 /* ---------- ホーム: 走りの評価 ---------- */
 .run-head {
@@ -453,10 +465,10 @@ body {
 .kstat:last-child { border-right: 0; }
 .kstat.warn::before, .kstat.crit::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; }
 .kstat.warn::before { background: var(--warn); } .kstat.crit::before { background: var(--crit); }
-.kstat-l { font-size: 10.5px; color: var(--ink-3); }
+.kstat-l { font-size: 11.5px; color: var(--ink-3); }
 .kstat-v { font-family: var(--num); font-weight: 700; font-size: 21px; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .kstat-v em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
-.kstat-n { font-size: 10.5px; color: var(--warn); line-height: 1.45; }
+.kstat-n { font-size: 11.5px; color: var(--warn); line-height: 1.45; }
 
 .extra-line { font-size: 12.5px; color: var(--ink-2); }
 
@@ -515,10 +527,10 @@ body {
 }
 .cchip.warn { border-color: #e7cfa6; background: #fdf8ef; }
 .cchip.crit { border-color: #e6bdb6; background: #fcf2f0; }
-.cchip-l { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cchip-l { font-size: 11.5px; color: var(--ink-3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .cchip-v { font-family: var(--num); font-weight: 700; font-size: 19px; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .cchip-v em { font-style: normal; font-size: 10.5px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
-.cchip-s { font-size: 10.5px; font-weight: 700; }
+.cchip-s { font-size: 11.5px; font-weight: 700; }
 .cchip.warn .cchip-s { color: var(--warn); }
 .cchip.crit .cchip-s { color: var(--crit); }
 .cchip.ok .cchip-s { color: var(--ink-3); font-weight: 500; }
@@ -530,7 +542,7 @@ body {
   border-radius: 4px; overflow: hidden;
 }
 .ktile { background: var(--surface); padding: 12px 14px 12px; display: flex; flex-direction: column; gap: 2px; }
-.ktile-l { font-size: 11px; color: var(--ink-3); }
+.ktile-l { font-size: 11.5px; color: var(--ink-3); }
 .ktile-v { font-family: var(--num); font-weight: 700; font-size: 26px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .ktile-v em { font-style: normal; font-size: 12px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
 .ktile-n { font-size: 12px; color: var(--ink-2); line-height: 1.55; font-weight: 700; }
@@ -538,7 +550,7 @@ body {
 .rtiles { grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 8px; background: none; border: 0; border-radius: 0; overflow: visible; }
 .rtile { background: var(--surface); border: 1px solid var(--line-soft); border-radius: 4px; padding: 10px 13px; display: flex; flex-direction: column; gap: 1px; }
 .new { margin-left: 6px; font-family: var(--num); font-weight: 700; font-size: 9.5px; letter-spacing: .06em; color: #fff; background: var(--accent); border-radius: 3px; padding: 0 5px; vertical-align: 1px; }
-.ktile-s { font-size: 11px; color: var(--ink-3); line-height: 1.5; }
+.ktile-s { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
 .meter { height: 6px; background: var(--surface-2); border-radius: 99px; overflow: hidden; margin: 5px 0 2px; }
 .meter i { display: block; height: 100%; background: var(--accent); border-radius: 99px; }
 .meter.mgoal { position: relative; overflow: visible; }
@@ -551,12 +563,12 @@ body {
 .wd-bar.S { background: var(--z-s); }
 .wd-bar.rest { background: var(--line); }
 .wd-km { font-family: var(--num); font-weight: 700; font-size: 12px; font-variant-numeric: tabular-nums; }
-.wd-d { font-size: 10.5px; color: var(--ink-3); font-family: var(--mono); text-align: center; line-height: 1.35; }
+.wd-d { font-size: 11px; color: var(--ink-3); font-family: var(--mono); text-align: center; line-height: 1.35; }
 .tot { display: flex; flex-wrap: wrap; gap: 8px 24px; }
 .tot div { display: flex; flex-direction: column; }
 .tot .n { font-family: var(--num); font-weight: 900; font-size: 20px; font-variant-numeric: tabular-nums; line-height: 1.25; }
 .tot .n em { font-style: normal; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-left: 2px; }
-.tot .l { font-size: 11px; color: var(--ink-3); }
+.tot .l { font-size: 11.5px; color: var(--ink-3); }
 .tot .n.warn { color: var(--warn); }
 .goalline { display: flex; justify-content: space-between; gap: 10px; font-size: 11.5px; color: var(--ink-2); }
 .goalline b { color: var(--good); }
@@ -590,10 +602,10 @@ body {
 .stat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
 .stat.warn::before { background: var(--warn); }
 .stat.crit::before { background: var(--crit); }
-.stat-l { font-size: 10.5px; letter-spacing: .06em; color: var(--ink-3); }
+.stat-l { font-size: 11.5px; letter-spacing: .06em; color: var(--ink-3); }
 .stat-v { font-family: var(--num); font-weight: 700; font-size: 23px; line-height: 1.2; font-variant-numeric: tabular-nums; }
 .stat-v em { font-style: normal; font-size: 11.5px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
-.stat-n { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; }
+.stat-n { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; }
 .stat.warn .stat-n, .stat.crit .stat-n { color: var(--warn); }
 .effect { padding: 10px 20px; font-size: 12px; color: var(--ink-2); font-family: var(--mono); border-bottom: 1px solid var(--line-soft); }
 .detail-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
@@ -674,12 +686,12 @@ svg.prog { display: block; width: 100%; height: auto; }
 .hstat::before { content: ""; position: absolute; left: 0; top: 0; bottom: 0; width: 3px; background: transparent; }
 .hstat.warn::before { background: var(--warn); }
 .hstat.crit::before { background: var(--crit); }
-.hstat-l { font-size: 10.5px; color: var(--ink-3); }
+.hstat-l { font-size: 11.5px; color: var(--ink-3); }
 .hstat-v { font-family: var(--num); font-weight: 700; font-size: 22px; line-height: 1.25; font-variant-numeric: tabular-nums; }
 .hstat-v em { font-style: normal; font-size: 11px; font-weight: 400; color: var(--ink-2); margin-left: 3px; }
-.hstat-cmp { font-family: var(--mono); font-size: 10.5px; color: var(--ink-3); display: flex; gap: 6px; flex-wrap: wrap; }
+.hstat-cmp { font-family: var(--mono); font-size: 11px; color: var(--ink-3); display: flex; gap: 6px; flex-wrap: wrap; }
 .hstat-cmp .d.up { color: var(--good); } .hstat-cmp .d.down { color: var(--warn); }
-.hstat-n { font-size: 10.5px; color: var(--ink-3); line-height: 1.5; margin-top: 3px; }
+.hstat-n { font-size: 11.5px; color: var(--ink-3); line-height: 1.5; margin-top: 3px; }
 .hstat.warn .hstat-n, .hstat.crit .hstat-n { color: var(--warn); }
 svg.cond { display: block; min-width: 560px; width: 100%; height: auto; }
 .chartblock { display: flex; flex-direction: column; gap: 2px; margin-top: -6px; }
@@ -814,7 +826,7 @@ svg.ladder { display: block; width: 100%; height: auto; }
   font-family: var(--jp); color: var(--ink-2); text-align: left;
 }
 .trail-b:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
-.trail-l { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+.trail-l { font-size: 11px; color: var(--ink-3); white-space: nowrap; }
 .trail-c { display: flex; gap: 2px; flex: 1 1 auto; min-width: 0; }
 .trail-c i {
   flex: 1 1 0; max-width: 26px; height: 20px; border-radius: 3px; display: grid; place-items: center;
@@ -920,7 +932,7 @@ svg.ladder { display: block; width: 100%; height: auto; }
 .lstrip.dense { height: 64px; gap: 1px; }
 .lstrip.dense .ls-b { max-height: 100%; }
 .lstrip.dense .ls-p, .lstrip.dense .ls-h { display: none; }
-.lstrip-cap { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11px; color: var(--ink-3); }
+.lstrip-cap { display: flex; justify-content: space-between; gap: 8px; flex-wrap: wrap; font-size: 11.5px; color: var(--ink-3); }
 .lstrip-cap .over { color: var(--crit); font-weight: 700; }
 /* メニュー: 区間の帯と、帯ごとの目標 */
 .segbar { display: flex; gap: 2px; height: 22px; border-radius: 4px; overflow: hidden; }
@@ -975,6 +987,39 @@ svg.ladder { display: block; width: 100%; height: auto; }
 .rv-goods li { font-size: 13px; line-height: 1.6; color: var(--ink-2); display: flex; gap: 8px; flex-wrap: wrap; align-items: baseline; }
 .rv-goods li::before { content: "○"; font-family: var(--num); font-weight: 700; font-size: 11px; color: var(--good); }
 .rv-goods b { color: var(--ink); }
+/* この日の宿題（過去の講評の「次の一手」のうち、このメニューの日を名指ししたもの）。講評の「次の一手」と同じ形で、地だけ変える */
+.hw-slot:empty { display: none; }
+.hw { display: flex; flex-direction: column; gap: 4px; border: 1px solid var(--z-m); border-left-width: 3px; background: var(--z-m-soft); border-radius: 4px; padding: 8px 12px; }
+.hw .rv-k { color: var(--z-m-ink); }
+.hw ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 4px; }
+.hw li { font-size: 13.5px; font-weight: 700; color: var(--ink); line-height: 1.6; }
+.hw li em { display: block; font-style: normal; font-weight: 400; font-size: 11.5px; color: var(--ink-2); }
+/* 積み上げのスタンプ（ホームの現在地）。1本＝1個。塗り＝済み、枠＝これから、今週は太枠 */
+.stamps {
+  appearance: none; font: inherit; color: inherit; text-align: left; cursor: pointer; width: 100%;
+  display: flex; flex-direction: column; gap: 7px;
+  background: var(--surface); border: 1px solid var(--line-soft); border-radius: 4px; padding: 10px 12px 11px;
+}
+.stamps:hover { border-color: var(--line); }
+.stamps:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.stamps-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.stamps-h em { font-style: normal; font-weight: 400; letter-spacing: 0; font-family: var(--mono); font-size: 11px; }
+.stp { display: flex; align-items: center; flex-wrap: wrap; gap: 4px 10px; }
+.stp-l { font-size: 12.5px; font-weight: 700; flex: 1 1 auto; min-width: 0; }
+.stp-m { display: flex; gap: 3px; flex: 0 0 auto; }
+.stp-m i { width: 13px; height: 13px; border-radius: 50%; border: 1.5px solid var(--line); background: var(--surface); }
+.stp-m i.on { background: var(--accent); border-color: var(--accent); }
+.stp-m i.new { box-shadow: 0 0 0 2px var(--accent-soft), 0 0 0 3px var(--accent); }
+.stp-m.wk i { border-radius: 3px; }
+.stp-m.wk i.off { background: var(--surface-2); border-color: var(--line); }
+.stp-m.wk i.cur { border-color: var(--ink); border-style: dashed; }
+.stp-m.wk i.cur.on { border-style: solid; background: var(--accent-soft); border-color: var(--accent); }
+.stp-v { flex: 0 0 auto; font-size: 11.5px; color: var(--ink-2); font-variant-numeric: tabular-nums; min-width: 2.6em; text-align: right; }
+.stp-v b { font-family: var(--num); font-size: 15px; color: var(--ink); margin-right: 1px; }
+.stp-v em { font-style: normal; margin-left: 6px; }
+.stp-v em.good { color: var(--good); font-weight: 700; }
+.stp-v em.new { font-family: var(--num); font-weight: 700; font-size: 9.5px; letter-spacing: .06em; color: #fff; background: var(--accent); border-radius: 3px; padding: 0 5px; }
+.stp.done .stp-v b { color: var(--good); }
 .nexts { display: flex; flex-direction: column; gap: 4px; background: var(--accent-soft); border-radius: 4px; padding: 8px 12px; }
 .nexts ul { margin: 0; padding-left: 1.2em; display: flex; flex-direction: column; gap: 2px; }
 .nexts li { font-size: 13.5px; font-weight: 700; color: var(--accent-ink); line-height: 1.6; }
@@ -1025,10 +1070,10 @@ footer {
   .goal-days { font-size: 30px; }
   .goal-unit { font-size: 12px; margin-left: -4px; }
   .goal-name { font-size: 13.5px; }
-  .goal-aim { font-size: 11px; }
+  .goal-aim { font-size: 11.5px; }
   .goal-chips { margin-left: 0; flex-wrap: nowrap; gap: 5px; flex: 1 1 100%; }
-  .chip { font-size: 11px; padding: 2px 9px; }
-  .goal-season { font-size: 10px; flex: 1 1 100%; }
+  .chip { font-size: 11.5px; padding: 2px 9px; }
+  .goal-season { font-size: 10.5px; flex: 1 1 100%; }
   .run-head { padding: 13px 14px 11px; gap: 10px; }
   .trail-b { padding: 6px 14px; gap: 7px; }
   .trail-c i { height: 18px; font-size: 10px; }
@@ -1081,13 +1126,13 @@ footer {
   .longs li { grid-template-columns: 3.6em 4.2em 1fr; }
   .longs .lt { text-align: left; }
   .longs .lx { grid-column: 1 / -1; }
-  .scale button { height: 32px; font-size: 12px; }
+  .scale button { height: 38px; font-size: 13px; }   /* 指で押す大きさ（2026-11-15。32px は隣を押しやすかった） */
   .ktiles:not(.rtiles) { grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .ktile { padding: 9px 9px 10px; }
-  .ktile-l { font-size: 10.5px; }
+  .ktile-l { font-size: 11px; }
   .ktile-v { font-size: 20px; }
-  .ktile-n { font-size: 11px; line-height: 1.45; }
-  .ktile-s { font-size: 10px; line-height: 1.45; }
+  .ktile-n { font-size: 11.5px; line-height: 1.45; }
+  .ktile-s { font-size: 11px; line-height: 1.45; }
   .zt { grid-template-columns: 30px 1fr auto; grid-template-areas: "t p k" "t h k"; gap: 0 10px; padding: 7px 10px; }
   .zt .tp { grid-area: t; } .zt-p { grid-area: p; font-size: 17px; } .zt-h { grid-area: h; font-size: 11.5px; } .zt-k { grid-area: k; align-self: center; }
   footer { font-size: 10.5px; gap: 4px 12px; }
@@ -1803,22 +1848,45 @@ footer {
     // スマホではフェーズの名前を番号だけにして、札を1行に収める（名前は「予定」タブにある）
     const phShown = phName.replace(/—/g, "").replace(/\s+/g, " ");
     const phaseChip = phName ? `<span class="chip">${esc(NARROW ? (phShown.match(/^Phase\s*\d+/) || [phShown])[0] : phShown)}${phLeft ? `・残り<b>${phLeft}</b>日` : ""}</span>` : "";
-    const chips = near
+    /* 次の関門（判定の機会＝TT・ハーフ。2026-11-15〜）。126日先の本命より、数日先の関門のほうが今日の練習の意味を決めるので、
+       札の先頭に出す。スマホでは札を1行に収めるため、関門の札があるときはフェーズの札を出さない（フェーズは「予定」タブにある） */
+    const cps = checkpoints();
+    const nextCp = cps.find(c => c.kind === "tt" && c.date >= viewDay) || null;
+    const cpChip = nextCp ? `<span class="chip cp-chip">⏱ ${esc(nextCp.name)} ${nextCp.approx ? `${esc(nextCp.whenTxt)}・` : ""}${daysTo(nextCp.date) === 0 ? "<b>今日</b>" : `あと${nextCp.approx ? "約" : ""}<b>${daysTo(nextCp.date)}</b>日`}</span>` : "";
+    const chips = cpChip + (near
       ? `<span class="chip">🎯 ${esc(shortRace(r.name))} あと<b>${daysTo(r.date)}</b>日（${esc(r.goal)}）</span>`
-      : tu ? `<span class="chip">🏁 ${esc(shortRace(tu.name))} あと<b>${daysTo(tu.date)}</b>日</span>` : "";
-    // シーズン（最初のフェーズの初日〜本命）のうち何割が過ぎたか
+      : tu ? `<span class="chip">🏁 ${esc(shortRace(tu.name))} あと<b>${daysTo(tu.date)}</b>日</span>` : "")
+      + (cpChip && NARROW ? "" : phaseChip);
+    // シーズン（最初のフェーズの初日〜本命）のうち何割が過ぎたか。帯の上に関門（○＝判定・◆＝レース）の点を打つ
     const ph0 = D.season && D.season.phases && D.season.phases[0];
     const span = ph0 ? dayDiff(ph0.from, r.date) : 0;
     const pct = span > 0 ? Math.max(0, Math.min(100, dayDiff(ph0.from, viewDay) / span * 100)) : null;
+    const dots = span > 0 ? cps.filter(c => c.date >= ph0.from && c.date <= r.date).map(c => {
+      const x = dayDiff(ph0.from, c.date) / span * 100;
+      const st = c.date < viewDay ? "past" : c === nextCp ? "next" : "";
+      return `<b class="cp ${c.kind} ${st}" style="left:${x.toFixed(1)}%" title="${mdOf(c.date)} ${esc(c.name)}"></b>`;
+    }).join("") : "";
     return `<section class="goal${near ? " near" : ""}" aria-label="${esc(main.name)}まで">
       <div class="goal-main">
         ${left === 0 ? `<span class="goal-days">🏁</span><div class="goal-txt"><span class="goal-name">今日は${esc(main.name)}</span>`
           : `<span class="goal-days">${left}</span><span class="goal-unit">日</span><div class="goal-txt"><span class="goal-name">${esc(main.name)}まで</span>`}
           <span class="goal-aim">${main.aim}${main.aim ? "・" : ""}${esc(main.date)}</span></div>
       </div>
-      <div class="goal-chips">${chips}${phaseChip}</div>
-      ${pct != null ? `<div class="goal-season"><span class="goal-bar"><i style="width:${pct.toFixed(1)}%"></i></span><span>シーズン ${Math.round(pct)}%${NARROW ? "" : ` 経過（${mdOf(ph0.from)}〜${mdOf(r.date)}）`}</span></div>` : ""}
+      <div class="goal-chips">${chips}</div>
+      ${pct != null ? `<div class="goal-season"><span class="goal-bar" role="img" aria-label="シーズンの ${Math.round(pct)}% が経過"><i style="width:${pct.toFixed(1)}%"></i>${dots}</span><span>シーズン ${Math.round(pct)}%${NARROW ? "" : ` 経過（${mdOf(ph0.from)}〜${mdOf(r.date)}）`}</span></div>` : ""}
     </section>`;
+  }
+  /* シーズンの関門を日付順に。判定の機会（プロファイル「キロ4分の位置を動かす」の表。済んだ行は除く）とレース。
+     判定の名前は「11/21 の 5km TT」→「5km TT」、「2月中旬のハーフ（1:21:30 以内）」→「ハーフ」に縮める */
+  function checkpoints() {
+    const s = D.season || {};
+    const strip = (w) => String(w || "").replace(/[（(][^）)]*[）)]/g, "").trim();
+    const tts = (s.milestones || []).filter(m => m && m.date && !m.done).map(m => {
+      const w = strip(m.when);
+      return { date: m.date, kind: "tt", approx: !!m.approx, name: w.replace(/^.*?の\s*/, "") || m.label || "判定", whenTxt: (w.match(/^(.*?)の/) || [])[1] || mdOf(m.date) };
+    });
+    const races = (s.races || []).filter(x => x && x.date).map(x => ({ date: x.date, kind: "race", name: shortRace(x.name) }));
+    return tts.concat(races).sort((a, b) => a.date.localeCompare(b.date));
   }
 
   // ホームに出す主要な数値は4つ。距離・ペース・心拍に、警告の付いた指標を1つ足す（無ければ4番目）
@@ -1940,6 +2008,7 @@ footer {
         ${segBar(tm.segments)}
         ${zoneTargets(tm.segments)}
         ${tm.headline ? `<p class="rx-headline">${esc(tm.headline)}</p>` : ""}
+        <div class="hw-slot" id="hw">${homeworkHtml()}</div>
         <div class="folds">
           ${(tm.segments || []).length ? fold(`区間ごとの指示<em>${tm.segments.length}区間</em>`, segTable(tm.segments)) : ""}
           ${Array.isArray(tm.alt) && tm.alt.length
@@ -1952,6 +2021,33 @@ footer {
         <button class="more" type="button" data-go="plan">日ごとの内容とフェーズ →</button>
       </div>
     </section>`;
+  }
+
+  /* この日の宿題（ホーム・2026-11-15〜）。過去の講評の「次の一手」（points[].action）のうち、このメニューの日付を
+     名指ししているものを、その日のメニューに出す。講評で「12/6 のロングは M を頭から」と決めても、当日に開くのはメニューで、
+     講評は何日も前のカレンダーの中にある。走る直前に目に入る場所へ運ぶ。
+     分析した日のうちは、今日の講評の「次の一手」がすぐ上の走りのカードに出ているので、今日の分は重ねない。 */
+  function homeworkHtml() {
+    const tm = D.tomorrow;
+    if (!tm || !tm.date) return "";
+    // 休養日には出さない（実行するものが無い。「この日は休養」はメニューの題が言っている）
+    if (!(tm.segments || []).some(x => x && x.zone !== "rest" && Number(x.km) > 0)) return "";
+    const md = mdOf(tm.date);
+    // 「11/1」が「11/18」や「2026/11/1x」に当たらないよう、前後の数字と / を見る
+    const re = new RegExp("(^|[^\\d/])" + md.replace("/", "\\/") + "(?!\\d)");
+    const src = (histRows || []).filter(h => h && h.d && !isNote(h)).map(h => ({ d: h.d, points: h.points }));
+    if (D.today && D.today.date) src.push({ d: D.today.date, points: D.today.points });
+    const seen = new Set(), out = [];
+    src.filter(x => x.d < tm.date && dayDiff(x.d, tm.date) <= 45 && !(MODE === "same" && x.d === dataDay))
+      .sort((a, b) => b.d.localeCompare(a.d))
+      .forEach(x => (Array.isArray(x.points) ? x.points : []).forEach(pt => {
+        const a = pt && pt.tone !== "good" && typeof pt.action === "string" ? pt.action.trim() : "";
+        // 日付を4つ以上並べた文は週の組み方の話で、その日にやることではないので拾わない
+        if (!a || !re.test(a) || seen.has(a) || (a.match(/\d{1,2}\/\d{1,2}/g) || []).length > 3) return;
+        seen.add(a); out.push({ d: x.d, a });
+      }));
+    if (!out.length) return "";
+    return `<div class="hw"><span class="rv-k">この日の宿題</span><ul>${out.slice(0, 3).map(o => `<li>${esc(o.a)}<em>${mdOf(o.d)} の講評から</em></li>`).join("")}</ul></div>`;
   }
 
   /* この先1週間の並び（ホーム・2026-11-15〜）。次の質練習がいつかを、タブを移らずに見られるようにする。
@@ -2078,8 +2174,13 @@ footer {
       const pct = first && first.pred > goalSec && first.pred > predNow ? (first.pred - predNow) / (first.pred - goalSec) * 100 : null;
       // 文は出さない。差・関門・4週の変化を数字だけで（2026-11-02〜）
       const sub = ms ? `${esc(ms.name)}まで −${mmssOf(predNow - ms.sec)}` : base && base.pred !== predNow ? `4週で ${predNow < base.pred ? "−" : "+"}${mmssOf(Math.abs(predNow - base.pred))}` : "";
-      tiles.push(tile("フル予測", esc(hmsOf(predNow)), "",
-        gap > 0 ? `${esc(goalName)}まで −${mmssOf(gap)}` : "目標を上回った", gap > 0 ? "warn" : "good", sub, pct));
+      /* 最初の予測から縮めた分を色つきの行に、目標までの差は地の字で出す（2026-11-15〜）。
+         遠い目標までの差だけが橙で立っていると、毎日「足りない」しか目に入らない。前に進んだ分は事実なので先に置く */
+      const gained = first && first.pred - predNow >= 30 ? first.pred - predNow : 0;
+      const gapTxt = gap > 0 ? `${esc(goalName)}まで −${mmssOf(gap)}` : "目標を上回った";
+      if (gained) tiles.push(tile("フル予測", esc(hmsOf(predNow)), "",
+        `${mdOf(first.d)}〜 −${mmssOf(gained)}`, "good", [sub, gapTxt].filter(Boolean).join("<br>"), pct));
+      else tiles.push(tile("フル予測", esc(hmsOf(predNow)), "", gapTxt, gap > 0 ? "warn" : "good", sub, pct));
     }
     // 走力（VDOT）と次の判定。履歴が無くても Garmin の 5K 予測だけで出す
     const fm = fitnessModel(haveHist ? runs : todayRows().map(h => ({ ...h, km: Number(h.km) || 0, laps: expandLaps(h.laps), raw: h })), today);
@@ -2090,7 +2191,8 @@ footer {
       const t5 = fm.speed ? timeAt(fm.speed.v, 5000) : fm.pred5.sec;
       const nmT = nm && nm.k5 && nm.k5.length ? Math.max(...nm.k5) : null;
       const n = nmT ? (t5 > nmT ? `5km ${mmssOf(nmT)} まで −${mmssOf(t5 - nmT)}` : `5km ${mmssOf(nmT)} に届いた`) : "";
-      const sub = nm ? `判定 ${mdOf(nm.date)}・あと${dayDiff(today, nm.date)}日` : goalV ? `目標 ${v1(goalV)}` : "";
+      // 残り日数は上のカウントダウンの札（次の関門）に出ているので、スマホでは日付だけにする
+      const sub = nm ? `判定 ${mdOf(nm.date)}${NARROW ? "" : `・あと${daysTo(nm.date)}日`}` : goalV ? `目標 ${v1(goalV)}` : "";
       // メーターは「キロ4分の位置」の表の起点（① 今の VDOT）から目標までのうち、どこまで来たか
       const ms0 = ((D.season && D.season.milestones) || [])[0];
       const baseV = ms0 && ms0.vdot && ms0.vdot.length ? ms0.vdot[0] : null;
@@ -2139,8 +2241,34 @@ footer {
         ${bar}
         ${monthGoalHtml(wk)}`;
     }
-    // 積み上げの目標は「成長の記録」のロングのカードにだけ出す（2026-11-02〜。ホームでは重複していた）
-    return `${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}${week}`;
+    // 積み上げの目標の一覧（期間・済んだ日）は「成長の記録」のロングのカード。ホームにはスタンプだけを出す（2026-11-15〜）
+    return `${tiles.length ? `<div class="ktiles">${tiles.join("")}</div>` : ""}${haveHist ? stampsHtml(runs, today) : ""}${week}`;
+  }
+
+  /* 積み上げのスタンプ（ホーム・2026-11-15〜）。プロファイルの「積み上げの目標」を、1本＝1個の印で出す。
+     2026-11-02 に一覧をホームから外したが、数字の列だけでは「あと何本」が目に入らなかったので、印の並びにして戻した。
+     補強は体感メモの見出しに同じ印があるので、ここには出さない。押すと「成長の記録」のロングのカード。 */
+  function stampsHtml(runs, today) {
+    const gs = goalsModel(runs, today).filter(g => g.started && (g.kind === "count" || g.kind === "ratio"));
+    if (!gs.length) return "";
+    const row = (g) => {
+      if (g.kind === "count") {
+        const n = Math.min(12, Math.max(g.n || 0, g.count));
+        const isNew = g.items.includes(today);
+        const marks = Array.from({ length: n }, (_, i) => `<i class="${i < g.count ? "on" : ""}${isNew && i === g.count - 1 ? " new" : ""}"></i>`).join("");
+        return `<div class="stp${g.n && g.count >= g.n ? " done" : ""}"><span class="stp-l">${esc(g.label)}</span>
+          <span class="stp-m" aria-hidden="true">${marks}</span><span class="stp-v"><b>${g.count}</b>/${g.n || esc(g.target)}${isNew ? `<em class="new">NEW</em>` : ""}</span></div>`;
+      }
+      // 週で数える目標。終わった週を古い順に（届いた週＝塗り）、最後に今週を枠つきで
+      const wk = (g.marks || []).slice(-8).map(ok => `<i class="${ok ? "on" : "off"}"></i>`).join("");
+      const cur = g.cur ? `<i class="cur${g.cur.ok ? " on" : ""}"></i>` : "";
+      return `<div class="stp"><span class="stp-l">${esc(g.label)}</span>
+        <span class="stp-m wk" aria-hidden="true">${wk}${cur}</span><span class="stp-v"><b>${g.count}</b>/${g.of}週${g.cur ? `<em class="${g.cur.ok ? "good" : ""}">今週 ${Math.round(g.cur.km)}km${g.cur.ok ? " ✓" : ""}</em>` : ""}</span></div>`;
+    };
+    const until = gs.map(g => g.to).filter(Boolean).sort().pop();
+    return `<button type="button" class="stamps" data-go="grow" data-jump="longs" aria-label="積み上げの目標。${gs.map(g => `${g.label} ${g.count}${g.kind === "count" ? `/${g.n || g.target}` : `/${g.of}週`}`).join("、")}">
+      <span class="sub-h stamps-h"><span>積み上げ</span>${until ? `<em>${mdOf(until)} まで・あと${Math.max(0, dayDiff(today, until))}日</em>` : ""}</span>
+      ${gs.map(row).join("")}</button>`;
   }
 
   /* 今月の距離と月間目標。目標はプロファイルの月ごとの計画（10月 340・3月 230 など）を優先し、無い月だけ week.monthTargetKm を使う
@@ -3124,11 +3252,17 @@ footer {
       if (/週/.test(g.label) && minKm) {
         // 終わった週（月〜日がすべて期間内で、今日より前）だけを数える
         let weeks = 0, ok = 0;
+        const marks = [];
         for (let mon = mondayOf(weekFrom); isoAdd(mon, 6) < today && isoAdd(mon, 6) <= to; mon = isoAdd(mon, 7)) {
           if (mon < weekFrom) continue;
-          weeks++; if (weekKmOf(dm, mon) >= minKm) ok++;
+          const hit = weekKmOf(dm, mon) >= minKm;
+          weeks++; if (hit) ok++;
+          marks.push(hit);
         }
-        return { ...base, kind: "ratio", count: ok, of: weeks };
+        // 進行中の週（今日を含む月〜日）。終わるまでは数に入れず、スタンプの最後に枠つきで出す
+        const thisMon = mondayOf(today);
+        const cur = thisMon >= mondayOf(weekFrom) && thisMon <= to ? { km: weekKmOf(dm, thisMon), ok: weekKmOf(dm, thisMon) >= minKm } : null;
+        return { ...base, kind: "ratio", count: ok, of: weeks, marks, cur };
       }
       if (/補強/.test(g.label)) {
         if (!notesOk()) return { ...base, kind: "na" };
@@ -3442,6 +3576,7 @@ footer {
     set("trail", trailHtml());
     set("memo-wk", memoWk());
     set("kpi", kpiHtml());
+    set("hw", homeworkHtml());
     set("cal", calendarHtml());
     set("longs", longsHtml());
     set("ladder", ladderHtml());
@@ -3550,7 +3685,15 @@ footer {
     const t = e.target.closest ? e.target : null;
     if (!t) return;
     const go = t.closest("[data-go]");
-    if (go) { const i = tabIds.indexOf(go.dataset.go); if (i >= 0) select(i, false, true); return; }
+    if (go) {
+      const i = tabIds.indexOf(go.dataset.go);
+      if (i >= 0) select(i, false, true);
+      // 行き先のカードも指定されていれば、タブを移ってからそこへ（ホームの積み上げ → 成長の記録のロング）
+      const to = go.dataset.jump && document.getElementById(go.dataset.jump);
+      const card = to && (to.matches("section") ? to : to.querySelector("section.card"));
+      if (i >= 0 && card) requestAnimationFrame(() => requestAnimationFrame(() => card.scrollIntoView({ block: "start" })));
+      return;
+    }
     const jump = t.closest("[data-jump]");
     if (jump) {
       const el = document.getElementById(jump.dataset.jump);
