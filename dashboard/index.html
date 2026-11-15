@@ -34,6 +34,8 @@
 
   画面の構成（2026-09-30 に再構築）— 1つの情報は1か所にだけ出す:
     2026-11-02 の見直し: 文章は読まれていなかったので、ホームは数字・色・札だけにし、文章は畳み（details）か別タブへ。
+    2026-11-15 の見直し: 開いた最初の画面に判定と次の一手が入るよう、上端とカウントダウンを薄くした。
+                   走りのカードに直近14日の評価の並び、メニューのカードにこの先1週間の並び（次の質練習）、体感メモの見出しに今週の補強の回数を出す。
     ホーム       … カウントダウン（本命の前のレースが14日を切ったらそちらを大きく）/ 今日の走り（判定・4指標・ラップの帯・要点の札・次の一手）/
                    次のメニュー（区間の帯・帯ごとの目標。区間の一覧・切り替え条件・準備は畳む）/ 体感メモ（本人が書く。2026-10-26〜）/ 体調 /
                    現在地（フル予測・走力 VDOT・Mペースの3枚と直近7日・今月）/ 今日の読みもの
@@ -379,13 +381,13 @@ body {
 /* ---------- ホーム: カウントダウン ---------- */
 .goal {
   background: var(--accent-ink); color: #fff;
-  border-radius: 6px; padding: 16px 20px;
-  display: flex; flex-wrap: wrap; align-items: center; gap: 10px 24px;
+  border-radius: 6px; padding: 11px 20px 12px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 7px 24px;
   box-shadow: var(--shadow);
 }
 .goal-main { display: flex; align-items: baseline; gap: 6px 12px; flex-wrap: wrap; }
 .goal-days {
-  font-family: var(--num); font-weight: 900; font-size: 48px; line-height: 1;
+  font-family: var(--num); font-weight: 900; font-size: 36px; line-height: 1;
   font-variant-numeric: tabular-nums; letter-spacing: -.02em;
 }
 .goal-unit { font-size: 15px; font-weight: 700; margin-left: -6px; }
@@ -804,7 +806,57 @@ svg.ladder { display: block; width: 100%; height: auto; }
 .longs .lx { color: var(--ink-2); line-height: 1.6; }
 .longs .lx b { color: var(--ink); font-weight: 700; }
 
+/* ---------- ホーム: 直近14日の評価の並び ---------- */
+.trail:empty { display: none; }
+.trail-b {
+  appearance: none; border: 0; border-bottom: 1px solid var(--line-soft); background: var(--surface-2);
+  width: 100%; display: flex; align-items: center; gap: 10px; padding: 7px 20px; cursor: pointer;
+  font-family: var(--jp); color: var(--ink-2); text-align: left;
+}
+.trail-b:focus-visible { outline: 2px solid var(--accent); outline-offset: -2px; }
+.trail-l { font-size: 10.5px; color: var(--ink-3); white-space: nowrap; }
+.trail-c { display: flex; gap: 2px; flex: 1 1 auto; min-width: 0; }
+.trail-c i {
+  flex: 1 1 0; max-width: 26px; height: 20px; border-radius: 3px; display: grid; place-items: center;
+  font-style: normal; font-family: var(--num); font-weight: 700; font-size: 11px; line-height: 1;
+  background: var(--surface); color: var(--ink-3);
+}
+.trail-c i.v-good { background: var(--good-soft); }
+.trail-c i.v-warn { background: var(--warn-soft); }
+.trail-c i.v-crit { background: var(--crit-soft); }
+.trail-c i.now { box-shadow: inset 0 0 0 1.5px var(--ink); }
+.trail-n { font-size: 11px; white-space: nowrap; }
+.trail-n b { font-family: var(--num); color: var(--ink); }
+.trail-n b.low { font-family: var(--jp); color: var(--warn); }
+
+/* ---------- ホーム: この先1週間の並び ---------- */
+.ahead { display: flex; flex-direction: column; gap: 6px; }
+.ahead-h { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; }
+.ahead-h em { font-style: normal; font-weight: 400; letter-spacing: 0; font-family: var(--mono); font-size: 11px; }
+.ahead-g { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.ah {
+  appearance: none; border: 1px solid var(--line-soft); background: var(--surface); border-radius: 4px;
+  padding: 5px 2px 5px; display: flex; flex-direction: column; align-items: center; gap: 3px; cursor: pointer;
+  font-family: var(--jp); color: var(--ink); min-width: 0;
+}
+.ah:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ah-d { font-size: 11px; font-weight: 700; color: var(--ink-2); line-height: 1.3; }
+.ah-d i { font-style: normal; font-weight: 400; font-family: var(--mono); font-size: 10px; color: var(--ink-3); margin-left: 2px; }
+.ah-k { font-family: var(--num); font-weight: 700; font-size: 13px; font-variant-numeric: tabular-nums; line-height: 1.2; }
+.ah.q { border-color: var(--line); box-shadow: inset 0 -3px 0 var(--accent); }
+.ah.race { background: var(--z-m-soft); border-color: var(--z-m); box-shadow: none; }
+.ah.now { border-color: var(--ink); }
+.ahead-n { font-size: 12px; color: var(--ink-2); }
+.ahead-n b { color: var(--ink); }
+
 /* ---------- 体感メモ ---------- */
+.memo-wkh { display: inline-flex; align-items: center; gap: 5px; font-family: var(--jp); font-size: 11.5px; color: var(--ink-2); }
+.memo-wkh b { font-family: var(--num); color: var(--ink); }
+.memo-wkh.warn, .memo-wkh.warn b { color: var(--warn); font-weight: 700; }
+.memo-wkh.good, .memo-wkh.good b { color: var(--good); font-weight: 700; }
+.wkdots { display: inline-flex; gap: 3px; }
+.wkdots i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; }
+.wkdots i.on { background: currentColor; }
 .memo-days { display: flex; gap: 6px; flex-wrap: wrap; }
 .chipbtn {
   appearance: none; border: 1px solid var(--line); background: var(--surface); color: var(--ink-2);
@@ -904,8 +956,6 @@ svg.ladder { display: block; width: 100%; height: auto; }
 .memo-done { display: flex; align-items: center; gap: 10px; justify-content: space-between; background: var(--surface-2); border-radius: 4px; padding: 8px 10px; }
 .memo-sum { font-size: 13px; color: var(--ink-2); line-height: 1.6; }
 .memo-sum b { color: var(--ink); font-family: var(--num); }
-.memo-wk { margin: 0; font-size: 12px; color: var(--ink-3); }
-.memo-wk b { color: var(--ink); font-family: var(--num); }
 /* 講評: 要は → 課題と次の一手 → 良かった点 */
 .gist { display: flex; flex-direction: column; gap: 2px; border-left: 4px solid var(--accent); padding: 2px 0 2px 12px; }
 .gist span, .rv-k { font-size: 11px; font-weight: 700; letter-spacing: .1em; color: var(--accent); }
@@ -967,10 +1017,22 @@ footer {
   .panel, .stack { gap: 14px; }
   .card-head { padding: 12px 14px 10px; }
   .card-body { padding: 13px 14px 15px; gap: 12px; }
-  .goal { padding: 14px 16px; gap: 10px; }
-  .goal-days { font-size: 42px; }
-  .goal-chips { margin-left: 0; }
+  .top { flex-wrap: nowrap; }
+  .brand { font-size: 12.5px; letter-spacing: .08em; white-space: nowrap; }
+  .top-meta { font-size: 10.5px; white-space: nowrap; }
+  .goal { padding: 9px 12px 10px; gap: 6px 10px; }
+  .goal-main { gap: 4px 8px; flex-wrap: nowrap; min-width: 0; }
+  .goal-days { font-size: 30px; }
+  .goal-unit { font-size: 12px; margin-left: -4px; }
+  .goal-name { font-size: 13.5px; }
+  .goal-aim { font-size: 11px; }
+  .goal-chips { margin-left: 0; flex-wrap: nowrap; gap: 5px; flex: 1 1 100%; }
+  .chip { font-size: 11px; padding: 2px 9px; }
+  .goal-season { font-size: 10px; flex: 1 1 100%; }
   .run-head { padding: 13px 14px 11px; gap: 10px; }
+  .trail-b { padding: 6px 14px; gap: 7px; }
+  .trail-c i { height: 18px; font-size: 10px; }
+  .ahead-g { gap: 3px; }
   .run-date { font-size: 21px; }
   .run-type { font-size: 14px; }
   .vm { width: 46px; height: 46px; font-size: 26px; }
@@ -1738,7 +1800,9 @@ footer {
     const main = near ? { name: tu.name, date: tu.date, aim: esc(tuAim) }
       : { name: r.name, date: r.date, aim: `目標 <b>${esc(r.goal)}</b>（${esc(r.pace)}）` };
     const left = daysTo(main.date);
-    const phaseChip = phName ? `<span class="chip">${esc(phName.replace(/—/g, "").replace(/\s+/g, " "))}${phLeft ? `・残り<b>${phLeft}</b>日` : ""}</span>` : "";
+    // スマホではフェーズの名前を番号だけにして、札を1行に収める（名前は「予定」タブにある）
+    const phShown = phName.replace(/—/g, "").replace(/\s+/g, " ");
+    const phaseChip = phName ? `<span class="chip">${esc(NARROW ? (phShown.match(/^Phase\s*\d+/) || [phShown])[0] : phShown)}${phLeft ? `・残り<b>${phLeft}</b>日` : ""}</span>` : "";
     const chips = near
       ? `<span class="chip">🎯 ${esc(shortRace(r.name))} あと<b>${daysTo(r.date)}</b>日（${esc(r.goal)}）</span>`
       : tu ? `<span class="chip">🏁 ${esc(shortRace(tu.name))} あと<b>${daysTo(tu.date)}</b>日</span>` : "";
@@ -1753,7 +1817,7 @@ footer {
           <span class="goal-aim">${main.aim}${main.aim ? "・" : ""}${esc(main.date)}</span></div>
       </div>
       <div class="goal-chips">${chips}${phaseChip}</div>
-      ${pct != null ? `<div class="goal-season"><span class="goal-bar"><i style="width:${pct.toFixed(1)}%"></i></span><span>シーズン ${Math.round(pct)}% 経過（${mdOf(ph0.from)}〜${mdOf(r.date)}）</span></div>` : ""}
+      ${pct != null ? `<div class="goal-season"><span class="goal-bar"><i style="width:${pct.toFixed(1)}%"></i></span><span>シーズン ${Math.round(pct)}%${NARROW ? "" : ` 経過（${mdOf(ph0.from)}〜${mdOf(r.date)}）`}</span></div>` : ""}
     </section>`;
   }
 
@@ -1781,6 +1845,7 @@ footer {
         </div>
         <div class="verdict ${vcls(t.verdict)}" aria-label="総合評価 ${esc(t.verdict)} ${esc(t.verdictLabel)}"><span class="vm">${esc(t.verdict)}</span><span class="vl">${esc(t.verdictLabel)}</span></div>
       </div>
+      <div class="trail" id="trail">${trailHtml()}</div>
       <div class="card-body">
         ${t.plan && t.plan.title ? `<div class="planline">処方 <b>${esc(t.plan.title)}</b>${numOf(t.plan.km) && !/km/.test(t.plan.title) ? `（${esc(t.plan.km)}km）` : ""}<span class="arrow">→</span>実走 <b>${kmStat ? esc(kmStat.value) + "km" : "なし"}</b></div>` : ""}
         <span class="hero-pb" id="pb">${pbHtml()}</span>
@@ -1796,6 +1861,28 @@ footer {
         <button class="more" type="button" data-go="run">講評・ラップ・全指標 →</button>
       </div>
     </section>`;
+  }
+
+  /* 直近14日の評価の並び（ホーム・2026-11-15〜）。1回ごとの判定より「△ が続いているか」のほうが次の行動を変えるので、
+     走りのカードの頭に出す。履歴（db）が読めたときだけ。押すと「成長の記録」のカレンダーへ。 */
+  function trailHtml() {
+    if (histState !== "ready" || !dataDay) return "";
+    const dm = dayModel();
+    const cells = Array.from({ length: 14 }, (_, i) => isoAdd(dataDay, i - 13)).map(iso => {
+      const di = dm.dayInfo(iso);
+      return { iso, v: di.rs.map(r => r.verdict).find(x => JUDGED.includes(x)) || null, ran: di.km > 0 };
+    });
+    const judged = cells.filter(c => c.v);
+    if (judged.length < 2) return "";
+    const ok = judged.filter(c => c.v === "◎" || c.v === "○").length;
+    // 直近から続いている △・✕ の回数
+    let low = 0;
+    for (let i = judged.length - 1; i >= 0 && (judged[i].v === "△" || judged[i].v === "✕"); i--) low++;
+    const note = low >= 2 ? `<b class="low">△以下が${low}回続く</b>` : `○以上 <b>${ok}</b>/${judged.length}回`;
+    return `<button type="button" class="trail-b" data-go="grow" aria-label="直近14日の評価。○以上 ${ok}回、評価のある走り ${judged.length}回${low >= 2 ? `。△以下が${low}回続いている` : ""}">
+      <span class="trail-l">直近14日</span>
+      <span class="trail-c">${cells.map(c => `<i class="${c.v ? vcls(c.v) : "v-none"}${c.iso === dataDay ? " now" : ""}" title="${mdOf(c.iso)}(${dowOf(c.iso)})">${c.v ? esc(c.v) : c.ran ? "·" : ""}</i>`).join("")}</span>
+      <span class="trail-n">${note}</span></button>`;
   }
 
   /* 要点はホームではラベルだけを札で並べる（2026-11-02〜）。文章は読まれていなかったので、
@@ -1836,7 +1923,7 @@ footer {
         const o = l.hr != null && capFor(z) != null && l.hr > capFor(z);
         return `<div class="ls"><span class="ls-p">${showTxt ? esc(l.pace || mmssOf(l.sec)) : ""}</span><span class="ls-b" style="height:${h.toFixed(0)}%;background:var(--${z})"></span><span class="ls-h${o ? " over" : ""}">${showTxt && l.hr != null ? l.hr : ""}</span></div>`;
       }).join("")}</div>
-      <div class="lstrip-cap"><span>ラップ ${laps.length}本 ・ 色＝帯 ・ 下＝心拍</span>${over ? `<span class="over">${eDay ? `E上限 ${E_CAP} 超え` : "帯の心拍上限超え"} ${over}本</span>` : `<span>心拍上限の超えなし</span>`}</div>
+      <div class="lstrip-cap"><span>ラップ ${laps.length}本 ・ 色＝帯 ・ 下＝心拍</span>${over ? `<span class="over">${eDay ? `E上限 ${E_CAP} 超え` : "帯の心拍上限超え"} ${over}本</span>` : eDay ? `<span>E上限 ${E_CAP} の内側</span>` : ""}</div>
     </div>`;
   }
 
@@ -1861,9 +1948,33 @@ footer {
           ${(tm.prescription || []).length || tm.why ? fold(`準備・補強・ねらい`,
             `${(tm.prescription || []).length ? `<dl class="rx-list">${tm.prescription.map(p => `<dt>${esc(p.k)}</dt><dd>${esc(p.v)}</dd>`).join("")}</dl>` : ""}${prose("なぜこの内容か", tm.why)}`) : ""}
         </div>
-        <button class="more" type="button" data-go="plan">この先1週間とフェーズ →</button>
+        ${aheadStrip()}
+        <button class="more" type="button" data-go="plan">日ごとの内容とフェーズ →</button>
       </div>
     </section>`;
+  }
+
+  /* この先1週間の並び（ホーム・2026-11-15〜）。次の質練習がいつかを、タブを移らずに見られるようにする。
+     1日＝1マス（曜日・帯・距離）。質練習の日は下線。押すと「予定」タブ。 */
+  function aheadStrip() {
+    const p = D.weekPlan;
+    if (!p || !Array.isArray(p.days) || p.days.length < 2) return "";
+    const todayMd = mdOf(viewDay);
+    const quality = p.days.filter(isQuality).length;
+    const sumKm = p.days.reduce((a, d) => a + (numOf(d.km) || 0), 0);
+    return `<div class="ahead">
+      <div class="sub-h ahead-h"><span>この先1週間</span><em>予定 ${esc(p.totalKm || sumKm)}km・質 ${quality}本</em></div>
+      <div class="ahead-g">${p.days.map(d => {
+        const rest = d.type === "rest", race = /🏁/.test(d.title || "");
+        const km = numOf(d.km);
+        return `<button type="button" class="ah${isQuality(d) ? " q" : ""}${d.d === todayMd ? " now" : ""}${race ? " race" : ""}" data-go="plan" title="${esc(d.d)}(${esc(d.dow)}) ${esc(d.title || "")}${d.note ? " — " + esc(d.note) : ""}">
+          <span class="ah-d">${esc(d.dow)}<i>${esc(String(d.d).split("/").pop())}</i></span>
+          <span class="tp ${esc(d.type)}">${rest ? "休" : race ? "🏁" : esc(d.type)}</span>
+          <span class="ah-k">${km ? esc(d.km) : "—"}</span>
+        </button>`;
+      }).join("")}</div>
+      ${(() => { const nq = p.days.find(d => isQuality(d) && d.d !== mdOf((D.tomorrow && D.tomorrow.date) || viewDay)); return nq ? `<div class="ahead-n">次の質練習 <b>${esc(nq.d)}(${esc(nq.dow)}) ${esc(nq.title)}</b></div>` : ""; })()}
+    </div>`;
   }
 
   // 畳んでおく文章。見出しの1行だけを出し、押すと開く
@@ -3233,17 +3344,12 @@ footer {
       .map(v => `<button type="button" data-memo="${k}" data-v="${v}" aria-pressed="${n[k] === v}">${v}</button>`).join("")}</div>`;
     const chip = (k, v, label) => `<button type="button" class="chipbtn" data-memo="${k}" data-v="${v}" aria-pressed="${n[k] === v}">${esc(label)}</button>`;
     const saved = notesMap[memoDay];
-    const mon = mondayOf(viewDay);
-    const weekStrength = noteDays(mon, viewDay).filter(x => x.strength).length;
-    const g = ((D.season && D.season.goals) || []).find(x => /補強/.test(x.label));
     const dayBtns = `<div class="memo-days">${days.map((d, i) => `<button type="button" class="chipbtn" data-memo-day="${d}" aria-pressed="${d === memoDay}">${i ? "昨日" : "今日"} ${mdOf(d)}(${dowOf(d)})</button>`).join("")}</div>`;
-    const wk = g ? `<p class="memo-wk">今週（月〜）の補強 <b>${weekStrength}</b> / ${esc(g.target)}</p>` : "";
     if (saved && !memoEdit && !memoDirty) {
       return `${dayBtns}
       <div class="memo-done"><span class="memo-sum">${noteSummary(saved) || "記入なし"}</span>
         <button type="button" class="chipbtn" data-memo-edit="1">直す</button></div>
-      <span class="memo-st ${memoMsg.cls}">${memoMsg.t ? esc(memoMsg.t) : `保存済み（${esc(jstStamp(saved.at))}）`}</span>
-      ${wk}`;
+      <span class="memo-st ${memoMsg.cls}">${memoMsg.t ? esc(memoMsg.t) : `保存済み（${esc(jstStamp(saved.at))}）`}</span>`;
     }
     return `
       <div class="memo-days">${days.map((d, i) => `<button type="button" class="chipbtn" data-memo-day="${d}" aria-pressed="${d === memoDay}">${i ? "昨日" : "今日"} ${mdOf(d)}(${dowOf(d)})</button>`).join("")}</div>
@@ -3257,14 +3363,26 @@ footer {
         <textarea class="memo-txt" data-memo-text="memo" maxlength="300" placeholder="例: ジェル 45分ごとに4本。30km から太もも裏が張った">${esc(n.memo || "")}</textarea></div>
       <div class="memo-foot">
         <button type="button" class="memo-save" data-memo-save="1" ${can && !memoBusy ? "" : "disabled"}>保存</button>
-        <span class="memo-st ${memoMsg.cls}">${memoMsg.t ? esc(memoMsg.t) : saved ? `保存済み（${esc(jstStamp(saved.at))}）` : can ? "未保存" : notesState === "loading" ? "読み込んでいます…" : "この画面では保存できません（claude.ai で開くと保存できる）"}</span>
-      </div>
-      ${wk}`;
+        <span class="memo-st ${memoMsg.cls}">${memoMsg.t ? esc(memoMsg.t) : saved ? `保存済み（${esc(jstStamp(saved.at))}）` : can ? "未保存（12:00 の分析でコーチが読む）" : notesState === "loading" ? "読み込んでいます…" : "この画面では保存できません（claude.ai で開くと保存できる）"}</span>
+      </div>`;
+  }
+  /* 今週（月〜）の補強の回数。カードの見出しに出す（2026-11-15〜。以前は入力欄の下の薄い字で、0回のまま週が終わっていた）。
+     週の後半（木曜〜）に入っても、残りの日数では目標に届かない／ぎりぎりのときは色を立てる。 */
+  function memoWk() {
+    const g = ((D.season && D.season.goals) || []).find(x => /補強/.test(x.label));
+    if (!g) return "12:00 の分析でコーチが読む";
+    if (!notesOk()) return "";
+    const n = noteDays(mondayOf(viewDay), viewDay).filter(x => x.strength).length;
+    const need = Number(g.n) || numOf(g.target) || 0;
+    const left = 7 - ((new Date(viewDay + "T00:00:00Z").getUTCDay() + 6) % 7);   // 今日を含む残り日数
+    const cls = need && n >= need ? "good" : need && need - n >= left ? "warn" : "";
+    const dots = need && need <= 5 ? `<span class="wkdots" aria-hidden="true">${Array.from({ length: need }, (_, i) => `<i class="${i < n ? "on" : ""}"></i>`).join("")}</span>` : "";
+    return `<span class="memo-wkh ${cls}">今週の補強 ${dots}<b>${n}</b>/${need || esc(g.target)}</span>`;
   }
   function memoCard() {
     if (!viewDay) return "";
     return `<section class="card">
-      <div class="card-head"><h2>体感メモ</h2><span class="sub">12:00 の分析でコーチが読む</span></div>
+      <div class="card-head"><h2>体感メモ</h2><span class="sub" id="memo-wk">${memoWk()}</span></div>
       <div class="card-body" id="memo">${memoBody()}</div>
     </section>`;
   }
@@ -3290,7 +3408,10 @@ footer {
     const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
     set("cal", calendarHtml()); set("kpi", kpiHtml()); set("longs", longsHtml());
   }
-  function repaintMemo() { const el = document.getElementById("memo"); if (el) el.innerHTML = memoBody(); }
+  function repaintMemo() {
+    const el = document.getElementById("memo"); if (el) el.innerHTML = memoBody();
+    const wk = document.getElementById("memo-wk"); if (wk) wk.innerHTML = memoWk();
+  }
 
   // 成長の記録は縦に長いので、先頭に見出しへ飛ぶ札を置く（2026-11-02〜）
   const GNAV = [["gcal", "カレンダー"], ["longs", "ロング"], ["ladder", "走力"], ["rec", "自己記録"], ["wkly", "週間"],
@@ -3318,6 +3439,8 @@ footer {
   function paintAsync() {
     const set = (id, html) => { const el = document.getElementById(id); if (el) el.innerHTML = html; };
     set("pb", pbHtml());
+    set("trail", trailHtml());
+    set("memo-wk", memoWk());
     set("kpi", kpiHtml());
     set("cal", calendarHtml());
     set("longs", longsHtml());
@@ -3344,6 +3467,9 @@ footer {
     if (!isFinite(min) || min < 0) return "";
     return `（${min < 60 ? `${min}分前` : min < 48 * 60 ? `${Math.round(min / 60)}時間前` : `${Math.round(min / 1440)}日前`}）`;
   }
+
+  // スマホの上端は1行に収める（「2026-11-15 12:10 JST」→「11/15 12:10」）
+  const stampShort = (s) => { const mm = String(s || "").match(/\d{4}-(\d{2})-(\d{2})[ T](\d{1,2}:\d{2})/); return mm ? `${+mm[1]}/${+mm[2]} ${mm[3]}` : String(s || ""); };
 
   const LEGACY_TAB = { menu: "home", prog: "grow", past: "grow" };
   let tabIds = [];
@@ -3372,7 +3498,7 @@ footer {
     app.innerHTML = `
       <div class="top">
         <h1 class="brand">サブ3デイリーコーチ</h1>
-        <span class="top-meta">${esc(m.generatedAt || "")} 更新${agoOf(m.generatedAt)}</span>
+        <span class="top-meta">${esc(NARROW ? stampShort(m.generatedAt) : m.generatedAt || "")} 更新${agoOf(m.generatedAt)}</span>
       </div>
       ${m.sourceFresh === false ? `<div class="stale-band">データが最新ではありません — ドライブ「ランニングログ」は ${esc(m.sourceUpdatedAt || "")} 時点。GitHub Actions の同期が失敗している可能性があります。</div>` : ""}
       ${staleView}
