@@ -85,6 +85,19 @@ Routine の作りに注意: 毎回新しいセッションを立てる Routine �
 そのセッションが GitHub MCP の `actions_run_trigger` で起動する形にしている。**このセッションはアーカイブしない。**
 消えたら、リポジトリ付きのセッションを作り直し、Routine の宛先をそのセッションにして作り直す。
 
+### 取得が止まったときの見分け方（2026-11-18 追記）
+
+11-11〜11-17 は 8:12 の起動で毎日 8:16 ごろに取得が終わっていた。**11-17 の 10:12 以降、リポジトリの Actions そのものが無効になり、**
+起動は `Actions has been disabled for this repository.` で断られ、予約実行も作られなくなった（11-18 は取得 0 回）。
+ワークフロー単体の状態は `active` のままなので、Actions のタブを見ても気づきにくい。GitHub からの通知メールも来ていない。
+
+- 同期キックの Routine の結果は誰も見ない場所（常駐セッション）に1行で残るだけなので、失敗しても本人に伝わらなかった。
+  失敗の理由はまずそのセッションの最後の報告を見る。
+- 「Actions has been disabled」なら、GitHub のリポジトリの Settings → Actions → General で
+  「Allow all actions and reusable workflows」に戻す（フォークなので、Actions タブに有効化のボタンが出たらそれも押す）。
+  Claude のセッションからは有効に戻せない。設定画面に「GitHub が無効にした」旨の表示があれば、GitHub サポートへの問い合わせが要る。
+- 戻したら、Actions タブから手動実行（`skip_if_done` なし）すれば数分でドライブが更新される。12:00 を過ぎていれば、日次コーチの Routine も手動で走らせ直す。
+
 ## 活動の重複（2026-10-26 に修正）
 
 Playwright の事前取得（`scripts/refresh_garmin_cookies_playwright.py`）は、ページネーション用に自分で呼んだ `fetch` のレスポンスも

@@ -98,7 +98,7 @@ Google Drive MCP の `read_file_content` で以下を読む。
 
 - **更新日が今日** → 通常どおり進む（`sourceFresh: true`）
 - **更新日が今日より前** → `sourceFresh: false` にする（フッターに「データが最新ではありません」と出る）。
-  あわせて「データが N 日前のものです。GitHub Actions の同期が失敗している可能性があります」を
+  あわせて「データが N 日前のものです。GitHub Actions の同期が失敗している可能性があります（リポジトリの Actions が無効になっていないか、Settings → Actions を確認）」を
   `issues` の先頭に書く（`meta.note` は 2026-09-30 に廃止）。
   分析自体は入手できている最新データで続行し、勝手に中止しない。
 
