@@ -93,9 +93,11 @@ Routine の作りに注意: 毎回新しいセッションを立てる Routine �
 
 - 同期キックの Routine の結果は誰も見ない場所（常駐セッション）に1行で残るだけなので、失敗しても本人に伝わらなかった。
   失敗の理由はまずそのセッションの最後の報告を見る。
-- 「Actions has been disabled」なら、GitHub のリポジトリの Settings → Actions → General で
-  「Allow all actions and reusable workflows」に戻す（フォークなので、Actions タブに有効化のボタンが出たらそれも押す）。
-  Claude のセッションからは有効に戻せない。設定画面に「GitHub が無効にした」旨の表示があれば、GitHub サポートへの問い合わせが要る。
+- 「Actions has been disabled」なら、まず Settings → Actions → General を見る。
+  **11-18 の時点では「Allow all actions and reusable workflows」のままなのに起動は断られた。** つまり本人の設定ではなく、
+  GitHub 側でリポジトリの Actions が止められている。このときは Actions タブの表示を確かめ、GitHub サポートに再開を頼む
+  （公開のフォークでヘッドレスブラウザから他社のサービスへログインしているので、自動の不正利用検知に掛かった可能性がある。理由は未確認）。
+  Claude のセッションからは有効に戻せない。
 - 戻したら、Actions タブから手動実行（`skip_if_done` なし）すれば数分でドライブが更新される。12:00 を過ぎていれば、日次コーチの Routine も手動で走らせ直す。
 
 ## 活動の重複（2026-10-26 に修正）
